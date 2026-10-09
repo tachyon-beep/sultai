@@ -7,6 +7,12 @@ exact local original import**. Original-file sizes/hashes remain unverified.
 Citation tokens embedded in the reports are report content, not verified
 citations here. The primary-source table below identifies checks actually made.
 
+Follow-up: [SIMIC_RECONCILIATION.md](SIMIC_RECONCILIATION.md) reads the new
+Claude comparison (`libfile_e75b9396a0508191b5ff86fcd350b047`) and verifies its
+Simic claims against current local source. Treat its reuse recommendation,
+early static-capacity comparator and developmental-removal definition as the
+current qualification to the staged plan below. No original transfer was retried.
+
 ## Reports: useful proposals and limits
 
 | Source | Contribution adopted | Qualification/correction |
@@ -99,6 +105,8 @@ naming constitution.
 2. Keep the CPU instrument as a reproducible software/identifiability check.
 3. Pre-register a feasible real-host task and true observable target contract;
    evaluate coarse, paired and paired-plus-probe evidence with leakage guards.
+   Prefer a separate interface to pinned Simic measurement infrastructure;
+   include matched static capacity early and disclose oracle privileges.
 4. Compare retrieval/interpolation, deterministic generation and diffusion
    only after a useful conventional repair reference is established. A failed
    reference remains a bounded failure to find a repair, not unrepairability.

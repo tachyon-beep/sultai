@@ -16,6 +16,20 @@ John clarified TCD as **technical concept demonstrator** during the task.
 The bounded first implementation is a short CPU synthetic instrument, not
 a completed learned-generator, handover, or physical-removal system.
 
+Follow-up reconciliation (documentation only): read
+`docs/research/SIMIC_RECONCILIATION.md`. Simic was verified at
+`454c7314cc2728ceee17513928541d60616bd081`, five commits beyond Claude's cited
+`16bcf70`. Its bounded harness/screens/drift checks are implemented; its HLD
+Aurelia/Nissa/Momir/Tamiyo separation is not an implemented domain runtime.
+Prefer a later separate interface to pinned Simic measurement infrastructure
+instead of rebuilding it, preserving this standalone TCD. This is not approval
+to merge, migrate, start a run or extend either project.
+
+The next real-host design must include matched static capacity early, distinguish
+oracle-site/target controls from practical allocation, and treat addition AND
+deliberate removal during continued learning as the growth mechanism.
+Experimental ablations test that mechanism; they do not define it.
+
 Original Library import is blocked: preparation succeeded, but byte transfer
 and the one supported retry failed (retry: HTTP 403 for each attachment).
 Do not restart an unbounded retry loop. Obtain a working supported Library
@@ -36,7 +50,8 @@ transfer/re-attachment before claiming exact research import.
 - `8e8a9bf`: first durable documentation checkpoint before implementation.
 - `74d2cdd`: research synthesis, TCD clarification, revised design and Astra review.
 - `6d655e4`: reviewed CPU demonstrator; 12 tests passed on installed Nyx path.
-- Use `git log` for the final handoff documentation commit.
+- `8220ccc`: initial reboot handoff. Use `git log` for the follow-up
+  reconciliation/consolidation documentation commits.
 - `src/sultai/repair.py`: immutable nonlinear 272-parameter adapter, conventional
   ridge fit, synthetic fixture, disjoint split guard, selection and scalar probe.
 - `src/sultai/smoke.py`, `scripts/smoke.sh`, `tests/test_repair.py`: executable
@@ -84,7 +99,11 @@ selection queries and 96 final three-arm test queries per episode. These are
 software instrument results from synthetic oracle targets, not evidence of
 learned repair, real defect repairability, handover or the final efficiency goal.
 Independent Astra correctness review found no material defects.
+Those test results belong to the unchanged TCD. The follow-up inspected Simic
+source/test definitions and committed reports only; it did not rerun Simic
+tests or research results. No source/runtime feature changed in either project.
 Track documentation in `sultai-5d22f48e2a`, implementation in
 `sultai-b8bae4fcc2`, and the original-import blocker in `sultai-9c01e0943e`.
 TCD definition issue `sultai-d06d9abe1d` is resolved by John's clarification.
 Next research gate: `sultai-8c727be6b1`; no campaign is authorized by that issue.
+Reconciliation documentation task: `sultai-5630caa657`.

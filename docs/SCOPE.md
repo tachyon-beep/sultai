@@ -19,6 +19,9 @@ near-empty, physical removal, or the final parameter-efficiency target.
 ## Agreed intent
 
 1. Addition and deliberate physical removal jointly drive development.
+   Removal participates in continued learning, capacity reallocation and
+   possible reorganization; it is not only final compression. Experimental
+   ablations are controls used to test this mechanism, not its definition.
 2. Start near-empty; compare equal capability at about half final retained
    parameters. Search/training cost is a separate accounting dimension.
 3. Tamiyo provides coarse site/intervention/budget observations. The seed
@@ -40,6 +43,9 @@ are later milestones requiring additional design and experiments.
 
 ## Open decisions
 
+- A future separately reviewed interface to a pinned Simic measurement
+  substrate, with shape/provider/source-identity contracts. This is the
+  recommended reuse direction, not approval to merge or expand either project.
 - Acceptance of a later real-host/generated-repair TCD beyond this synthetic
   instrument; the acronym itself is resolved.
 - Real host task, independent lineage/bottleneck definitions, capability

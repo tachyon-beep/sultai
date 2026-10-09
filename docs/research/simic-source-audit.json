@@ -1,0 +1,71 @@
+{
+  "date": "2026-10-09",
+  "repository": "/home/john/simic",
+  "revision": "454c7314cc2728ceee17513928541d60616bd081",
+  "claude_cited_revision": "16bcf70a2c7fa7997de8634b21b12dbfe3d55d30",
+  "descendant_commits": 5,
+  "worktree_clean": true,
+  "method": "Read-only exact source, existing test definitions and committed result reports; no runtime reproduction, raw logs, outer data or index refresh.",
+  "files": [
+    {
+      "path": "experiments/kernel_demo.py",
+      "sha256": "d2d33cf03d76d4f95c7644abd72c359c362975225813249e25a44911204ae3c7"
+    },
+    {
+      "path": "experiments/bounded_comparison.py",
+      "sha256": "512fcea23f0167f4eaca519c99234d5c212ca3afc17898c9cd4a3b4318022148"
+    },
+    {
+      "path": "experiments/bounded_data.py",
+      "sha256": "d182cfe9c71cebae890abf19dcaaa9689b3c13f01bd3d535ef60c0553611abdd"
+    },
+    {
+      "path": "experiments/bounded_screen.py",
+      "sha256": "d788cca061de2e49f390e4c756976ac3184c7d1905ab1d98995f5bebfbc7c7cd"
+    },
+    {
+      "path": "src/simic/__init__.py",
+      "sha256": "553a079040fa782b4b01734d49a67e26509479365219e16e610d3a9060c7a1b1"
+    },
+    {
+      "path": "src/simic/py.typed",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/design/02-constitution.md",
+      "sha256": "59ff3dec55bb435a9887d73a01de72b85148570b16d9e62173b9de2821a5c565"
+    },
+    {
+      "path": "docs/design/04-architecture.md",
+      "sha256": "044c1621f52e4208e98a0fa6681b5f9c500737de9087d122494ae2bdfa5b8212"
+    },
+    {
+      "path": "docs/bounded-comparison.md",
+      "sha256": "d7763c9bc7ca6fb5e65a0e3af0b5f5df88521c716d8bf6b92775950221fca8ec"
+    },
+    {
+      "path": "docs/product/current-state.md",
+      "sha256": "f50793a2d0ff90d369244e2d4ce86cab4d1fb955f58a4aad749762d6cec7993d"
+    },
+    {
+      "path": "docs/results/2026-10-08-bounded-screen-v1.md",
+      "sha256": "30365e6850d4dfa82ca8ac4c8a3d4c9faaeeaeff65ea3431a1c4388164192e6a"
+    },
+    {
+      "path": "docs/results/2026-10-09-graft-capture-v2.md",
+      "sha256": "44f324d1809719fa799eccf18a599f9baf50db0d0b8cdea48235fad651a9ecb1"
+    },
+    {
+      "path": "tests/unit/test_bounded_hardening.py",
+      "sha256": "e9816984ab50e0a7506b476319f728b95169c39ef5650d1b6b2ba4f35b679b77"
+    },
+    {
+      "path": "tests/unit/test_bounded_screen.py",
+      "sha256": "4ca92dde9610d1913bfb8e307279c78da55995c0e033d94f6967fedb6ff6d688"
+    },
+    {
+      "path": "tests/unit/test_bounded_execution.py",
+      "sha256": "e2491c1f76ba82a12e0bae3da23c80876e6496bc40404154e030ff1cdb6bc23b"
+    }
+  ]
+}

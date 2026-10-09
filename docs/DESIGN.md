@@ -1,4 +1,4 @@
-# Bounded technical concept demonstrator — design v1
+# Bounded technical concept demonstrator — design v2
 
 ## Question and non-claims
 
@@ -7,6 +7,22 @@ coarse but its own observations become richer? This is a mechanism probe.
 It does not test development from near-empty, deliberate physical removal,
 or the half-final-parameter target. All designs below are proposals until
 implemented and measured.
+
+## Simic substrate decision (documentation only)
+
+The [source-backed reconciliation](research/SIMIC_RECONCILIATION.md) verifies
+Simic's implemented bounded CIFAR harness, paired screens, preregistration and
+source/runtime checks at `454c7314cc2728ceee17513928541d60616bd081`.
+Prefer a future narrow interface to this pinned measurement substrate over
+independently rebuilding it. Keep the current standalone stdlib TCD unchanged.
+There is no migration, merge or integration implementation in this decision.
+
+The current Simic runner has a 64-channel 8×8 slot, hard-coded arms and
+human-authored seed types. The HLD's Aurelia/Nissa/Momir/Tamiyo roles remain
+design contracts, not implemented domain services. A future interface must
+explicitly adapt shapes, preserve instruction/evidence separation, pin all
+provider/encoder/probe/candidate code and semantics, and retain drift-refusing
+verification. Do not depend on the live checkout or current run directories.
 
 ## Minimal host and adapter
 
@@ -38,6 +54,12 @@ Tamiyo's fixed instruction contains site identity, permitted intervention,
 shape and resource budget. It must not include a complete diagnosis, target
 weights, private host state, or test labels. This is Sultai's proposed role,
 not an assertion that the current Simic observability-only Tamiyo has changed.
+In a future Simic boundary, that commissioning function maps to HLD Aurelia,
+direct seed evidence to Nissa, and generation/investigation to part of Momir.
+This is a semantic mapping; it does not rename Sultai or imply those Simic
+domains are implemented. INV-07/09 are HLD evidence/brief constraints; Tamiyo's
+non-steering witness rule is INV-35. Seed evidence is a model input, so inert
+dashboard observability does not substitute for evidence-integrity tests.
 
 The seed independently receives one of:
 
@@ -96,7 +118,38 @@ count separately. Report one generated sample and best-of-K separately, with
 the same K and charged selection queries; neither may be disguised as the
 other. Include shuffled-conditioning and mismatched-pair controls.
 
+## Early matched static-capacity comparator
+
+Include static added capacity from step zero in the first real-host study,
+alongside the same-snapshot conventional adapter reference. Match its final
+module/site/retained parameter budget where possible, initial host lineage,
+task/data, future streams and final endpoint. Its intermediate state differs
+because of its learning head start; do not call it the same frozen-snapshot
+control. Record birth calibration and training/search costs separately. Equal
+epochs are not equal compute. Simic's reported 31–60% scheduled graft capture
+on its particular `under_normalized` study motivates this comparison, not a
+general prediction about generated repair.
+
+Known defect/site/module choice makes static capacity a privileged oracle-site
+allocation control. An oracle-residual fitted adapter is separately privileged
+by its targets. Neither is a practical allocator or a guaranteed optimum.
+Give all fixed-site providers the same site privilege and keep evidence tiers
+explicit. A later practical allocator must discover site/size/timing from
+allowed observations, pay for scouting/search, and face held-out hosts plus a
+precommitted static/heuristic allocation baseline. See the reconciliation for
+the two distinct comparisons and result limitations. No new comparator is
+implemented or run by this documentation update.
+
 ## Handover and subsequent removal stage
+
+Developmental removal is part of John's growth mechanism: addition AND
+deliberate removal jointly change what the model learns next. A removal may
+withdraw a temporary scaffold, free capacity or induce reorganization while
+learning continues; immediate improvement is not required. It is not merely
+post-training compression. Experimental ablations instead test causal claims
+by omitting/removing/changing elements in controlled branches. The same delete
+operation can serve either role, depending on the arm and subsequent learning.
+The current frozen TCD demonstrates neither developmental removal nor handover.
 
 Evaluate both immediate effect and a predeclared short common-future learning
 horizon, with a no-repair branch under identical future data. Track transient
@@ -121,7 +174,8 @@ model; zero masks alone do not establish reduction.
 Count all retained parameters, including frozen tensors, plus optimizer-state
 bytes and any builder/controller/retrieval assets still needed at inference.
 Report trainable/frozen subsets and search-only assets separately. Compare the
-developed
-path with the final architecture trained from scratch. Equal from-scratch
+developed path with growth-only, matched late pruning/removal, and the final
+architecture trained from scratch. Measure learning after removal and final
+withdrawal. Equal from-scratch
 performance still meets the efficiency goal while weakening a trajectory
 specific explanation. Do not copy the full legacy lifecycle machinery.

@@ -2,6 +2,10 @@
 
 Read [COMPARISON.md](COMPARISON.md) for the grounded report synthesis, checked
 primary references, mathematical corrections and minimal lifecycle lessons.
+The follow-up [Simic reconciliation](SIMIC_RECONCILIATION.md) checks Claude's
+59-line comparison against current source, separates HLD from implementation,
+and records the separate-interface reuse recommendation and early static
+capacity comparison. It does not change the runnable TCD.
 
 ## Original attachment inventory
 

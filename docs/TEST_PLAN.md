@@ -28,7 +28,13 @@ real host repairability, or the final parameter-efficiency target.
 Pre-register host/task, independent lineage/bottleneck partitions, sample
 counts, capability/error margin, failure threshold, horizon, units, seeds,
 query budgets, and K before collecting confirmatory results. Compare every
-method in DESIGN.md under all three telemetry conditions and shuffle controls.
+applicable method/condition combinations in DESIGN.md and shuffle controls;
+do not secretly give coarse methods paired targets or gradients. Add the
+early matched static-capacity comparator described there, separately from the
+same-snapshot conventional fit. Declare oracle-site/target privileges and
+practical allocation costs explicitly. Any future Simic interface must verify
+pinned host/provider/encoder/probe source identities and preserve pairing,
+plan hashes and untouched selection/test boundaries before a campaign.
 Use paired uncertainty estimates over independent groups, not individual
 examples or sibling branches. If bottleneck families induce cross-lineage
 dependence, group by independent lineage–family components or use a suitable
@@ -50,3 +56,7 @@ near 0.5 relative to a properly tuned reference. Report search/training cost
 separately. Compare growth-only, pruning-only where applicable, joint
 development, and the final architecture trained from scratch. Temporary
 structure must be gone at the final measurement; masks are insufficient.
+Compare developmental removals with growth-only and matched late-removal or
+pruning schedules, measuring subsequent learning as well as final capability.
+Shuffling telemetry and disabling a mechanism are experimental ablations;
+they must not be counted as the model's developmental removal policy.

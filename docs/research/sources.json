@@ -54,5 +54,25 @@
         "date": "2026-10-09"
       }
     }
-  ]
+  ],
+  "read_only_addenda": [
+  {
+    "library_file_id": "libfile_e75b9396a0508191b5ff86fcd350b047",
+    "file_id": "file_00000000f01c81fb9d0fcf23dea44d6f",
+    "file_name": "Pasted text(20261009-054538).txt",
+    "reported_size_bytes": 6450,
+    "api_text_read": {
+      "available": true,
+      "total_lines": 59,
+      "has_more": false,
+      "exact_local_original": false,
+      "date": "2026-10-09"
+    },
+    "local_path": null,
+    "sha256": null,
+    "verified_local_bytes": false,
+    "materialization_attempted": false,
+    "role": "Claude follow-up comparison, read-only by request"
+  }
+]
 }
