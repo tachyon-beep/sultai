@@ -20,18 +20,22 @@ of this checkpoint.
 - [Bounded design](docs/DESIGN.md): one-site local repair proposal.
 - [Test plan](docs/TEST_PLAN.md): validity checks and staged comparisons.
 - [Research pack](docs/research/README.md): sources, evidence status, corrections.
-- [Runnable TCD](docs/SMOKE.md): implemented behavior, commands and limits.
+- [Hybrid demo and results](docs/HYBRID_DEMO.md): learned formation, admission and actual removal.
+- [Legacy instrument](docs/SMOKE.md): original conventional repair checks, preserved unchanged.
 
 Run the CPU instrument without installing dependencies:
 
 ```sh
 cd /home/john/sultai
-sh scripts/smoke.sh
+sh scripts/hybrid.sh --summary
 ```
 
-The first TCD checks a nonlinear 272-parameter adapter, conventional ridge
-repair on planted targets, split/selection boundaries, and a fixed shadow-probe
-ambiguity example. It is not yet the full learned local repair comparison,
-growth/removal system, or a test of half-size final models. The three exact
-original research imports remain blocked. Claude source reports and completed
-independent TCD are now locally verified; see the [handoff status](docs/research/CLAUDE_HANDOFF.md).
+The hybrid compares learned formation with conventional repair and retrieval
+on a shared synthetic family. A separate assay learns through task gradients,
+tapers a temporary adapter, deletes it and continues learning. All unfavorable
+control results are retained. This demonstrates bounded mechanics; it does not
+establish real-host transfer, a developmental advantage or half-size models.
+
+The three exact original research imports remain blocked. Claude source
+reports and completed independent TCD are locally verified; see the
+[handoff status](docs/research/CLAUDE_HANDOFF.md).

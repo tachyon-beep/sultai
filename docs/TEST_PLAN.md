@@ -5,6 +5,12 @@ adds focused `test_formation.py`, `test_lifecycle.py` and `test_hybrid_cli.py`
 checks while retaining all legacy tests. The implementation plan records file
 ownership. Final results and executable commands belong in HYBRID_DEMO.md.
 
+Delivered verification: 37 tests passed in 6.597 seconds; two final full
+runs produced byte-identical reports and all 16 gates passed. Independent
+review's omitted ridge success gate was corrected with a failure regression
+test and the pre-existing 1e-12 positive-control tolerance. See
+[HYBRID_DEMO.md](HYBRID_DEMO.md) and `results/` for the bound evidence.
+
 Review priorities: no held-out outcome affects learning/selection/settings;
 real independent procedural lineage IDs; same-family scope disclosed; fixed
 candidate banks; honest counts; nonlinear primary versus affine diagnostic;

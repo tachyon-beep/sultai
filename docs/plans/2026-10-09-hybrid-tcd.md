@@ -92,3 +92,14 @@ external work instead of overwriting. Update Filigree with actual outcomes.
 Refresh same-host Git bundle and tracker export; verify in a fresh bare repo
 with `git fsck --full`, exact commit/tree match and SHA-256 manifest. No remote
 publication. Final report includes commands, commits, results and limitations.
+
+## Completion record
+
+Tasks 1–4 are complete. Contract checkpoints are `d22bd75` and `3e01a13`;
+the implementation is `6b03f89`. All 37 tests passed, and two final full runs
+produced byte-identical JSON with all 16 gates passing. The independent code
+review's missing ridge gate was corrected without changing fixtures/training;
+the final narrow evidence audit approved the saved metrics and limits. See
+`../HYBRID_DEMO.md`, `../results/` and `../RESUME.md` for delivery details.
+The recovery manifest, rather than an assumed date, records final bundle
+coverage and restoration verification for task 5.
