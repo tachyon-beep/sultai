@@ -1,0 +1,194 @@
+{
+  "repository": "/home/john/sultai",
+  "commit": "ccdfd5225ee5575f365aa6a4a0698bed0f652958",
+  "git_tree": "274d65d0b0b958a952cc4be4046b4fb077b50dfa",
+  "remote": null,
+  "scope": "Allowlisted tracked source, tests, launcher, design/source documents and delivered results; each file byte-exact from pinned commit. Prior review reports, mutable tracker, Git database, logs and credentials excluded. No new semantic findings included.",
+  "files": [
+    {
+      "path": ".gitignore",
+      "bytes": 268,
+      "sha256": "80809ab27176e3d60719e9d407f72aa90630db0ac5ae69537a0d43b89ca65314"
+    },
+    {
+      "path": "AGENTS.md",
+      "bytes": 1940,
+      "sha256": "f0dcda7de6fa760bf5b4aa4d14c3a5dc268cec211f2802509a7b6a9ce4541079"
+    },
+    {
+      "path": "README.md",
+      "bytes": 2265,
+      "sha256": "c391e6970395f064b54ed1d4f2d92154526ca0c220f89f9075a0365a49bf6c5d"
+    },
+    {
+      "path": "docs/CONCEPT.md",
+      "bytes": 13746,
+      "sha256": "f891f7e113feda3f95fb8d544b7ad73b24bd1f1401c30c748edcbc831de1530b"
+    },
+    {
+      "path": "docs/DECISIONS.md",
+      "bytes": 9897,
+      "sha256": "876f2c179acbf448b9b9cddb6da386cb9d3f9481f0a251ac161899da8283f46c"
+    },
+    {
+      "path": "docs/DESIGN.md",
+      "bytes": 12337,
+      "sha256": "9d856e4bb8152a8acc3062cd2334b2204d1bbed8df30b854f60421ec5c5ac5e9"
+    },
+    {
+      "path": "docs/HYBRID_CONTRACT.md",
+      "bytes": 8473,
+      "sha256": "b3e53a6990b0bd6c70a6b524c201a80eb8c7e7ea490e261cab39abc10ce623c3"
+    },
+    {
+      "path": "docs/HYBRID_DEMO.md",
+      "bytes": 8742,
+      "sha256": "dfe968bf625a7f40d9945c956d5d1758e245fc94c8fd0cd935109766d26dc118"
+    },
+    {
+      "path": "docs/SCOPE.md",
+      "bytes": 2970,
+      "sha256": "d0201b757264d740e8cdff71bc729d69063dd9d42d46665966d0afa79964a652"
+    },
+    {
+      "path": "docs/SMOKE.md",
+      "bytes": 6579,
+      "sha256": "c563da9e368bd1eb5e7e49cf45fd0d481151c4a364133123a6d512608de1bab3"
+    },
+    {
+      "path": "docs/TEST_PLAN.md",
+      "bytes": 5289,
+      "sha256": "d26ab94b690899e13e551a59a53bcece347edc9071321e31f4f13efede26feb3"
+    },
+    {
+      "path": "docs/designs/README.md",
+      "bytes": 1687,
+      "sha256": "d997b8f4e3f52d8788e05318d7ff84b994a55cd07f4d01c6e78aa874ca6bade7"
+    },
+    {
+      "path": "docs/designs/emmy-DESIGN-c720bce.md",
+      "bytes": 11578,
+      "sha256": "b2175ecefa21cc1498876dc01e3dbeea525c326453ae85a1d12cdf5ff7e36dc7"
+    },
+    {
+      "path": "docs/research/claude-handoff/00-index-provenance-and-conflicts.md",
+      "bytes": 11114,
+      "sha256": "7494b2bb1ce73db5fb8df5817414fa9ff04bacf79926353e1cfd8d563bfeac94"
+    },
+    {
+      "path": "docs/research/claude-handoff/emrakul-tamiyo-revision.md",
+      "bytes": 23027,
+      "sha256": "64b622478453f394eac55d258d1bdc77f0082c10b37968d24665e31f9e199493"
+    },
+    {
+      "path": "docs/research/claude-handoff/esper-lite-review.md",
+      "bytes": 6825,
+      "sha256": "4673c4f08ff80d46d463079c83e5fdf4514d5e2e8c8a5155654f1d7369eda306"
+    },
+    {
+      "path": "docs/research/claude-handoff/openai-report-vs-repos.md",
+      "bytes": 6391,
+      "sha256": "8c86478d7a68c95c217ee7b29a5af45895ee9f3b2b47e2059f2d235d0a019564"
+    },
+    {
+      "path": "docs/research/claude-handoff/simic-diffusion-grown-modules.md",
+      "bytes": 48427,
+      "sha256": "4d3f5aa845766c2a34406213e2c4d39b65113a3d640d8614e5da76eb29e1d69d"
+    },
+    {
+      "path": "docs/research/claude-handoff/simic-seed-comparison.md",
+      "bytes": 6253,
+      "sha256": "d31ca487ad0050e8280a4736157e2b0444cde01acdb17a84d3e5eb242113c702"
+    },
+    {
+      "path": "docs/research/claude-handoff/sultai-concept-demonstrator-design.md",
+      "bytes": 60395,
+      "sha256": "e376250015bad71675f2194636bf82e85de9638c1d1f820b97e7ef1921ad38cf"
+    },
+    {
+      "path": "docs/research/sources.json",
+      "bytes": 8723,
+      "sha256": "f62adf5bed2b253356d96598e2f78b80163319b44805be06a63dfc3bc9ab5887"
+    },
+    {
+      "path": "docs/results/hybrid-cpu-2026-10-09.json",
+      "bytes": 409755,
+      "sha256": "adae7d8ab70e6bd13ddd44dd3127468e3b0937f0cca7fa05b0a7d615559e3326"
+    },
+    {
+      "path": "docs/results/hybrid-runtime-2026-10-09.json",
+      "bytes": 1195,
+      "sha256": "0e5e69df3a1849f7d0ceab5f9e3006369fdd615110f5d1e9da533fa91d981427"
+    },
+    {
+      "path": "docs/results/synthetic-smoke-2026-10-09.json",
+      "bytes": 2126,
+      "sha256": "7c2d1b664014efe237b96578c77201c6bffc897a1a3d1aa89ef660937ec95534"
+    },
+    {
+      "path": "pyproject.toml",
+      "bytes": 340,
+      "sha256": "5f8b201a7db360f680f3e4893ed0d618a6a0c7100502e1a3cc81780e1b368e47"
+    },
+    {
+      "path": "scripts/hybrid.sh",
+      "bytes": 285,
+      "sha256": "43c5400d0f2ae4b6d9690078e3f84bc7c04f5b6065333c3ad08bfa40bd42b6c2"
+    },
+    {
+      "path": "scripts/smoke.sh",
+      "bytes": 137,
+      "sha256": "4e40a1a2e5e3bde517d5f7071aeb25ed9492b8c2b06d6b5f86a12489d15054ae"
+    },
+    {
+      "path": "src/sultai/__init__.py",
+      "bytes": 77,
+      "sha256": "e66c34ef37b48f60de6d67d8802193abcd7bf23414da274c86e5d3b700ede1d7"
+    },
+    {
+      "path": "src/sultai/formation.py",
+      "bytes": 25725,
+      "sha256": "5d2a01793181e5314d1a62cb4f77ffde75d168db777ad140caf324c1b9956f02"
+    },
+    {
+      "path": "src/sultai/hybrid.py",
+      "bytes": 3552,
+      "sha256": "dcfba701c5ab37ed2f295ed9a9e37a712de5f623fa62543fe16bcf856470a994"
+    },
+    {
+      "path": "src/sultai/lifecycle.py",
+      "bytes": 19627,
+      "sha256": "f96c2d194cd8f005e7b7aef9e3495b4376bee21694c7cb784a3167df00170777"
+    },
+    {
+      "path": "src/sultai/repair.py",
+      "bytes": 9934,
+      "sha256": "9c3fb14d99645ca67256cde474b7de91b77c464621ea3ba69fb7d197969f30a2"
+    },
+    {
+      "path": "src/sultai/smoke.py",
+      "bytes": 2529,
+      "sha256": "4c1fa4dbf8c4d7990d9b391ad1787772588bc9a7e0964a6ec7a42e6bcfa2cbad"
+    },
+    {
+      "path": "tests/test_formation.py",
+      "bytes": 12278,
+      "sha256": "dca4c66d5bfa6343915aba2189fda60d9fd40600c9e6505cdda95a0be8e66c21"
+    },
+    {
+      "path": "tests/test_hybrid_cli.py",
+      "bytes": 2033,
+      "sha256": "e5d7a1f2b8e1b80c69153558c96a6951e333ad26520f94b52c3d8a2dc4936fdb"
+    },
+    {
+      "path": "tests/test_lifecycle.py",
+      "bytes": 10518,
+      "sha256": "e9b9dbfcf9ee427f9f88ae8312e6e92db45b862cf19f1357ad2423ef8b723306"
+    },
+    {
+      "path": "tests/test_repair.py",
+      "bytes": 8545,
+      "sha256": "81c33cb9a23826ba09ec3f041b1a9ad6d02b78621445dffa5e6e9f5c029e431e"
+    }
+  ]
+}
