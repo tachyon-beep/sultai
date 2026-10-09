@@ -1,5 +1,11 @@
 # Hybrid TCD: bounded CPU demonstration
 
+This page records protocol v1 at immutable commit
+`ccdfd5225ee5575f365aa6a4a0698bed0f652958`. The current runner's v2 successor
+adds strict types and required-state validation while retaining the numerical
+experiment. See [TYPING_CONTRACTS.md](TYPING_CONTRACTS.md) for successor
+verification and source-bound results. The v1 artifacts below remain unchanged.
+
 The implemented hybrid demonstrates learned repair formation, empirical
 admission/no-op and separate task-learning/taper/deletion mechanics. The
 no-growth lifecycle control finishes with lower error than the formed-adapter

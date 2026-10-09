@@ -1,0 +1,35 @@
+{
+  "protocol": "sultai-hybrid-cpu-v2",
+  "base_commit": "ccdfd5225ee5575f365aa6a4a0698bed0f652958",
+  "gate_count": 16,
+  "byte_identical_replay": true,
+  "all_prior_assay_and_diagnostic_values_unchanged": true,
+  "allowed_schema_differences": [
+    "protocol",
+    "source_identity",
+    "runtime",
+    "formation.isolation"
+  ],
+  "runs": [
+    {
+      "run": 1,
+      "elapsed_seconds": 3.234468946000561,
+      "user_cpu_seconds": 3.209505,
+      "system_cpu_seconds": 0.022096000000000005,
+      "exit_code": 0
+    },
+    {
+      "run": 2,
+      "elapsed_seconds": 3.2409672850044444,
+      "user_cpu_seconds": 3.209330999999999,
+      "system_cpu_seconds": 0.028067999999999982,
+      "exit_code": 0
+    }
+  ],
+  "report_sha256": "b4170d0b7da7909aea6744dfd7ea4ec63744c7b28b4eece0e7c6ec48ef5928e7",
+  "source_aggregate_sha256": "2431e053ddd5ddf10d0565923a382023ae3eeb881fd233da777eac28ee75ab1f",
+  "runtime": {
+    "implementation": "CPython",
+    "python": "3.12.3"
+  }
+}

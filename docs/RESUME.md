@@ -1,119 +1,132 @@
-# Resume Sultai hybrid work
+# Resume Sultai after strict-contract hardening
 
-Project: `/home/john/sultai`, Nyx. Parent task:
+Repository: `/home/john/sultai`, Nyx. Parent task:
 `01a10aef-253f-7248-9619-7bb7271430ed`.
 
-## Delivered milestone
+## Delivered state
 
-John authorized the hybrid technical concept demonstrator on 2026-10-09 at
-09:37 UTC. The bounded implementation is complete. Start with
-[HYBRID_DEMO.md](HYBRID_DEMO.md) for commands, measured comparisons and limits;
-[HYBRID_CONTRACT.md](HYBRID_CONTRACT.md) records the reviewed scope.
+The hybrid TCD is followed by separately authorized strict typing and required-
+state hardening. Read [TYPING_CONTRACTS.md](TYPING_CONTRACTS.md) for exact changes,
+ELSPETH conventions inspected/adopted, verification, and remaining limits.
+[HYBRID_DEMO.md](HYBRID_DEMO.md) preserves the original v1 experimental record.
 
-Local milestones:
-- `d22bd75`: reviewed contract, preserved emmy snapshot and source provenance.
-- `3e01a13`: reconciled concept/scope and stale handoff documentation.
-- `6b03f89`: learned formation, controls, lifecycle/removal, CLI and unit tests.
-- The following evidence/documentation commit records the final results;
-  use Git history and the recovery manifest for its full identity.
+Known milestones: `ccdfd5225ee5575f365aa6a4a0698bed0f652958` is the immutable
+original delivery; `f8011ce` preserves its independent semantic audit and neutral
+Claude handoff. The following successor commit contains the fixes/evidence.
+Read `git log` and the recovery manifest for the exact final full commit/tree.
+Work was isolated on `strict-contracts-ccdfd52` at
+`/home/john/Documents/Codex/2026-10-09/task-6/sultai-hybrid`; main is integrated
+by fast-forward only after its clean original HEAD is rechecked.
 
-Implementation was isolated on branch `hybrid-tcd` at
-`/home/john/Documents/Codex/2026-10-09/task-6/sultai-hybrid` and integrated by
-fast-forward after confirming main had no external changes. Preserve that
-worktree if still attached; inspect status before using or removing it.
-Filigree task `sultai-93937931a3` records delivery and final status. Lead actor:
-`sultai-hybrid-lead`. All implementation and review workers finished.
+Tracker: `sultai-c994ac71af`, actor/assignee `sultai-contract-lead`. The earlier
+hybrid task `sultai-93937931a3` was completed separately. All workers finish
+before delivery. Inspect current status before touching this worktree.
 
-Only short single-process CPU development is authorized, with a 120-second
-external demo timeout. No GPU pilot, large corpus, paid service, publication,
-or Simic/Aurora/ELSPETH changes. ELSPETH streaming remains priority.
+## Verification and scientific scope
 
-## Verified evidence and honest limits
+Final frozen source aggregate:
+`2431e053ddd5ddf10d0565923a382023ae3eeb881fd233da777eac28ee75ab1f`.
+Final v2 result SHA-256:
+`b4170d0b7da7909aea6744dfd7ea4ec63744c7b28b4eece0e7c6ec48ef5928e7`.
 
-All 37 unit tests passed in 6.597 seconds, including the unchanged 12 legacy
-checks. Two final integrated runs took 2.826 and 2.829 seconds, passed all
-16 gates and produced byte-identical JSON. Code review found one omitted
-ridge acceptance gate; it was fixed using the existing 1e-12 unit-test
-tolerance, with a failed-control regression test. No training or fixture
-retuning followed held-out evaluation. Independent final evidence review
-approved the reported metrics, costs, hashes and bounded claims.
+55 unit tests passed in 13.162 seconds. The local quality entry point passed
+16 checks: strict mypy over eight production modules, Ruff lint/format over
+14 source/test files, positive/negative fixtures and real-source-copy mutation
+controls. Two complete demos passed all 16 gates, took 3.234/3.241 seconds and
+produced byte-identical JSON. Every v1 assay/diagnostic value is unchanged after
+excluding only protocol, source/runtime identity and new split provenance.
+Artifacts are `docs/results/strict-*` and `hybrid-strict-*`.
 
-Artifacts:
-- `docs/results/hybrid-cpu-2026-10-09.json`
-- `docs/results/hybrid-runtime-2026-10-09.json`
-- `docs/reviews/hybrid-design-review.md`
-- `docs/reviews/hybrid-correctness-review.md`
+Four scoped audit gaps were fixed: malformed affine prediction shapes,
+incomplete generator state, missing required evidence/gates, and invalid cost
+ledgers. A targeted review caught additional empty nested configuration/source
+maps; exact keys/types/counts/digests and regression tests now close that case.
+These were boundary counterexamples, not corruption of the original fixed run.
+Optional absence is explicit; required missing state cannot become zero/no-op.
 
-Result SHA-256:
-`adae7d8ab70e6bd13ddd44dd3127468e3b0937f0cca7fa05b0a7d615559e3326`.
-Executable aggregate SHA-256:
-`96913b8d85d7d6dfc4feddc4844d0d61db6e51f5462ba483c98654e6a9035dd9`.
+The research limits remain: one shared four-template synthetic family, four
+output degrees of freedom materialized into 272 values, privileged oracle
+residuals, no real-host/unseen-family transfer or calibrated safety guarantee.
+The separate same-feature lifecycle physically disposes of a temporary adapter
+and finishes at 272 values from a 544-value peak. No-growth and early-static
+taper outperform the formed path. No developmental advantage, near-empty
+origin, learned removal policy, diffusion or half-size reference result follows.
 
-Paired formation reduces held-out mean MSE from 0.0871569 to 0.000333165
-on a shared public four-template family. Its stored repair has 272 values,
-but effective output dimension is four. Conventional ridge is more accurate.
-This is seen-family procedural holdout using privileged oracle residuals;
-it does not establish transfer across trained hosts or unseen families.
-Identity probes add no evidence. Eight healthy counterparts all choose no-op,
-which is an empirical result, not a population safety bound.
+## Neutral Claude review package
 
-The separate same-feature lifecycle runs task gradients, taper and actual
-adapter deletion, finishing with 272 host values from a 544-value peak.
-Formed-path final MSE is 5.05320e-6, while no-growth is better at 5.38757e-8.
-Early-static taper is also better. Insertion is raw and scheduled; admission
-is measured separately in formation. No near-empty growth, developmental
-advantage, learned removal policy or half-size reference target is established.
-No diffusion model is implemented. The original legacy instrument and all
-imported Claude source files remain unchanged.
+The independent prompt targets ccdfd52, not this successor, and contains none
+of the new semantic findings. Attach both:
 
-## Sources and remaining import blocker
+- `/home/john/Documents/Codex/2026-10-09/task-6/sultai-review-ccdfd52/CLAUDE_REVIEW_HANDOFF.md`
+- `/home/john/Documents/Codex/2026-10-09/task-6/sultai-review-ccdfd52/sultai-ccdfd52-review.zip`
 
-The emmy and Claude source designs are preserved under
-[designs/](designs/README.md) and `research/claude-handoff/`. Claude's complete
-independent TCD and later Emrakul/Tamiyo revision arrived in `72f9eeb`.
-All six source hashes match their index. The TCD's added revision-pointer
-paragraph is separately identified; removing only that paragraph in memory
-matches the supplied 59,999-byte original hash. It is not a saved original
-attachment. Comparison completed before hybrid implementation.
+Archive SHA-256:
+`572fad1389c6607653f4d4bce6de471d6e3c490121235158061f0ee980a396b3`.
+Its 37 source files are byte-exact from the pinned commit. Claude web may not
+see Nyx; local path mentions are not file transfer. No Claude contact occurred.
+Tracked copies of prompt, source manifest, audit, reproducers and lint study
+are under `docs/reviews/ccdfd52/`. The source ZIP can be regenerated from the
+pinned Git objects and manifest. Historical reproducers intentionally fail on
+ccdfd52; they are separate from the current passing test suite.
 
-The three original pasted Library attachments remain absent. Related Claude
-reports do not fulfill their byte-exact import requirement. Supported Library
-transfers failed, including bounded retries; do not repeat them. Read
-`research/sources.json` for actual local paths and verification status.
-Import issue `sultai-9c01e0943e` remains open; future real-host protocol issue
-`sultai-8c727be6b1` remains dependent on import. This does not block the
-completed bounded synthetic implementation.
+## Re-entry
 
-## Re-entry and next decision
+1. Inspect `git status --short`, `git log -5 --oneline`, `git worktree list`
+   and `git remote -v`; preserve newer work. No remote was created.
+2. Read AGENTS.md, TYPING_CONTRACTS.md and HYBRID_CONTRACT.md.
+3. Inspect tracker with `filigree show sultai-c994ac71af` in main. Avoid
+   `session-context`: this version rewrites instructions/starts dashboards.
+4. Run `sh scripts/hybrid.sh --summary` for a bounded CPU check after reboot.
+   No runtime dependency install, network or GPU is required.
+5. For changed code, run the affected unit checks and the quality entry point:
+   `nice -n 10 timeout 120 python3 scripts/check_quality.py`.
+   It accepts explicit `--mypy`/`--ruff` paths; never installs automatically.
+   Nyx used system mypy 1.19.1 and read-only ELSPETH Ruff binary 0.15.4.
 
-1. Inspect `git status --short`, `git log -6 --oneline`, `git worktree list`
-   and `git remote -v` in Sultai. Preserve any newer work.
-2. Read AGENTS.md, HYBRID_CONTRACT.md and HYBRID_DEMO.md.
-3. Inspect tracker with `filigree show sultai-93937931a3` from main. Avoid
-   `session-context`: this version can rewrite instructions/start dashboards.
-   Its database may require filesystem permission even for read commands.
-4. For a check after reboot, run `sh scripts/hybrid.sh --summary`; no install
-   or network access is required. Run the unit suite only for new changes or
-   unresolved correctness concerns.
-5. Before a larger stage, select a real host/task, observable evidence, family
-   holdout, capability margin, grouped calibration and an approved
-   compute/duration/stopping budget. No larger run is authorized by this TCD.
+Only short CPU development is authorized. ELSPETH streaming remains priority.
+No long training, GPU pilot, paid service, publication, Simic/Esper/ELSPETH
+changes or Lavinia project creation occurred here. A separate owner may assess
+Lavinia; the [feasibility addendum](reviews/ccdfd52/lavinia-feasibility.md) finds
+a narrow kernel plausible with moderate confidence and proposes a separate
+one-rule, two-contract experiment. No extraction or generic analyzer rewrite
+was performed here.
 
-Emrakul forms/admit/no-op and later reductive edits; Tamiyo nominates coarse
-opportunities. Audited Emrakul outcomes must become informative before training
-Tamiyo on them. No illustrative readiness percentage/intervention count is a
-specification. Small fixture failures do not prove unrepairability.
+## Sources and remaining decisions
+
+The emmy snapshot and delivered Claude source documents remain byte-preserved.
+All seven delivered handoff files match their provenance hashes. The three
+original pasted Library attachments are still absent after supported bounded
+transfer failures; do not repeat failed downloads or reconstruct fake originals.
+Import issue `sultai-9c01e0943e` remains open and real-host preregistration issue
+`sultai-8c727be6b1` remains dependent. See `research/sources.json`.
+
+The evidence-gate sequence supplied for the separately owned Flight Report
+graphic is:
+
+1. Trust the instrument: strict contracts, known-answer/healthy/no-op controls,
+   malformed-state refusal, held-out isolation and genuinely failed targets.
+2. Establish repair headroom: independent trained hosts and bottleneck families,
+   usable telemetry, fair optimizer/retrieval/generator baselines and separate costs.
+3. Test useful development: live handover, removal and subsequent learning against
+   no-growth, static and final-architecture-from-scratch controls.
+4. Build a defensible corpus: versioned lineage/site/intervention provenance,
+   conditioning/selection/test separation, retained failures and grouped calibration.
+5. Make a bounded programme decision: task, capability margin, data sufficiency,
+   budget, stopping rules and the next hypothesis.
+
+No competing graphic or additional experiment was created. Small bounded training
+experiments may help establish readiness; the full half-parameter ambition is
+a later goal, not a prerequisite to every experiment. Tamiyo learning needs
+informative audited Emrakul outcomes, not invented readiness percentages.
 
 ## Recovery truth
 
-Local Git commits protect committed work, not host or disk loss. No remote
-is configured and no off-host backup is verified. The same-host pack is at
+The same-host pack is
 `/home/john/Documents/Codex/2026-10-09/task-6/backups/`:
-`sultai-2026-10-09.bundle`, `filigree-2026-10-09.jsonl`, `manifest.json`.
-
-Read the manifest's exact commit/tree, SHA-256 hashes and restoration-check
-result to determine coverage; do not infer coverage from the date. Final
-handoff refreshes the pack and checks it in a fresh bare repository with
-`git fsck --full` and exact head/tree comparison. The tracker JSONL is an
-export, not a live database backup. Credentials, private raw logs, model
-caches/checkpoints and live tracker databases are excluded from Git and bundle.
+Git bundle, tracker JSONL and `manifest.json`. The final manifest records exact
+commit/tree and SHA-256 hashes plus restoration into a fresh bare repository,
+`git fsck --full` and exact head/tree checks. Read that coverage rather than
+assuming the date is sufficient. Credentials, private raw logs, model weights
+and live tracker databases are excluded; tracker data is exported separately.
+No remote or verified off-host backup exists. Local commits/bundle protect
+against accidental loss of the checkout, not host/disk failure.

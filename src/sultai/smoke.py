@@ -2,22 +2,25 @@
 
 import json
 
-from .repair import (PARAMETERS, Adapter, Episode, feature_rank, fit, mse, select,
-                     synthetic_episode)
+from .repair import PARAMETERS, Adapter, Episode, feature_rank, fit, mse, select, synthetic_episode
+from .report_types import SmokeEpisodeReport, SmokeReport
 
 # Predeclared settings: never tune these using smoke selection or test outcomes.
 RIDGES = (1e-8, 1e-3, 0.1)
 
 
-def run_episode(episode: Episode) -> dict:
+def run_episode(episode: Episode) -> SmokeEpisodeReport:
     candidates = tuple(fit(episode.conditioning, ridge) for ridge in RIDGES)
     chosen = select(candidates, episode.selection)
     # The candidate bank and winner are frozen before this single test phase.
     # Evaluate all three predeclared reporting arms in that phase: no repair,
     # the first fixed candidate, and best-of-K. None feeds back into fitting.
     return {
-        "examples": {name: len(getattr(episode, name))
-                     for name in ("conditioning", "selection", "test")},
+        "examples": {
+            "conditioning": len(episode.conditioning),
+            "selection": len(episode.selection),
+            "test": len(episode.test),
+        },
         "conditioning_feature_rank": feature_rank(episode.conditioning),
         "feature_columns": 17,
         "learned_adapter_parameters": PARAMETERS,
@@ -44,7 +47,7 @@ def run_episode(episode: Episode) -> dict:
     }
 
 
-def run() -> dict:
+def run() -> SmokeReport:
     return {
         "instrument": "synthetic_local_repair_smoke",
         "evidence_status": "software instrument checks; oracle targets; no goal validation",

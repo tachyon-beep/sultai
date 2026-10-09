@@ -9,8 +9,36 @@ description = "Bounded CPU synthetic local repair instrument"
 requires-python = ">=3.10"
 dependencies = []
 
+[project.optional-dependencies]
+dev = ["mypy==1.19.1", "ruff==0.15.4"]
+
 [project.scripts]
 sultai-smoke = "sultai.smoke:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+# Adapted from ELSPETH's strict source gate; no ELSPETH runtime/plugin dependency.
+[tool.mypy]
+python_version = "3.10"
+strict = true
+disallow_any_explicit = true
+warn_unreachable = true
+warn_unused_configs = true
+show_error_codes = true
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "RUF"]
+ignore = [
+    "E501",  # Formatting owns line wrapping.
+    "RUF019",  # Preserve explicit presence checks where absence differs from false.
+    "RUF051",  # Preserve explicit deletion semantics rather than a defaulted pop.
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["sultai"]

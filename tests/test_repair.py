@@ -1,10 +1,21 @@
-from dataclasses import FrozenInstanceError, replace
 import math
 import unittest
+from dataclasses import FrozenInstanceError, replace
 
-from sultai.repair import (CHANNELS, PARAMETERS, Adapter, Episode, Example,
-                           FrozenHost, ShadowProbe, feature_rank, fit,
-                           guard_group_splits, mse, select, synthetic_episode)
+from sultai.repair import (
+    CHANNELS,
+    PARAMETERS,
+    Adapter,
+    Example,
+    FrozenHost,
+    ShadowProbe,
+    feature_rank,
+    fit,
+    guard_group_splits,
+    mse,
+    select,
+    synthetic_episode,
+)
 from sultai.smoke import RIDGES, run
 
 
@@ -21,17 +32,18 @@ class AdapterTests(unittest.TestCase):
 
     def test_reject_malformed_nonfinite_and_output_overflow(self):
         zero = Adapter.zero()
-        for h in [(0.0,) * 15, (0.0,) * 17, (math.nan,) * 16,
-                  (math.inf,) * 16, (True,) * 16]:
+        for h in [(0.0,) * 15, (0.0,) * 17, (math.nan,) * 16, (math.inf,) * 16, (True,) * 16]:
             with self.assertRaises(ValueError):
                 zero.apply(h)
         for alpha in [math.nan, math.inf, True]:
             with self.assertRaises(ValueError):
                 zero.apply((0.0,) * 16, alpha)
-        for weights, bias in [(zero.weights[:-1], zero.bias),
-                              (((0.0,) * 15,) * 16, zero.bias),
-                              (zero.weights, (math.nan,) * 16),
-                              (((math.inf,) * 16,) * 16, zero.bias)]:
+        for weights, bias in [
+            (zero.weights[:-1], zero.bias),
+            (((0.0,) * 15,) * 16, zero.bias),
+            (zero.weights, (math.nan,) * 16),
+            (((math.inf,) * 16,) * 16, zero.bias),
+        ]:
             with self.assertRaises(ValueError):
                 Adapter(weights, bias)
         huge = Adapter(zero.weights, (1e308,) * 16)
@@ -40,8 +52,7 @@ class AdapterTests(unittest.TestCase):
 
     def test_serialization_determinism_and_nonaffinity(self):
         # f(2x)-2f(x)+f(0) is nonzero for tanh, even with residual h.
-        adapter = Adapter(tuple(tuple(float(i == j) for j in range(16))
-                                for i in range(16)), (0.0,) * 16)
+        adapter = Adapter(tuple(tuple(float(i == j) for j in range(16)) for i in range(16)), (0.0,) * 16)
         x = (0.6,) * 16
         result = adapter.apply(x)
         self.assertEqual(result, adapter.apply(x))
@@ -76,13 +87,14 @@ class BoundaryTests(unittest.TestCase):
         a = self.episode
         b = replace(synthetic_episode(8), host_lineage=a.host_lineage)
         c = replace(synthetic_episode(9), bottleneck_family=b.bottleneck_family)
-        for splits in [{"train": [a], "validation": [b]},
-                       {"train": [b], "test": [c]},
-                       {"train": [a], "validation": [b], "test": [c]}]:
+        for splits in [
+            {"train": [a], "validation": [b]},
+            {"train": [b], "test": [c]},
+            {"train": [a], "validation": [b], "test": [c]},
+        ]:
             with self.assertRaises(ValueError):
                 guard_group_splits(splits)
-        guard_group_splits({"train": [a], "validation": [synthetic_episode(8)],
-                            "test": [synthetic_episode(9)]})
+        guard_group_splits({"train": [a], "validation": [synthetic_episode(8)], "test": [synthetic_episode(9)]})
 
     def test_selection_ignores_opposing_test_ranking_and_accounts_queries(self):
         zero = Adapter.zero()
@@ -99,28 +111,28 @@ class BoundaryTests(unittest.TestCase):
 
     def test_changing_test_cannot_change_fit_or_selection(self):
         candidates = tuple(fit(self.episode.conditioning, ridge) for ridge in RIDGES)
-        changed = replace(self.episode, test=tuple(
-            replace(item, target=(123.0,) * 16) for item in self.episode.test))
+        changed = replace(self.episode, test=tuple(replace(item, target=(123.0,) * 16) for item in self.episode.test))
         changed_candidates = tuple(fit(changed.conditioning, ridge) for ridge in RIDGES)
         self.assertEqual(candidates, changed_candidates)
-        self.assertEqual(select(candidates, self.episode.selection),
-                         select(changed_candidates, changed.selection))
-        self.assertNotEqual(mse(candidates[0], self.episode.test),
-                            mse(candidates[0], changed.test))
+        self.assertEqual(select(candidates, self.episode.selection), select(changed_candidates, changed.selection))
+        self.assertNotEqual(mse(candidates[0], self.episode.test), mse(candidates[0], changed.test))
 
     def test_changing_selection_cannot_change_preselection_candidate_bank(self):
-        changed = replace(self.episode, selection=tuple(
-            replace(item, target=(-200.0,) * 16) for item in self.episode.selection))
-        self.assertEqual(tuple(fit(self.episode.conditioning, ridge) for ridge in RIDGES),
-                         tuple(fit(changed.conditioning, ridge) for ridge in RIDGES))
+        changed = replace(
+            self.episode, selection=tuple(replace(item, target=(-200.0,) * 16) for item in self.episode.selection)
+        )
+        self.assertEqual(
+            tuple(fit(self.episode.conditioning, ridge) for ridge in RIDGES),
+            tuple(fit(changed.conditioning, ridge) for ridge in RIDGES),
+        )
 
     def test_shuffled_and_mismatched_pairs_change_fitting_evidence(self):
         examples = self.episode.conditioning
-        shuffled = tuple(replace(item, target=examples[(i + 1) % len(examples)].target)
-                         for i, item in enumerate(examples))
+        shuffled = tuple(
+            replace(item, target=examples[(i + 1) % len(examples)].target) for i, item in enumerate(examples)
+        )
         other = synthetic_episode(8).conditioning
-        mismatched = tuple(replace(item, target=other[i].target)
-                           for i, item in enumerate(examples))
+        mismatched = tuple(replace(item, target=other[i].target) for i, item in enumerate(examples))
         correct = fit(examples)
         for corrupted in (shuffled, mismatched):
             fitted = fit(corrupted)
@@ -148,8 +160,12 @@ class InstrumentTests(unittest.TestCase):
         for ridge in [0.0, -1.0, math.nan, math.inf]:
             with self.assertRaises(ValueError):
                 fit(examples, ridge)
-        for call in [lambda: fit(()), lambda: mse(Adapter.zero(), ()),
-                     lambda: select((), examples), lambda: select((Adapter.zero(),), ())]:
+        for call in [
+            lambda: fit(()),
+            lambda: mse(Adapter.zero(), ()),
+            lambda: select((), examples),
+            lambda: select((Adapter.zero(),), ()),
+        ]:
             with self.assertRaises(ValueError):
                 call()
 

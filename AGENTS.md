@@ -1,5 +1,14 @@
 # Sultai working instructions
 
+The ccdfd52 independent-review snapshot is immutable. Successor typing and
+required-contract hardening is separately authorized and documented in
+docs/TYPING_CONTRACTS.md. Run the local quality gates with positive/negative
+controls and the affected runtime tests. Keep every production module covered
+by strict typing and report source identity. Never use Any, casts, ignores,
+missing-field defaults or empty coverage to manufacture success. Explicit
+optional absence and intentionally sparse cost-construction defaults are
+allowed where their contracts distinguish them from missing required state.
+
 Read README.md and docs/RESUME.md first. Parent /home/john/AGENTS.md applies;
 use the Filigree workflow at /home/john/.agents/skills/filigree-workflow/SKILL.md.
 This installation uses .weft/filigree/ rather than the historical .filigree/.

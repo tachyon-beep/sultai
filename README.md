@@ -21,7 +21,9 @@ of this checkpoint.
 - [Test plan](docs/TEST_PLAN.md): validity checks and staged comparisons.
 - [Research pack](docs/research/README.md): sources, evidence status, corrections.
 - [Hybrid demo and results](docs/HYBRID_DEMO.md): learned formation, admission and actual removal.
-- [Legacy instrument](docs/SMOKE.md): original conventional repair checks, preserved unchanged.
+- [Strict contracts and local gates](docs/TYPING_CONTRACTS.md): successor hardening and ELSPETH conventions.
+- [Independent ccdfd52 review handoff](docs/reviews/ccdfd52/CLAUDE_REVIEW_HANDOFF.md): exact snapshot for Claude.
+- [Legacy instrument](docs/SMOKE.md): original conventional repair behavior; shared boundaries are now stricter.
 
 Run the CPU instrument without installing dependencies:
 

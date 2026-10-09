@@ -1,0 +1,58 @@
+{
+  "repository": "/home/john/elspeth",
+  "commit": "9e481bc85a32ee15f808c5e2b16cab7634e57b8e",
+  "read_only_inspection": true,
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "inspected_commit_sha256": "9b1fc8660b09e098fa9c26a0158696cf9b0510e2e62fc891d07640a1de5712cb",
+      "current_bytes_match_inspected_commit": true
+    },
+    {
+      "path": "pyproject.toml",
+      "inspected_commit_sha256": "0e571eeb0b1600ba20b26aff445ed52ddb9f22e1b1dd2cc83d578ed748c16915",
+      "current_bytes_match_inspected_commit": true
+    },
+    {
+      "path": "LICENSE",
+      "inspected_commit_sha256": "dbbb20f899080ff39ee4ad79d5934679a12079d46484ea9ceee6f0d850965854",
+      "current_bytes_match_inspected_commit": true
+    },
+    {
+      "path": "docs/architecture/adr/032-validate-by-trust-domain.md",
+      "inspected_commit_sha256": "31c7b8ff5e1a84251223b2ebaf48a675b23c57ce09b7e0173c12e371799b3e37",
+      "current_bytes_match_inspected_commit": true
+    },
+    {
+      "path": "src/elspeth/web/coordination/contracts.py",
+      "inspected_commit_sha256": "8a4b69c9fa38d1810c2d552159a83fcb501ceb4d1d9479df06d4f66c15b25be0",
+      "current_bytes_match_inspected_commit": true
+    },
+    {
+      "path": "src/elspeth/web/execution/schemas.py",
+      "inspected_commit_sha256": "68dd62bd6a3caea1440cf65f58a0220719d7f8e03b32b7cc0ad2306328f065e3",
+      "current_bytes_match_inspected_commit": true
+    },
+    {
+      "path": "src/elspeth/contracts/barrier_scalars.py",
+      "inspected_commit_sha256": "e4b85786820daa88f86c0413233d789706e2aaea65c0eb3e2f4d979dc359fcbd",
+      "current_bytes_match_inspected_commit": true
+    },
+    {
+      "path": ".agents/skills/tier-model-deep-dive/SKILL.md",
+      "inspected_commit_sha256": "99f12c4f435071c5b2707f9e3eb82f8dff98e1132a8a3c872e41c3062475e03a",
+      "current_bytes_match_inspected_commit": true
+    },
+    {
+      "path": ".agents/skills/logging-telemetry-policy/SKILL.md",
+      "inspected_commit_sha256": "bc33f0549f3eec52edf674161c120eaca8e3f768d4cf7cdf77cbef191dd38a77",
+      "current_bytes_match_inspected_commit": true
+    }
+  ],
+  "unrelated_untracked_files_at_start": [
+    "BUGREP.md",
+    "BUGREP2.md",
+    "COMPOSER_BUDGET.patch"
+  ],
+  "note": "No ELSPETH files, environments, tracker or tests changed or run by this task."
+}

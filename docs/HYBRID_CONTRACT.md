@@ -1,5 +1,11 @@
 # Hybrid technical concept demonstrator contract
 
+Protocol v2 adds strict model/report boundaries and explicit validated split
+identity. It preserves the v1 numerical experiment at `ccdfd52`. Required
+measurement, gate, coverage or provenance omissions are invalid reports, not
+failed targets or no-ops. See [TYPING_CONTRACTS.md](TYPING_CONTRACTS.md) for the
+separate hardening and verification record.
+
 Status: implementation contract, 2026-10-09. John authorized this bounded
 implementation after independent comparison. It supersedes narrower prior
 Sultai execution limits, not the unchanged Simic programme. See

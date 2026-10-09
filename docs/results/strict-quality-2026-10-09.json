@@ -1,0 +1,237 @@
+{
+  "passed": true,
+  "source_files": {
+    "src/sultai/__init__.py": "e66c34ef37b48f60de6d67d8802193abcd7bf23414da274c86e5d3b700ede1d7",
+    "src/sultai/contracts.py": "6b2032c10f52fd1c895dd12a0448adf0d967b4b71d887f79a9dd00abcc8b61bc",
+    "src/sultai/formation.py": "d04b48a0b66a176a91fb075c03c21241aa2d26faf30ef4e230d724aa54834402",
+    "src/sultai/hybrid.py": "00e7e6410f34521d1b4c6627279ccab2172aeecb075a5cad5bab9c40ebe253b8",
+    "src/sultai/lifecycle.py": "680f2527c7b446139073724f47af40cf9f7a3284a0917efaa1127c1d225c381e",
+    "src/sultai/repair.py": "f422b24915d661943eb523f7fa160de8bfb9cb5b8d9c7084cb30ce2b46ba9e3f",
+    "src/sultai/report_types.py": "0ad2c6e1fe2b9c5a1ed2008dde1ea9c46b438be97be93a475abb6394952e3165",
+    "src/sultai/smoke.py": "20550ca0c1101505cdb2e49eb5e06eee9bc7cdca56ae2e109fc75c512f5abe8f"
+  },
+  "source_unchanged": true,
+  "checks": [
+    {
+      "name": "mypy_version",
+      "command": [
+        "/home/john/.local/bin/mypy",
+        "--version"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "output": "mypy 1.19.1 (compiled: yes)\n"
+    },
+    {
+      "name": "ruff_version",
+      "command": [
+        "/home/john/elspeth/.venv/bin/ruff",
+        "--version"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "output": "ruff 0.15.4\n"
+    },
+    {
+      "name": "strict_source_types",
+      "command": [
+        "/home/john/.local/bin/mypy",
+        "--config-file",
+        "/home/john/Documents/Codex/2026-10-09/task-6/sultai-hybrid/pyproject.toml",
+        "--cache-dir",
+        "/tmp/sultai-quality-2d0e079n/mypy",
+        "src/sultai"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "output": "Success: no issues found in 8 source files\n"
+    },
+    {
+      "name": "source_and_test_lint",
+      "command": [
+        "/home/john/elspeth/.venv/bin/ruff",
+        "check",
+        "--no-cache",
+        "--config",
+        "/home/john/Documents/Codex/2026-10-09/task-6/sultai-hybrid/pyproject.toml",
+        "src",
+        "tests"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "output": "All checks passed!\n"
+    },
+    {
+      "name": "source_and_test_format",
+      "command": [
+        "/home/john/elspeth/.venv/bin/ruff",
+        "format",
+        "--check",
+        "--no-cache",
+        "--config",
+        "/home/john/Documents/Codex/2026-10-09/task-6/sultai-hybrid/pyproject.toml",
+        "src",
+        "tests"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "output": "14 files already formatted\n"
+    },
+    {
+      "name": "type_positive_control",
+      "command": [
+        "/home/john/.local/bin/mypy",
+        "--config-file",
+        "/home/john/Documents/Codex/2026-10-09/task-6/sultai-hybrid/pyproject.toml",
+        "--cache-dir",
+        "/tmp/sultai-quality-2d0e079n/mypy",
+        "/tmp/sultai-quality-2d0e079n/good.py"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "output": "Success: no issues found in 1 source file\n"
+    },
+    {
+      "name": "lint_positive_control",
+      "command": [
+        "/home/john/elspeth/.venv/bin/ruff",
+        "check",
+        "--no-cache",
+        "--config",
+        "/home/john/Documents/Codex/2026-10-09/task-6/sultai-hybrid/pyproject.toml",
+        "/tmp/sultai-quality-2d0e079n/good.py"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "output": "All checks passed!\n"
+    },
+    {
+      "name": "format_positive_control",
+      "command": [
+        "/home/john/elspeth/.venv/bin/ruff",
+        "format",
+        "--check",
+        "--no-cache",
+        "--config",
+        "/home/john/Documents/Codex/2026-10-09/task-6/sultai-hybrid/pyproject.toml",
+        "/tmp/sultai-quality-2d0e079n/good.py"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "output": "1 file already formatted\n"
+    },
+    {
+      "name": "type_negative_missing_measurement.py",
+      "command": [
+        "/home/john/.local/bin/mypy",
+        "--config-file",
+        "/home/john/Documents/Codex/2026-10-09/task-6/sultai-hybrid/pyproject.toml",
+        "--cache-dir",
+        "/tmp/sultai-quality-2d0e079n/mypy",
+        "/tmp/sultai-quality-2d0e079n/missing_measurement.py"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "output": "/tmp/sultai-quality-2d0e079n/missing_measurement.py:8: error: Missing key \"value\" for TypedDict \"Measurement\"  [typeddict-item]\nFound 1 error in 1 file (checked 1 source file)\n"
+    },
+    {
+      "name": "type_negative_wrong_type.py",
+      "command": [
+        "/home/john/.local/bin/mypy",
+        "--config-file",
+        "/home/john/Documents/Codex/2026-10-09/task-6/sultai-hybrid/pyproject.toml",
+        "--cache-dir",
+        "/tmp/sultai-quality-2d0e079n/mypy",
+        "/tmp/sultai-quality-2d0e079n/wrong_type.py"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "output": "/tmp/sultai-quality-2d0e079n/wrong_type.py:2: error: Incompatible return value type (got \"str\", expected \"float\")  [return-value]\nFound 1 error in 1 file (checked 1 source file)\n"
+    },
+    {
+      "name": "type_negative_untyped.py",
+      "command": [
+        "/home/john/.local/bin/mypy",
+        "--config-file",
+        "/home/john/Documents/Codex/2026-10-09/task-6/sultai-hybrid/pyproject.toml",
+        "--cache-dir",
+        "/tmp/sultai-quality-2d0e079n/mypy",
+        "/tmp/sultai-quality-2d0e079n/untyped.py"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "output": "/tmp/sultai-quality-2d0e079n/untyped.py:1: error: Function is missing a type annotation  [no-untyped-def]\nFound 1 error in 1 file (checked 1 source file)\n"
+    },
+    {
+      "name": "type_negative_explicit_any.py",
+      "command": [
+        "/home/john/.local/bin/mypy",
+        "--config-file",
+        "/home/john/Documents/Codex/2026-10-09/task-6/sultai-hybrid/pyproject.toml",
+        "--cache-dir",
+        "/tmp/sultai-quality-2d0e079n/mypy",
+        "/tmp/sultai-quality-2d0e079n/explicit_any.py"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "output": "/tmp/sultai-quality-2d0e079n/explicit_any.py:4: error: Explicit \"Any\" is not allowed  [explicit-any]\nFound 1 error in 1 file (checked 1 source file)\n"
+    },
+    {
+      "name": "lint_negative_control",
+      "command": [
+        "/home/john/elspeth/.venv/bin/ruff",
+        "check",
+        "--no-cache",
+        "--config",
+        "/home/john/Documents/Codex/2026-10-09/task-6/sultai-hybrid/pyproject.toml",
+        "/tmp/sultai-quality-2d0e079n/lint_bad.py"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "output": "F401 [*] `os` imported but unused\n --> /tmp/sultai-quality-2d0e079n/lint_bad.py:1:8\n  |\n1 | import os\n  |        ^^\n2 |\n3 | value = undefined_measurement\n  |\nhelp: Remove unused import: `os`\n\nF821 Undefined name `undefined_measurement`\n --> /tmp/sultai-quality-2d0e079n/lint_bad.py:3:9\n  |\n1 | import os\n2 |\n3 | value = undefined_measurement\n  |         ^^^^^^^^^^^^^^^^^^^^^\n  |\n\nFound 2 errors.\n[*] 1 fixable with the `--fix` option.\n"
+    },
+    {
+      "name": "format_negative_control",
+      "command": [
+        "/home/john/elspeth/.venv/bin/ruff",
+        "format",
+        "--check",
+        "--no-cache",
+        "--config",
+        "/home/john/Documents/Codex/2026-10-09/task-6/sultai-hybrid/pyproject.toml",
+        "/tmp/sultai-quality-2d0e079n/format_bad.py"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "output": "Would reformat: /tmp/sultai-quality-2d0e079n/format_bad.py\n1 file would be reformatted\n"
+    },
+    {
+      "name": "real_source_type_mutation",
+      "command": [
+        "/home/john/.local/bin/mypy",
+        "--config-file",
+        "/home/john/Documents/Codex/2026-10-09/task-6/sultai-hybrid/pyproject.toml",
+        "--cache-dir",
+        "/tmp/sultai-quality-2d0e079n/mypy",
+        "/tmp/sultai-quality-2d0e079n/mutation/src/sultai"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "output": "/tmp/sultai-quality-2d0e079n/mutation/src/sultai/repair.py:275: error: Incompatible return value type (got \"str\", expected \"int\")  [return-value]\nFound 1 error in 1 file (checked 8 source files)\n"
+    },
+    {
+      "name": "real_source_lint_mutation",
+      "command": [
+        "/home/john/elspeth/.venv/bin/ruff",
+        "check",
+        "--no-cache",
+        "--config",
+        "/home/john/Documents/Codex/2026-10-09/task-6/sultai-hybrid/pyproject.toml",
+        "/tmp/sultai-quality-2d0e079n/mutation/src"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "output": "F821 Undefined name `MISSING_MEASUREMENT_FOR_GATE_CONTROL`\n   --> /tmp/sultai-quality-2d0e079n/mutation/src/sultai/repair.py:277:26\n    |\n275 |     return \"invalid measurement\"\n276 |\n277 | _quality_lint_mutation = MISSING_MEASUREMENT_FOR_GATE_CONTROL\n    |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    |\n\nFound 1 error.\n"
+    }
+  ]
+}
