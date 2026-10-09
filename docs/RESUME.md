@@ -35,7 +35,8 @@ transfer/re-attachment before claiming exact research import.
 
 - `8e8a9bf`: first durable documentation checkpoint before implementation.
 - `74d2cdd`: research synthesis, TCD clarification, revised design and Astra review.
-- Use `git log` for the following implementation and final handoff commits.
+- `6d655e4`: reviewed CPU demonstrator; 12 tests passed on installed Nyx path.
+- Use `git log` for the final handoff documentation commit.
 - `src/sultai/repair.py`: immutable nonlinear 272-parameter adapter, conventional
   ridge fit, synthetic fixture, disjoint split guard, selection and scalar probe.
 - `src/sultai/smoke.py`, `scripts/smoke.sh`, `tests/test_repair.py`: executable
@@ -57,8 +58,22 @@ See DESIGN.md for staged requirements before expanding the demonstrator.
 
 The repo and commits are local to Nyx. No remote is configured or newly
 authorized. A local Git commit protects against worktree loss, not disk/host
-loss. No off-host backup has been verified. A separately verified local bundle
-may be added before handoff and must be reported as same-host only.
+loss. No off-host backup has been verified.
+
+The same-host recovery pack is at
+`/home/john/Documents/Codex/2026-10-09/task-6/backups/`:
+
+- `sultai-2026-10-09.bundle`: committed source/doc history, no ignored files.
+- `filigree-2026-10-09.jsonl`: exported Sultai issues, comments and events.
+- `manifest.json`: exact bundled commit/tree, sizes and SHA-256 checksums,
+  bundle verification and fresh-repository object/commit restoration checks.
+
+Inspect the manifest and recompute hashes before recovery. To restore to a new
+path, `git clone <bundle-path> <new-directory>`; initialize a local Filigree
+store there and use `filigree import --help` for the exported issue data.
+The bundle excludes credentials, private runtime logs, ignored tracker DBs
+and research originals (which were never imported). This is **same-host
+redundancy only**, not protection from Nyx disk or host loss.
 
 ## Validation
 
@@ -72,3 +87,4 @@ Independent Astra correctness review found no material defects.
 Track documentation in `sultai-5d22f48e2a`, implementation in
 `sultai-b8bae4fcc2`, and the original-import blocker in `sultai-9c01e0943e`.
 TCD definition issue `sultai-d06d9abe1d` is resolved by John's clarification.
+Next research gate: `sultai-8c727be6b1`; no campaign is authorized by that issue.
