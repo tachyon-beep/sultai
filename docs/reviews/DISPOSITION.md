@@ -23,3 +23,9 @@ The review preceded John's clarification that TCD means technical concept
 demonstrator; its acronym blocker is resolved. Its exact-original import
 blocker remains. The reviewer was read-only and could not open the writable
 Filigree store; the coordinator records the review in the project tracker.
+
+One subsequent independent Astra correctness pass reviewed the new executable
+artifact and its tests. See `astra-code-review.md`. No material correctness,
+leakage or accounting defects were found; 12 tests passed and independent
+ridge-equation residual checks were below 1e-12. No repeat review cycle was
+needed. This disposition does not expand the instrument's scientific claims.

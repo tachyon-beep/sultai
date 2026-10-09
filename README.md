@@ -16,6 +16,18 @@ of this checkpoint.
 - [Bounded design](docs/DESIGN.md): one-site local repair proposal.
 - [Test plan](docs/TEST_PLAN.md): validity checks and staged comparisons.
 - [Research pack](docs/research/README.md): sources, evidence status, corrections.
+- [Runnable TCD](docs/SMOKE.md): implemented behavior, commands and limits.
 
-The first experiment is a proposed **local repair formation probe**. It is not
-yet the full growth/removal system or a test of half-size final models.
+Run the CPU instrument without installing dependencies:
+
+```sh
+cd /home/john/sultai
+sh scripts/smoke.sh
+```
+
+The first TCD checks a nonlinear 272-parameter adapter, conventional ridge
+repair on planted targets, split/selection boundaries, and a fixed shadow-probe
+ambiguity example. It is not yet the full learned local repair comparison,
+growth/removal system, or a test of half-size final models. The three exact
+original research imports remain blocked; readable report text informed the
+annotated research pack.

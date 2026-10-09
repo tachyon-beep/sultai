@@ -1,0 +1,80 @@
+{
+  "evidence_status": "software instrument checks; oracle targets; no goal validation",
+  "healthy_no_repair_control": {
+    "alpha_control": 1.0,
+    "candidate_bank_parameters_before_selection": 816,
+    "candidate_index": 0,
+    "conditioning_feature_rank": 17,
+    "examples": {
+      "conditioning": 64,
+      "selection": 24,
+      "test": 32
+    },
+    "feature_columns": 17,
+    "fit_example_uses": 192,
+    "host_learned_parameters": 0,
+    "learned_adapter_parameters": 272,
+    "method": "conventional_paired_ridge_optimization",
+    "retained_adapter_parameters": 272,
+    "retained_optimizer_state_values": 0,
+    "ridge_candidates": [
+      1e-08,
+      0.001,
+      0.1
+    ],
+    "ridge_solves": 3,
+    "selection_losses": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "selection_queries": 72,
+    "selection_scalar_predictions": 1152,
+    "test_mse": {
+      "best_of_k": 0.0,
+      "no_repair": 0.0,
+      "single_predeclared_candidate": 0.0
+    },
+    "test_queries": 96,
+    "test_scalar_predictions": 1536
+  },
+  "instrument": "synthetic_local_repair_smoke",
+  "positive_planted": {
+    "alpha_control": 1.0,
+    "candidate_bank_parameters_before_selection": 816,
+    "candidate_index": 0,
+    "conditioning_feature_rank": 17,
+    "examples": {
+      "conditioning": 64,
+      "selection": 24,
+      "test": 32
+    },
+    "feature_columns": 17,
+    "fit_example_uses": 192,
+    "host_learned_parameters": 0,
+    "learned_adapter_parameters": 272,
+    "method": "conventional_paired_ridge_optimization",
+    "retained_adapter_parameters": 272,
+    "retained_optimizer_state_values": 0,
+    "ridge_candidates": [
+      1e-08,
+      0.001,
+      0.1
+    ],
+    "ridge_solves": 3,
+    "selection_losses": [
+      1.3615918517669268e-20,
+      1.3614298698572398e-10,
+      1.3455934543698574e-06
+    ],
+    "selection_queries": 72,
+    "selection_scalar_predictions": 1152,
+    "test_mse": {
+      "best_of_k": 1.2123623237933552e-20,
+      "no_repair": 0.06896343793009375,
+      "single_predeclared_candidate": 1.2123623237933552e-20
+    },
+    "test_queries": 96,
+    "test_scalar_predictions": 1536
+  }
+}
