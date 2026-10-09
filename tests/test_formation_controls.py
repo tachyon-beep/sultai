@@ -18,6 +18,7 @@ from sultai.formation_controls import (
     run_formation_controls,
 )
 from sultai.repair import Adapter, Example, mse
+from sultai.trust import FitUnavailable
 
 
 def small_episode(seed, *, healthy=False):
@@ -96,6 +97,15 @@ class FormationControlTests(unittest.TestCase):
         self.assertEqual(analytic_template_fit(small_episode(810, healthy=True).conditioning), Adapter.zero())
         with self.assertRaises(ValueError):
             analytic_template_fit(())
+
+    def test_analytic_valid_finite_overflow_is_recoverable(self):
+        for h, target in ((1e308, -1e308), (1.0, 1e308)):
+            example = Example("analytic-finite-overflow", (h,) * 16, (target,) * 16)
+            with self.subTest(h=h, target=target), self.assertRaises(FitUnavailable):
+                analytic_template_fit((example,))
+        with patch("sultai.formation_controls.math.fsum", side_effect=RuntimeError("trusted summation fault")):
+            with self.assertRaisesRegex(RuntimeError, "trusted summation fault"):
+                analytic_template_fit((Example("analytic-trusted-fault", (1.0,) * 16, (0.0,) * 16),))
 
     def test_noisy_healthy_independent_partition_streams_and_clean_audit(self):
         episode = make_noisy_healthy_episode(910)

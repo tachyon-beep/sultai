@@ -8,6 +8,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from report_fixture import reference_report, validated_splits
 from sultai import formation
@@ -180,6 +181,35 @@ class BoundaryTests(unittest.TestCase):
                 operation()
         self.assertFalse(issubclass(FitUnavailable, ContractViolation))
         self.assertFalse(issubclass(FitUnavailable, InputDataError))
+
+    def test_owned_fit_preconditions_fail_as_contract_faults(self):
+        example = Example("owned-fit", (1.0,) * 16, (0.0,) * 16)
+        cases = (
+            lambda: fit((example,), ridge=float("nan")),
+            lambda: formation._regress(((1.0,),), ((0.0,),), ridge=float("nan")),
+            lambda: formation._regress(((1.0,), (1.0, 2.0)), ((0.0,), (0.0,))),
+            lambda: formation._regress(((1.0,), (2.0,)), ((0.0,), (0.0, 1.0))),
+            lambda: formation._regress(((float("nan"),),), ((0.0,),)),
+        )
+        for operation in cases:
+            with self.subTest(operation=operation), self.assertRaises(ContractViolation):
+                operation()
+
+    def test_valid_finite_solver_overflow_is_recoverable(self):
+        example = Example("finite-overflow", (1e308,) * 16, (-1e308,) * 16)
+        with self.assertRaises(FitUnavailable):
+            fit((example,))
+        with self.assertRaises(FitUnavailable):
+            formation._regress(((1e308,),), ((-1e308,),))
+
+    def test_solver_does_not_reclassify_unrelated_trusted_faults(self):
+        example = Example("trusted-fault", (1.0,) * 16, (0.0,) * 16)
+        with patch("sultai.repair.math.tanh", side_effect=RuntimeError("trusted math fault")):
+            with self.assertRaisesRegex(RuntimeError, "trusted math fault"):
+                fit((example,))
+        with patch("sultai.formation.numeric_matrix", side_effect=RuntimeError("trusted shape fault")):
+            with self.assertRaisesRegex(RuntimeError, "trusted shape fault"):
+                formation._regress(((1.0,),), ((0.0,),))
 
     def test_faults_propagate_without_boundary_wrapping(self):
         @t3_boundary(

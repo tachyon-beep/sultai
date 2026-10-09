@@ -56,6 +56,27 @@ class CorrectionCliTests(unittest.TestCase):
         ):
             cli.run("development")
 
+    def test_single_run_cannot_certify_external_gate_two_evidence(self):
+        cli = self.module()
+
+        def git(_root, *args):
+            return "" if args[0] == "status" else "a" * 40
+
+        generator = SimpleNamespace(form=lambda _examples: None)
+        with (
+            patch.object(cli, "_git", side_effect=git),
+            patch.object(cli, "source_identity", return_value={"files": {}, "aggregate_sha256": "a" * 64}),
+            patch.object(cli, "run_formation_controls", return_value=(SimpleNamespace(software_valid=True), generator)),
+            patch.object(
+                cli, "run_trajectory", return_value=SimpleNamespace(software_valid=True, diagnostic_specificity=False)
+            ),
+        ):
+            report = cli.run("development")
+        instrument = next(gate for gate in report.gates if gate.gate == 2)
+        self.assertEqual(instrument.verdict, "bounded_checks_passed")
+        self.assertIn("replay", instrument.reason)
+        self.assertTrue(report.software_valid)
+
     def test_existing_output_refused_before_any_execution(self):
         cli = self.module()
         with tempfile.TemporaryDirectory() as directory:

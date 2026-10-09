@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 from .contracts import Readout, numeric_matrix, numeric_vector
 from .report_types import number, required
-from .trust import ContractViolation, FitUnavailable, t2_operation, t3_boundary
+from .trust import ContractViolation, FitUnavailable, InputDataError, _fit_finite, t2_operation, t3_boundary
 
 CHANNELS = 16
 PARAMETERS = CHANNELS * CHANNELS + CHANNELS
@@ -190,7 +190,7 @@ def synthetic_episode(seed: int = 7, *, healthy: bool = False) -> Episode:
 
 
 @t2_operation(
-    invariants="Finite complete examples, nonempty conditioning, and finite positive ridge; zero numeric pivot is recoverable.",
+    invariants="Finite complete examples, nonempty conditioning, and finite positive ridge; zero numeric pivot and nonfinite arithmetic are recoverable.",
     failures=(FitUnavailable,),
 )
 def fit(conditioning: Sequence[Example], ridge: float = 1e-8) -> Adapter:
@@ -199,7 +199,12 @@ def fit(conditioning: Sequence[Example], ridge: float = 1e-8) -> Adapter:
     This is conventional optimization on new-host conditioning pairs, not
     forward-only generated repair formation. No selection/test argument exists.
     """
-    ridge = finite(ridge)
+    # This typed callable owns its input preconditions; the reusable T3 parser
+    # does not change their classification into an external-data failure.
+    try:
+        ridge = finite(ridge)
+    except InputDataError as error:
+        raise ContractViolation("finite positive ridge is required") from error
     if ridge <= 0 or not conditioning:
         raise ContractViolation("positive ridge and nonempty conditioning are required")
     width = CHANNELS + 1
@@ -218,15 +223,15 @@ def fit(conditioning: Sequence[Example], ridge: float = 1e-8) -> Adapter:
     for column in range(width):
         pivot = max(range(column, width), key=lambda row: abs(augmented[row][column]))
         augmented[column], augmented[pivot] = augmented[pivot], augmented[column]
-        divisor = finite(augmented[column][column])
+        divisor = _fit_finite(augmented[column][column])
         if divisor == 0.0:
             raise FitUnavailable("singular conditioning system at machine precision")
-        augmented[column] = [finite(value / divisor) for value in augmented[column]]
+        augmented[column] = [_fit_finite(value / divisor) for value in augmented[column]]
         for row in range(width):
             if row != column:
                 factor = augmented[row][column]
                 augmented[row] = [
-                    finite(a - factor * b) for a, b in zip(augmented[row], augmented[column], strict=True)
+                    _fit_finite(a - factor * b) for a, b in zip(augmented[row], augmented[column], strict=True)
                 ]
     solution = [row[width:] for row in augmented]
     return Adapter(tuple(tuple(solution[j][i] for j in range(CHANNELS)) for i in range(CHANNELS)), tuple(solution[-1]))

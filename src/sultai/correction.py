@@ -92,7 +92,12 @@ def run(phase: Phase) -> CorrectionReport:
         GateVerdict(
             1, "contract_hardening", "separate_verification", "See exact-source unit, type and policy evidence."
         ),
-        GateVerdict(2, "instrument_truth", "pass" if valid else "fail", "Bounded known-answer and provenance checks."),
+        GateVerdict(
+            2,
+            "instrument_truth",
+            "bounded_checks_passed" if valid else "fail",
+            "Single-run checks only; complete gate needs separate fault-injection, quality and deterministic replay evidence.",
+        ),
         GateVerdict(3, "useful_repair_headroom", "not_established", "Shared four-template family; no transfer test."),
         GateVerdict(
             4, "honest_admission", "measured", "All clean/noisy outcomes retained; no population safety claim."

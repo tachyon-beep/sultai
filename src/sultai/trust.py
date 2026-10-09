@@ -7,6 +7,7 @@ receives unknown data and validates/coerces it before ownership. These markers
 and the local gate record checked seams, not a proof of arbitrary invariants.
 """
 
+import math
 from collections.abc import Callable
 from typing import TypeVar
 
@@ -23,6 +24,13 @@ class ContractViolation(ValueError):
 
 class FitUnavailable(ValueError):
     """A valid conditioning problem cannot be solved at machine precision."""
+
+
+def _fit_finite(value: float) -> float:
+    """T2 helper: nonfinite arithmetic from valid owned inputs is unavailable."""
+    if not math.isfinite(value):
+        raise FitUnavailable("nonfinite fitting arithmetic at machine precision")
+    return value
 
 
 def t3_boundary(*, test: str, fingerprint: str) -> Callable[[F], F]:

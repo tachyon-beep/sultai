@@ -9,7 +9,7 @@ import hashlib
 import json
 import math
 import random
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Literal
 
@@ -33,7 +33,7 @@ from .formation import (
 )
 from .repair import CHANNELS, PARAMETERS, Adapter, Episode, Example, finite, mse
 from .report_types import METHODS, CostLedger, count, named, parse_CostLedger
-from .trust import ContractViolation, FitUnavailable, t2_operation
+from .trust import ContractViolation, FitUnavailable, _fit_finite, t2_operation
 
 CONTROL_METHODS = (*METHODS, "analytic4x4", "marginal96", "frozen_zero", "frozen_negated", "frozen_norm_random")
 AUDIT_EPSILON = 1e-12
@@ -197,32 +197,43 @@ class FrozenMarginalGenerator:
 
 
 @t2_operation(
-    invariants="nonempty owned finite conditioning pairs and fixed positive ridge", failures=(FitUnavailable,)
+    invariants="Nonempty owned finite conditioning pairs and fixed positive ridge; zero pivot and nonfinite arithmetic are recoverable.",
+    failures=(FitUnavailable,),
 )
 def analytic_template_fit(conditioning: Sequence[Example]) -> Adapter:
     """Empirical four-template ridge normal equations, without an intercept."""
     if not conditioning:
         raise ContractViolation("nonempty conditioning required")
+
+    def finite_sum(values: Iterable[float]) -> float:
+        # Catch only the summation operation's documented numeric overflow.
+        # Finite residuals prevent inf/-inf cancellation from reaching fsum.
+        try:
+            result = math.fsum(values)
+        except OverflowError as error:
+            raise FitUnavailable("analytic summation overflow at machine precision") from error
+        return _fit_finite(result)
+
     augmented = [[FIXED.teacher_ridge if i == j else 0.0 for j in range(4)] + [0.0] for i in range(4)]
     for example in conditioning:
         basis = _basis(example.h)
-        residual = tuple(t - h for t, h in zip(example.target, example.h, strict=True))
+        residual = tuple(_fit_finite(t - h) for t, h in zip(example.target, example.h, strict=True))
         for i in range(4):
             for j in range(4):
-                augmented[i][j] += math.fsum(a * b for a, b in zip(basis[i], basis[j], strict=True))
-            augmented[i][4] += math.fsum(a * b for a, b in zip(basis[i], residual, strict=True))
+                augmented[i][j] += finite_sum(a * b for a, b in zip(basis[i], basis[j], strict=True))
+            augmented[i][4] += finite_sum(a * b for a, b in zip(basis[i], residual, strict=True))
     for column in range(4):
         pivot = max(range(column, 4), key=lambda i: abs(augmented[i][column]))
         augmented[column], augmented[pivot] = augmented[pivot], augmented[column]
-        divisor = finite(augmented[column][column])
+        divisor = _fit_finite(augmented[column][column])
         if divisor == 0.0:
             raise FitUnavailable("singular analytic template system")
-        augmented[column] = [finite(v / divisor) for v in augmented[column]]
+        augmented[column] = [_fit_finite(v / divisor) for v in augmented[column]]
         for index in range(4):
             if index != column:
                 factor = augmented[index][column]
                 augmented[index] = [
-                    finite(a - factor * b) for a, b in zip(augmented[index], augmented[column], strict=True)
+                    _fit_finite(a - factor * b) for a, b in zip(augmented[index], augmented[column], strict=True)
                 ]
     return materialize(tuple(row[4] for row in augmented))
 

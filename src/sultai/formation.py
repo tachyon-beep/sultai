@@ -31,7 +31,7 @@ from .report_types import (
     validate_isolation,
     validate_phase,
 )
-from .trust import ContractViolation, FitUnavailable, InputDataError, t2_operation, t3_boundary
+from .trust import ContractViolation, FitUnavailable, InputDataError, _fit_finite, t2_operation, t3_boundary
 
 
 @dataclass(frozen=True)
@@ -240,17 +240,23 @@ def _teacher_coefficients(adapter: Adapter) -> tuple[float, ...]:
 
 
 @t2_operation(
-    invariants="Finite rectangular nonempty matched arrays and finite positive ridge; zero numeric pivot is recoverable.",
+    invariants="Finite rectangular nonempty matched arrays and finite positive ridge; zero numeric pivot and nonfinite arithmetic are recoverable.",
     failures=(FitUnavailable,),
 )
 def _regress(
     rows: Sequence[Sequence[float]], targets: Sequence[Sequence[float]], ridge: float = FIXED.meta_ridge
 ) -> tuple[tuple[float, ...], ...]:
-    ridge = finite(ridge)
+    try:
+        ridge = finite(ridge)
+    except InputDataError as error:
+        raise ContractViolation("finite positive ridge is required") from error
     if ridge <= 0 or not rows or not targets or len(rows) != len(targets):
         raise ContractViolation("nonempty matched regression arrays and positive ridge required")
-    rows = numeric_matrix(rows, len(rows), len(rows[0]))
-    targets = numeric_matrix(targets, len(targets), len(targets[0]))
+    try:
+        rows = numeric_matrix(rows, len(rows), len(rows[0]))
+        targets = numeric_matrix(targets, len(targets), len(targets[0]))
+    except InputDataError as error:
+        raise ContractViolation("finite rectangular regression arrays are required") from error
     if not rows[0] or not targets[0]:
         raise ContractViolation("regression columns must be nonempty")
     width = len(rows[0]) + 1
@@ -266,15 +272,15 @@ def _regress(
     for column in range(width):
         pivot = max(range(column, width), key=lambda i: abs(augmented[i][column]))
         augmented[column], augmented[pivot] = augmented[pivot], augmented[column]
-        divisor = finite(augmented[column][column])
+        divisor = _fit_finite(augmented[column][column])
         if divisor == 0:
             raise FitUnavailable("singular meta regression at machine precision")
-        augmented[column] = [finite(v / divisor) for v in augmented[column]]
+        augmented[column] = [_fit_finite(v / divisor) for v in augmented[column]]
         for row_index in range(width):
             if row_index != column:
                 factor = augmented[row_index][column]
                 augmented[row_index] = [
-                    finite(a - factor * b) for a, b in zip(augmented[row_index], augmented[column], strict=True)
+                    _fit_finite(a - factor * b) for a, b in zip(augmented[row_index], augmented[column], strict=True)
                 ]
     return tuple(tuple(row[width:]) for row in augmented)
 
