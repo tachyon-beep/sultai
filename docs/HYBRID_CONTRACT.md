@@ -59,7 +59,10 @@ Evidence conditions:
 
 Controls: no-op, conventional full ridge, zero-start SGD at 1/2/4 steps,
 nearest-neighbor retrieval, three-neighbor interpolation, shuffled conditioning,
-and mismatched input/target pairing. All candidate banks are frozen before
+and mismatched input/residual pairing. Shuffling deranges entire conditioning
+sets between lineages within the same phase. Mismatching rotates residuals
+and reconstructs targets as `h_i + residual_j`, preserving identity and
+residual marginals. All phase candidate banks are frozen before
 selection. Hyperparameters are fixed or chosen only on development lineages.
 No test-dependent retries/tuning. Report raw and admitted outcomes, per lineage,
 and all unfavorable comparisons. A single candidate plus no-op is K=1, not
@@ -88,6 +91,8 @@ retained budgets explicitly; the last control matches final size. Include a
 frozen-host withdrawal diagnostic or abrupt removal if useful and inexpensive.
 Report loss before/after insertion, during taper, immediately after deletion,
 and after subsequent learning. Stopping/schedule decisions use no test labels.
+Insertion in this assay is raw and scheduled; assay A separately tests
+admission/no-op. No safety or admission claim follows from assay B.
 
 This is a **planted same-feature handover mechanics** assay. Its host and
 adapter weights could be algebraically combined, but this experiment must
@@ -125,6 +130,11 @@ target as such. Relative wins over retrieval/SGD/static are outcomes, never
 requirements to retune the held-out fixture. No result implies diffusion,
 beyond-first-order information, a population safety rate, unseen-family
 transfer, a learned removal policy or half-parameter goal attainment.
+
+Review correction after the initial audit: the CLI now explicitly gates ridge
+representability at raw MSE below `1e-12` on every held-out lineage, using the
+already-existing known-positive test tolerance. This closes an omitted success
+condition; it does not change the task, training or hyperparameters.
 
 Before any larger experiment: define a real host/task, permitted observable
 telemetry, family split, capability margin, cluster-aware calibration, and
