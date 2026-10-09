@@ -25,6 +25,7 @@ from .report_types import (
     StageState,
     TrainingArm,
 )
+from .trust import ContractViolation
 
 INITIAL_STEPS = 8
 HOLD_STEPS = 16
@@ -107,10 +108,12 @@ class _Model:
         return payload
 
 
-def _sgd_step(model: _Model, batch: Sequence[Example], alpha: float) -> int:
+def _sgd_step(model: _Model, batch: Sequence[Example], alpha: float, *, learning_rate: float = LEARNING_RATE) -> int:
     """Exact minibatch gradient of mean output MSE. Never consumes teacher weights."""
     if not batch:
         raise ValueError("SGD requires a nonempty task batch")
+    if not math.isfinite(learning_rate) or learning_rate <= 0.0:
+        raise ContractViolation("SGD requires a positive finite learning rate")
     gradient = [[0.0] * CHANNELS for _ in range(CHANNELS)]
     bias_gradient = [0.0] * CHANNELS
     scale = 2.0 / (len(batch) * CHANNELS)
@@ -127,9 +130,9 @@ def _sgd_step(model: _Model, batch: Sequence[Example], alpha: float) -> int:
         modules.append((model.temporary, alpha))
     for module, influence in modules:
         for i in range(CHANNELS):
-            module.bias[i] = finite(module.bias[i] - LEARNING_RATE * influence * bias_gradient[i])
+            module.bias[i] = finite(module.bias[i] - learning_rate * influence * bias_gradient[i])
             for j in range(CHANNELS):
-                module.weights[i][j] = finite(module.weights[i][j] - LEARNING_RATE * influence * gradient[i][j])
+                module.weights[i][j] = finite(module.weights[i][j] - learning_rate * influence * gradient[i][j])
     return len(modules)
 
 

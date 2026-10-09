@@ -22,6 +22,8 @@ of this checkpoint.
 - [Research pack](docs/research/README.md): sources, evidence status, corrections.
 - [Hybrid demo and results](docs/HYBRID_DEMO.md): learned formation, admission and actual removal.
 - [Strict contracts and local gates](docs/TYPING_CONTRACTS.md): successor hardening and ELSPETH conventions.
+- [Reviewed correction protocol](docs/plans/2026-10-09-correction-protocol.md): missing scientific controls and HTTYE gate meanings.
+- [Nyx transfer recommendation](docs/plans/2026-10-09-nyx-transfer-proposal.md): distinct future experiment and unresolved owner choices.
 - [Independent ccdfd52 review handoff](docs/reviews/ccdfd52/CLAUDE_REVIEW_HANDOFF.md): exact snapshot for Claude.
 - [Legacy instrument](docs/SMOKE.md): original conventional repair behavior; shared boundaries are now stricter.
 
@@ -29,10 +31,17 @@ Run the CPU instrument without installing dependencies:
 
 ```sh
 cd /home/john/sultai
-sh scripts/hybrid.sh --summary
+sh scripts/correction.sh --phase development --output /tmp/sultai-development.json
 ```
 
-The hybrid compares learned formation with conventional repair and retrieval
+The current correction command requires committed inputs and a new output path.
+It compares learned formation with analytic/template/marginal controls, audits
+clean and noisy healthy admission, and evaluates matched-rate lifecycle
+trajectories before recovery. A valid negative outcome exits successfully;
+instrument failure does not. Confirmation is reserved for the coordinated Nyx
+handover. The original `sh scripts/hybrid.sh --summary` remains the v2 replay.
+
+The historical hybrid compares learned formation with conventional repair and retrieval
 on a shared synthetic family. A separate assay learns through task gradients,
 tapers a temporary adapter, deletes it and continues learning. All unfavorable
 control results are retained. This demonstrates bounded mechanics; it does not

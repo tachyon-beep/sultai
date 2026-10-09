@@ -1,5 +1,22 @@
 # Sultai working instructions
 
+Current correction authorization: John assigned the cloud owner the bounded
+HTTYE correction and normal draft-PR/review/merge workflow. The frozen extension
+is docs/plans/2026-10-09-correction-protocol.md. Prior source/results stay
+immutable in Git and their saved artifacts remain byte-preserved. The parent
+owns Page edits, STR scheduling and Nyx sync/burn; do not alter other schedules.
+Only short CPU validation occurs in cloud; no Simic changes or paid/GPU work.
+The referenced Nyx parent instructions/Filigree store are absent in cloud;
+John explicitly confirmed exclusive correction ownership. Do not fabricate
+tracker actions or let that historical path prevent the authorized correction.
+
+John's operation-relative policy governs: T1 guarantees type plus required value
+invariants, T2 guarantees type with explicit documented recoverable domain
+failures, and T3 validates/coerces unknown inputs. T3 boundaries require a paired
+test AST fingerprint. Run scripts/check_policy.py with the usual strict quality
+and runtime checks. Never conflate InputDataError/FitUnavailable with an internal
+ContractViolation, or convert any missing evidence into a successful no-op.
+
 The ccdfd52 independent-review snapshot is immutable. Successor typing and
 required-contract hardening is separately authorized and documented in
 docs/TYPING_CONTRACTS.md. Run the local quality gates with positive/negative

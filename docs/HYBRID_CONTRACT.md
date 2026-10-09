@@ -1,5 +1,13 @@
 # Hybrid technical concept demonstrator contract
 
+The current correction extension is frozen in
+[the reviewed correction protocol](plans/2026-10-09-correction-protocol.md).
+It adds complete healthy provenance, matched effective-rate and analytic/marginal
+controls, noisy admission, frozen bad-repair controls and a pre-recovery
+trajectory diagnostic. The contract below remains the historical v2 assay;
+its numerical records are preserved. Current report validity is separate from
+scientific success, and a completed evidence certificate can record NOT READY.
+
 Protocol v2 adds strict model/report boundaries and explicit validated split
 identity. It preserves the v1 numerical experiment at `ccdfd52`. Required
 measurement, gate, coverage or provenance omissions are invalid reports, not

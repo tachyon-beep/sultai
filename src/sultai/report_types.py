@@ -8,6 +8,8 @@ import math
 from collections.abc import Callable
 from typing import TypedDict, TypeVar
 
+from .trust import InputDataError, t3_boundary
+
 T = TypeVar("T")
 
 METHODS = (
@@ -37,76 +39,120 @@ SOURCE_FILES = (
     "src/sultai/contracts.py",
     "src/sultai/report_types.py",
     "src/sultai/smoke.py",
+    "src/sultai/trust.py",
+    "src/sultai/trajectory.py",
+    "src/sultai/formation_controls.py",
+    "src/sultai/correction.py",
 )
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_primitive_boundaries",
+    fingerprint="afbdc22e8eb50e0821522a8ead93fcc5cb0a2f231cf19d17ad7175f6537cb602",
+)
 def object_map(value: object) -> dict[str, object]:
     if not isinstance(value, dict):
-        raise ValueError("expected an object")
+        raise InputDataError("expected an object")
     result: dict[str, object] = {}
     for key, item in value.items():
         if not isinstance(key, str):
-            raise ValueError("expected string object keys")
+            raise InputDataError("expected string object keys")
         result[key] = item
     return result
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_primitive_boundaries",
+    fingerprint="afbdc22e8eb50e0821522a8ead93fcc5cb0a2f231cf19d17ad7175f6537cb602",
+)
 def required(value: object, keys: tuple[str, ...]) -> dict[str, object]:
     result = object_map(value)
     if set(result) != set(keys):
-        raise ValueError(
+        raise InputDataError(
             f"required fields differ: missing={set(keys) - set(result)}, unknown={set(result) - set(keys)}"
         )
     return result
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_primitive_boundaries",
+    fingerprint="afbdc22e8eb50e0821522a8ead93fcc5cb0a2f231cf19d17ad7175f6537cb602",
+)
 def number(value: object) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise ValueError("expected a finite real number")
+        raise InputDataError("expected a finite real number")
     try:
         result = float(value)
     except OverflowError as error:
-        raise ValueError("expected a finite real number") from error
+        raise InputDataError("expected a finite real number") from error
     if not math.isfinite(result):
-        raise ValueError("expected a finite real number")
+        raise InputDataError("expected a finite real number")
     return result
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_primitive_boundaries",
+    fingerprint="afbdc22e8eb50e0821522a8ead93fcc5cb0a2f231cf19d17ad7175f6537cb602",
+)
 def loss(value: object) -> float:
     result = number(value)
     if result < 0:
-        raise ValueError("expected a nonnegative MSE")
+        raise InputDataError("expected a nonnegative MSE")
     return result
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_primitive_boundaries",
+    fingerprint="afbdc22e8eb50e0821522a8ead93fcc5cb0a2f231cf19d17ad7175f6537cb602",
+)
 def count(value: object) -> int:
     if type(value) is not int or value < 0:
-        raise ValueError("expected a nonnegative integer count")
+        raise InputDataError("expected a nonnegative integer count")
     return value
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_primitive_boundaries",
+    fingerprint="afbdc22e8eb50e0821522a8ead93fcc5cb0a2f231cf19d17ad7175f6537cb602",
+)
 def boolean(value: object) -> bool:
     if type(value) is not bool:
-        raise ValueError("expected an explicit boolean")
+        raise InputDataError("expected an explicit boolean")
     return value
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_primitive_boundaries",
+    fingerprint="afbdc22e8eb50e0821522a8ead93fcc5cb0a2f231cf19d17ad7175f6537cb602",
+)
 def string(value: object) -> str:
     if not isinstance(value, str) or not value:
-        raise ValueError("expected a nonempty string")
+        raise InputDataError("expected a nonempty string")
     return value
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_primitive_boundaries",
+    fingerprint="afbdc22e8eb50e0821522a8ead93fcc5cb0a2f231cf19d17ad7175f6537cb602",
+)
 def nullable_string(value: object) -> str | None:
     return None if value is None else string(value)
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_primitive_boundaries",
+    fingerprint="afbdc22e8eb50e0821522a8ead93fcc5cb0a2f231cf19d17ad7175f6537cb602",
+)
 def sequence(value: object, parse: Callable[[object], T]) -> list[T]:
     if not isinstance(value, (list, tuple)):
-        raise ValueError("expected an array")
+        raise InputDataError("expected an array")
     return [parse(item) for item in value]
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_primitive_boundaries",
+    fingerprint="afbdc22e8eb50e0821522a8ead93fcc5cb0a2f231cf19d17ad7175f6537cb602",
+)
 def named(value: object, parse: Callable[[object], T], keys: tuple[str, ...] | None = None) -> dict[str, T]:
     data = object_map(value) if keys is None else required(value, keys)
     return {key: parse(item) for key, item in data.items()}
@@ -505,10 +551,18 @@ class SmokeReport(TypedDict):
     healthy_no_repair_control: SmokeEpisodeReport
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_primitive_boundaries",
+    fingerprint="afbdc22e8eb50e0821522a8ead93fcc5cb0a2f231cf19d17ad7175f6537cb602",
+)
 def float_tuple(value: object) -> tuple[float, ...]:
     return tuple(sequence(value, number))
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_report_boundaries",
+    fingerprint="d562c9fb4837a4f31ef8f21df9beea68d148c722d67c95a5602be692d95ecc87",
+)
 def parse_CostLedger(value: object) -> CostLedger:
     data = required(
         value,
@@ -552,6 +606,10 @@ def parse_CostLedger(value: object) -> CostLedger:
     return result
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_report_boundaries",
+    fingerprint="d562c9fb4837a4f31ef8f21df9beea68d148c722d67c95a5602be692d95ecc87",
+)
 def parse_MethodMetrics(value: object) -> MethodMetrics:
     data = required(
         value,
@@ -581,6 +639,10 @@ def parse_MethodMetrics(value: object) -> MethodMetrics:
     return result
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_report_boundaries",
+    fingerprint="d562c9fb4837a4f31ef8f21df9beea68d148c722d67c95a5602be692d95ecc87",
+)
 def parse_MethodSummary(value: object) -> MethodSummary:
     data = required(value, ("raw_mean_mse", "admitted_mean_mse", "acted_lineages", "realized_harms"))
     result: MethodSummary = {
@@ -592,6 +654,10 @@ def parse_MethodSummary(value: object) -> MethodSummary:
     return result
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_report_boundaries",
+    fingerprint="d562c9fb4837a4f31ef8f21df9beea68d148c722d67c95a5602be692d95ecc87",
+)
 def parse_LineageReport(value: object) -> LineageReport:
     data = required(value, ("host_lineage", "family", "shuffled_conditioning_donor", "methods", "costs"))
     result: LineageReport = {
@@ -604,6 +670,10 @@ def parse_LineageReport(value: object) -> LineageReport:
     return result
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_report_boundaries",
+    fingerprint="d562c9fb4837a4f31ef8f21df9beea68d148c722d67c95a5602be692d95ecc87",
+)
 def parse_PhaseReport(value: object) -> PhaseReport:
     data = required(value, ("lineages", "summary", "costs"))
     result: PhaseReport = {
@@ -612,13 +682,17 @@ def parse_PhaseReport(value: object) -> PhaseReport:
         "costs": parse_CostLedger(data["costs"]),
     }
     if not result["lineages"]:
-        raise ValueError("phase requires nonempty lineage evidence")
+        raise InputDataError("phase requires nonempty lineage evidence")
     required(result["summary"], METHODS)
     for row in result["lineages"]:
         required(row["methods"], METHODS)
     return result
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_report_boundaries",
+    fingerprint="d562c9fb4837a4f31ef8f21df9beea68d148c722d67c95a5602be692d95ecc87",
+)
 def parse_PartitionIdentity(value: object) -> PartitionIdentity:
     data = required(value, ("lineages", "sample_count", "sample_ids_sha256"))
     result: PartitionIdentity = {
@@ -629,6 +703,10 @@ def parse_PartitionIdentity(value: object) -> PartitionIdentity:
     return result
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_report_boundaries",
+    fingerprint="d562c9fb4837a4f31ef8f21df9beea68d148c722d67c95a5602be692d95ecc87",
+)
 def parse_SplitIdentity(value: object) -> SplitIdentity:
     data = required(value, ("train", "development", "test"))
     result: SplitIdentity = {
@@ -639,6 +717,10 @@ def parse_SplitIdentity(value: object) -> SplitIdentity:
     return result
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_report_boundaries",
+    fingerprint="d562c9fb4837a4f31ef8f21df9beea68d148c722d67c95a5602be692d95ecc87",
+)
 def parse_LineageCounts(value: object) -> LineageCounts:
     data = required(value, ("train", "development", "test"))
     result: LineageCounts = {
@@ -647,10 +729,14 @@ def parse_LineageCounts(value: object) -> LineageCounts:
         "test": count(data["test"]),
     }
     if result != {"train": 32, "development": 8, "test": 8}:
-        raise ValueError("fixed lineage counts differ")
+        raise InputDataError("fixed lineage counts differ")
     return result
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_report_boundaries",
+    fingerprint="d562c9fb4837a4f31ef8f21df9beea68d148c722d67c95a5602be692d95ecc87",
+)
 def parse_EvidenceModeCounts(value: object) -> EvidenceModeCounts:
     data = required(value, ("coarse", "paired", "paired_probes"))
     return {
@@ -660,6 +746,10 @@ def parse_EvidenceModeCounts(value: object) -> EvidenceModeCounts:
     }
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_report_boundaries",
+    fingerprint="d562c9fb4837a4f31ef8f21df9beea68d148c722d67c95a5602be692d95ecc87",
+)
 def parse_FormationConfig(value: object) -> FormationConfig:
     data = required(
         value,
@@ -747,12 +837,16 @@ def parse_FormationConfig(value: object) -> FormationConfig:
         "coarse_features": sequence(data["coarse_features"], string),
     }
     if result["generator_parameters"] != {"coarse": 28, "paired": 44, "paired_probes": 44}:
-        raise ValueError("fixed generator parameter counts differ")
+        raise InputDataError("fixed generator parameter counts differ")
     if result["evidence_dimensions"] != {"coarse": 6, "paired": 10, "paired_probes": 10}:
-        raise ValueError("fixed evidence dimensions differ")
+        raise InputDataError("fixed evidence dimensions differ")
     return result
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_report_boundaries",
+    fingerprint="d562c9fb4837a4f31ef8f21df9beea68d148c722d67c95a5602be692d95ecc87",
+)
 def parse_FormationCosts(value: object) -> FormationCosts:
     data = required(
         value,
@@ -784,6 +878,10 @@ def parse_FormationCosts(value: object) -> FormationCosts:
     return result
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_report_boundaries",
+    fingerprint="d562c9fb4837a4f31ef8f21df9beea68d148c722d67c95a5602be692d95ecc87",
+)
 def parse_FormationSummary(value: object) -> FormationSummary:
     data = required(
         value,
@@ -809,6 +907,10 @@ def parse_FormationSummary(value: object) -> FormationSummary:
     return result
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_report_boundaries",
+    fingerprint="d562c9fb4837a4f31ef8f21df9beea68d148c722d67c95a5602be692d95ecc87",
+)
 def parse_FormationGates(value: object) -> FormationGates:
     data = required(
         value,
@@ -830,6 +932,10 @@ def parse_FormationGates(value: object) -> FormationGates:
     return result
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_report_boundaries",
+    fingerprint="d562c9fb4837a4f31ef8f21df9beea68d148c722d67c95a5602be692d95ecc87",
+)
 def parse_FormationReport(value: object) -> FormationReport:
     data = required(
         value,
@@ -862,6 +968,10 @@ def parse_FormationReport(value: object) -> FormationReport:
     return result
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_report_boundaries",
+    fingerprint="d562c9fb4837a4f31ef8f21df9beea68d148c722d67c95a5602be692d95ecc87",
+)
 def parse_StageState(value: object) -> StageState:
     data = required(value, ("completed_host_updates", "alpha", "allocated_parameters"))
     result: StageState = {
@@ -872,6 +982,10 @@ def parse_StageState(value: object) -> StageState:
     return result
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_report_boundaries",
+    fingerprint="d562c9fb4837a4f31ef8f21df9beea68d148c722d67c95a5602be692d95ecc87",
+)
 def parse_ParameterCounts(value: object) -> ParameterCounts:
     data = required(value, ("before", "at_step_zero", "peak", "final"))
     result: ParameterCounts = {
@@ -883,6 +997,10 @@ def parse_ParameterCounts(value: object) -> ParameterCounts:
     return result
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_report_boundaries",
+    fingerprint="d562c9fb4837a4f31ef8f21df9beea68d148c722d67c95a5602be692d95ecc87",
+)
 def parse_ArmReport(value: object) -> ArmReport:
     raw = object_map(value)
     has_withdrawal = "frozen_host_withdrawal_mse" in raw
@@ -941,6 +1059,10 @@ def parse_ArmReport(value: object) -> ArmReport:
     return result
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_report_boundaries",
+    fingerprint="d562c9fb4837a4f31ef8f21df9beea68d148c722d67c95a5602be692d95ecc87",
+)
 def parse_LifecycleConfig(value: object) -> LifecycleConfig:
     data = required(
         value,
@@ -986,6 +1108,10 @@ def parse_LifecycleConfig(value: object) -> LifecycleConfig:
     return result
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_report_boundaries",
+    fingerprint="d562c9fb4837a4f31ef8f21df9beea68d148c722d67c95a5602be692d95ecc87",
+)
 def parse_LifecycleCost(value: object) -> LifecycleCost:
     data = required(
         value,
@@ -1013,6 +1139,10 @@ def parse_LifecycleCost(value: object) -> LifecycleCost:
     return result
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_report_boundaries",
+    fingerprint="d562c9fb4837a4f31ef8f21df9beea68d148c722d67c95a5602be692d95ecc87",
+)
 def parse_LifecycleSummary(value: object) -> LifecycleSummary:
     data = required(
         value,
@@ -1036,6 +1166,10 @@ def parse_LifecycleSummary(value: object) -> LifecycleSummary:
     return result
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_report_boundaries",
+    fingerprint="d562c9fb4837a4f31ef8f21df9beea68d148c722d67c95a5602be692d95ecc87",
+)
 def parse_LifecycleGates(value: object) -> LifecycleGates:
     data = required(
         value,
@@ -1061,6 +1195,10 @@ def parse_LifecycleGates(value: object) -> LifecycleGates:
     return result
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_report_boundaries",
+    fingerprint="d562c9fb4837a4f31ef8f21df9beea68d148c722d67c95a5602be692d95ecc87",
+)
 def parse_LifecycleReport(value: object) -> LifecycleReport:
     data = required(
         value,
@@ -1081,12 +1219,16 @@ def parse_LifecycleReport(value: object) -> LifecycleReport:
     required(result["summary"]["post_learning_mse"], ARMS)
     for name, arm in result["arms"].items():
         if ("frozen_host_withdrawal_mse" in arm) != (name == "formed_taper"):
-            raise ValueError("withdrawal evidence is required exactly for the formed arm")
+            raise InputDataError("withdrawal evidence is required exactly for the formed arm")
         if (arm["formation_conditioning_sha256"] is not None) != (name == "formed_taper"):
-            raise ValueError("formation provenance is required exactly for the formed arm")
+            raise InputDataError("formation provenance is required exactly for the formed arm")
     return result
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_report_boundaries",
+    fingerprint="d562c9fb4837a4f31ef8f21df9beea68d148c722d67c95a5602be692d95ecc87",
+)
 def parse_AffineDiagnostic(value: object) -> AffineDiagnostic:
     data = required(
         value,
@@ -1112,10 +1254,14 @@ def parse_AffineDiagnostic(value: object) -> AffineDiagnostic:
         or any(len(row) != 2 for row in result["folded_linear_map"])
         or len(result["adapter_bias"]) != 2
     ):
-        raise ValueError("affine diagnostic requires a 2 by 2 map and two biases")
+        raise InputDataError("affine diagnostic requires a 2 by 2 map and two biases")
     return result
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_report_boundaries",
+    fingerprint="d562c9fb4837a4f31ef8f21df9beea68d148c722d67c95a5602be692d95ecc87",
+)
 def parse_SignedDiagnostic(value: object) -> SignedDiagnostic:
     data = required(
         value,
@@ -1151,10 +1297,14 @@ def parse_SignedDiagnostic(value: object) -> SignedDiagnostic:
         "limit": string(data["limit"]),
     }
     if len(result["passive_evidence_a"]) != 3 or len(result["passive_evidence_b"]) != 3:
-        raise ValueError("signed diagnostic requires complete passive observations")
+        raise InputDataError("signed diagnostic requires complete passive observations")
     return result
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_report_boundaries",
+    fingerprint="d562c9fb4837a4f31ef8f21df9beea68d148c722d67c95a5602be692d95ecc87",
+)
 def parse_Diagnostics(value: object) -> Diagnostics:
     data = required(value, ("affine_folding", "signed_probe"))
     result: Diagnostics = {
@@ -1164,23 +1314,35 @@ def parse_Diagnostics(value: object) -> Diagnostics:
     return result
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_primitive_boundaries",
+    fingerprint="afbdc22e8eb50e0821522a8ead93fcc5cb0a2f231cf19d17ad7175f6537cb602",
+)
 def sha256_digest(value: object) -> str:
     result = string(value)
     if len(result) != 64 or any(character not in "0123456789abcdef" for character in result):
-        raise ValueError("expected a lowercase SHA-256 digest")
+        raise InputDataError("expected a lowercase SHA-256 digest")
     return result
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_report_boundaries",
+    fingerprint="d562c9fb4837a4f31ef8f21df9beea68d148c722d67c95a5602be692d95ecc87",
+)
 def parse_SourceIdentity(value: object) -> SourceIdentity:
     data = required(value, ("files", "aggregate_sha256"))
     files = named(data["files"], sha256_digest, SOURCE_FILES)
     aggregate = sha256_digest(data["aggregate_sha256"])
     canonical = json.dumps(files, sort_keys=True, separators=(",", ":")).encode()
     if hashlib.sha256(canonical).hexdigest() != aggregate:
-        raise ValueError("source identity aggregate differs from file digests")
+        raise InputDataError("source identity aggregate differs from file digests")
     return {"files": files, "aggregate_sha256": aggregate}
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_report_boundaries",
+    fingerprint="d562c9fb4837a4f31ef8f21df9beea68d148c722d67c95a5602be692d95ecc87",
+)
 def parse_RuntimeIdentity(value: object) -> RuntimeIdentity:
     data = required(value, ("python", "implementation"))
     result: RuntimeIdentity = {
@@ -1190,6 +1352,10 @@ def parse_RuntimeIdentity(value: object) -> RuntimeIdentity:
     return result
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_report_boundaries",
+    fingerprint="d562c9fb4837a4f31ef8f21df9beea68d148c722d67c95a5602be692d95ecc87",
+)
 def parse_Claims(value: object) -> Claims:
     data = required(
         value,
@@ -1215,6 +1381,10 @@ def parse_Claims(value: object) -> Claims:
     return result
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_report_boundaries",
+    fingerprint="d562c9fb4837a4f31ef8f21df9beea68d148c722d67c95a5602be692d95ecc87",
+)
 def parse_HybridReport(value: object) -> HybridReport:
     data = required(
         value,
@@ -1270,9 +1440,9 @@ def parse_HybridReport(value: object) -> HybridReport:
     if result["acceptance"] != combined_gates(
         result["formation"]["acceptance"], result["lifecycle"]["acceptance"], result["diagnostics"]
     ):
-        raise ValueError("combined gates disagree with required assay evidence")
+        raise InputDataError("combined gates disagree with required assay evidence")
     if result["passed"] != all(result["acceptance"].values()):
-        raise ValueError("passed flag disagrees with acceptance")
+        raise InputDataError("passed flag disagrees with acceptance")
     return result
 
 
@@ -1288,31 +1458,31 @@ def validate_isolation(value: SplitIdentity) -> None:
     lineages: set[str] = set()
     for part, expected in ((value["train"], 32), (value["development"], 8), (value["test"], 8)):
         if len(part["lineages"]) != expected or len(set(part["lineages"])) != expected:
-            raise ValueError("required lineage identity counts differ")
+            raise InputDataError("required lineage identity counts differ")
         if part["sample_count"] != expected * (64 + 24 + 64):
-            raise ValueError("required sample identity counts differ")
+            raise InputDataError("required sample identity counts differ")
         digest = part["sample_ids_sha256"]
         if len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
-            raise ValueError("invalid sample identity digest")
+            raise InputDataError("invalid sample identity digest")
         if lineages.intersection(part["lineages"]):
-            raise ValueError("split identity overlap")
+            raise InputDataError("split identity overlap")
         lineages.update(part["lineages"])
 
 
 def validate_phase(phase: PhaseReport, expected_lineages: tuple[str, ...]) -> None:
     if tuple(row["host_lineage"] for row in phase["lineages"]) != expected_lineages:
-        raise ValueError("phase lineage provenance differs")
+        raise InputDataError("phase lineage provenance differs")
     for method in METHODS:
         values = [row["methods"][method] for row in phase["lineages"]]
         summary = phase["summary"][method]
         if summary["acted_lineages"] != sum(v["acted"] for v in values) or summary["realized_harms"] != sum(
             v["realized_harm"] for v in values
         ):
-            raise ValueError("summary outcome counts differ from lineage evidence")
+            raise InputDataError("summary outcome counts differ from lineage evidence")
         if summary["raw_mean_mse"] != sum(v["raw_test_mse"] for v in values) / len(values) or summary[
             "admitted_mean_mse"
         ] != sum(v["admitted_test_mse"] for v in values) / len(values):
-            raise ValueError("summary metrics differ from lineage evidence")
+            raise InputDataError("summary metrics differ from lineage evidence")
 
 
 def validate_formation_evidence(report: FormationReport) -> None:
