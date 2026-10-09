@@ -1,3 +1,18 @@
+# Active hybrid verification
+
+The current contract is [HYBRID_CONTRACT.md](HYBRID_CONTRACT.md). The hybrid
+adds focused `test_formation.py`, `test_lifecycle.py` and `test_hybrid_cli.py`
+checks while retaining all legacy tests. The implementation plan records file
+ownership. Final results and executable commands belong in HYBRID_DEMO.md.
+
+Review priorities: no held-out outcome affects learning/selection/settings;
+real independent procedural lineage IDs; same-family scope disclosed; fixed
+candidate banks; honest counts; nonlinear primary versus affine diagnostic;
+real task-learning handover without weight copying; actual deletion and
+matched final-size control; no safety or generality overclaim.
+
+---
+
 # Test plan
 
 ## Short CPU verification in the initial scope

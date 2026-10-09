@@ -5,8 +5,9 @@ Start with [the canonical concept](../CONCEPT.md),
 The synthesis incorporates the original reports, telemetry follow-up, Astra
 reviews, current Simic source audit, historical Claude source bundle and
 existing Sultai work. It preserves source disagreements and evidence status.
-The independent Claude TCD is still pending; [handoff status](CLAUDE_HANDOFF.md)
-also records the separate source bundle's failed byte transfer.
+The independent Claude TCD and later revision are now delivered and compared;
+[handoff status](CLAUDE_HANDOFF.md) distinguishes verified local sources from
+failed Library byte transfers and still-missing original pasted attachments.
 
 Read [COMPARISON.md](COMPARISON.md) for the grounded report synthesis, checked
 primary references, mathematical corrections and minimal lifecycle lessons.
@@ -66,11 +67,16 @@ Simic current-state document reports partial graft capture after the initial
 screen; see COMPARISON.md for context and commit identities. None is a Sultai
 measurement. No implementation or private runtime log was copied.
 
-## New Claude source bundle
+## Verified Claude source delivery
 
-The bundle and supplied manifest were fully available as Library API text.
-Supported materialization on Nyx failed with HTTP 403 for each file. The
-reserved `claude-handoff/` directory remains empty. Expected hashes in
-`sources.json` are reported by the manifest and have not been verified locally.
-Source keys H1–H4 cover the four embedded historical reports. They are not
-the independent adversarial TCD, which has not yet been received.
+Commit `72f9eeb` delivered six source files plus their provenance index.
+All six hashes match the index. The independent original's expected hash is
+also reproduced by removing only the delivered report's revision pointer in
+memory. The subsequent Emrakul/Tamiyo revision is a separate document. See
+`sources.json` and [source-design provenance](../designs/README.md).
+
+The older bundle/manifest downloads failed. Those failures remain in the
+ledger and do not negate the verified local delivery. Related delivered
+reports are not assumed to be byte-identical to the three missing originals.
+The hybrid design incorporates the completed comparison without rewriting
+source proposals as facts or adopting their compute estimates.

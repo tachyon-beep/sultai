@@ -1,6 +1,7 @@
 # Sultai: consolidated technical concept
 
-Canonical synthesis as of 2026-10-09. Source keys below resolve in
+Canonical synthesis as of 2026-10-09. The active bounded hybrid contract is
+[HYBRID_CONTRACT.md](HYBRID_CONTRACT.md), authorized after the source comparison. Source keys below resolve in
 [research/SOURCE_MAP.md](research/SOURCE_MAP.md). Material differences are
 recorded in [DECISIONS.md](DECISIONS.md), not hidden in this synthesis.
 This document consolidates intent and hypotheses; the implemented subset and
@@ -202,13 +203,17 @@ The source audit and limits are in [research/SIMIC_RECONCILIATION.md](research/S
 Keep Sultai's small TCD as an executable specification; do not merge the
 projects or edit active experiments based on this research. [V, U]
 
-The four-report Claude handoff is readable through Library; its two requested
-file transfers failed with HTTP 403, so neither the bundle nor its expected
-file hashes are verified on Nyx. Its historical reports are distinct from the
-independent TCD design, which is still pending. [H1–H4]
+The historical Claude reports, independent TCD and later role revision are
+now locally delivered and checksum-verified in `72f9eeb`. The comparison is
+complete. [Source provenance](designs/README.md) distinguishes the original
+emmy design, Claude design and reconciled hybrid contract. Earlier Library
+transfer failures remain recorded; the three original pasted files are still
+absent and are not replaced by related imports.
 
-Claude is independently preparing an adversarial TCD design in a separate
-cloud project. It is a pending source, not an instruction to restart work or
-a source of settled decisions. Preserve its independence until completion;
-then compare assumptions, experiments and failure criteria using the process
-in [research/CLAUDE_HANDOFF.md](research/CLAUDE_HANDOFF.md). [U]
+For the hybrid, Emrakul owns bounded edit formation/admission and no-op;
+Tamiyo supplies coarse opportunity/site nomination. This demonstrator fixes
+that nomination and does not train Tamiyo. Simic's names and authority map
+remain unchanged. Later staggered Tamiyo training requires sufficiently
+informative audited Emrakul outcomes and version tracking, not an illustrative
+percentage or count. The separately labeled formation and lifecycle assays
+must be read at their declared synthetic scope.

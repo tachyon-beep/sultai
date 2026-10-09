@@ -11,6 +11,8 @@ Nyx, created on 2026-10-09. ELSPETH landing takes priority. No GPU work, long
 training, paid service, remote publication, or changes to Simic/Esper are part
 of this checkpoint.
 
+- [Active hybrid contract](docs/HYBRID_CONTRACT.md): independently reviewed CPU implementation boundary.
+- [Source designs](docs/designs/README.md): emmy, Claude and hybrid provenance.
 - [Resume brief](docs/RESUME.md): exact state, commands, blockers, next action.
 - [Canonical concept](docs/CONCEPT.md): consolidated intent, mechanism and evidence.
 - [Decision register](docs/DECISIONS.md): settled corrections and open choices.
@@ -31,8 +33,5 @@ The first TCD checks a nonlinear 272-parameter adapter, conventional ridge
 repair on planted targets, split/selection boundaries, and a fixed shadow-probe
 ambiguity example. It is not yet the full learned local repair comparison,
 growth/removal system, or a test of half-size final models. The three exact
-original research imports and newer Claude source bundle remain blocked;
-readable Library text informed the annotated research pack. See the
-[source map](docs/research/SOURCE_MAP.md) and
-[handoff status](docs/research/CLAUDE_HANDOFF.md). Claude's independent
-adversarial TCD design is still pending and has not been steered by this task.
+original research imports remain blocked. Claude source reports and completed
+independent TCD are now locally verified; see the [handoff status](docs/research/CLAUDE_HANDOFF.md).

@@ -23,14 +23,14 @@ proposal text as validated results or duplicating unavailable original files.
 | V | Read-only Simic audit at `454c7314cc2728ceee17513928541d60616bd081`; [audit manifest](simic-source-audit.json) | SIMIC_RECONCILIATION claim table and reuse boundaries; distinguishes implemented experiment code, HLD-only roles, and reported study-specific results |
 | T | Sultai implementation `6d655e4`, unchanged in the consolidation; [SMOKE.md](../SMOKE.md), [synthetic result](../results/synthetic-smoke-2026-10-09.json) | Small executable instrument only: 12 passing checks, oracle ridge fixture and separate scalar probe. No generative or parameter-efficiency result |
 | L | Five primary abstract/proceedings checks listed in [COMPARISON.md](COMPARISON.md) | Nearby mechanisms only. Full combined Sultai efficacy, novelty, recent report leads and scale claims remain unverified |
-| C-pending | Independent adversarial Claude TCD design in the cloud Sultai project, not yet received here | Reserved for later separate-source comparison; no conclusions or implementation instructions attributed to it now. See CLAUDE_HANDOFF.md |
+| C | Completed independent Claude TCD plus later Emrakul/Tamiyo revision, delivered at 72f9eeb and locally checksum-verified | Comparison informed HYBRID_CONTRACT.md; sources preserved unchanged. See CLAUDE_HANDOFF.md and ../designs/README.md |
 
 Exact file IDs, reported sizes and import/read status are in
 [sources.json](sources.json). `originals/` holds no source bytes at present.
-The bundle and its `verified-manifest.json` also failed local transfer. Their
-expected per-report sizes and SHA-256 values are recorded as **reported only**,
-not Nyx verification. The reserved `claude-handoff/` directory remains empty.
-The bundle reports are not the pending independent adversarial TCD design.
+The bundle/manifest transfer failed, but a separate local delivery in 72f9eeb
+now contains the four reports, complete independent TCD and its later revision.
+Actual source-byte verification is recorded separately in sources.json. The
+original pasted attachments remain absent.
 Historical reviews can mention then-unresolved TCD meaning; their preserved
 text is not silently rewritten. Current decisions and disposition explain
 the subsequent user clarification.

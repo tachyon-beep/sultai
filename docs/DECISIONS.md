@@ -27,8 +27,29 @@ still needs a decision. Imported reports are advisory and do not authorize runs.
 | D19 | Historical same-host all-seeds-on/off results versus causal developmental benefit | **Different estimands:** immediate removal cost includes acquired dependence. Use matched common-future controls for admission/path claims and state the weaker replaceability horizon for later maintenance. H1’s numerical performance/telemetry claims were not reproduced here |
 | D20 | Claude bundle expected hashes versus verified local import | **Blocked separately:** fresh supported bundle and manifest transfers each returned HTTP 403. Readable API text and reported expected checksums are recorded, but no local bytes or checksum matches exist. Handoff reports are not the still-pending independent TCD, nor proven byte-identical replacements for R1–R4 |
 
-Before the next experiment, settle D06, D15 and the actual task/budget,
+For the later real-host experiment, settle D06, D15 and the actual task/budget,
 observable target contract, group construction and learning horizon. D07/D09
 need a decision only if the corresponding mechanism is implemented. D11 needs
-an interface/ownership decision before any reuse changes. No open item is an
-invitation to expand this documentation-only task.
+an interface/ownership decision before any reuse changes. The bounded hybrid implementation is now explicitly authorized; broader
+research choices remain outside its small CPU contract.
+
+## Hybrid dispositions, after completed comparison
+
+These entries supersede earlier temporal statuses while preserving their history.
+
+| ID | Hybrid disposition |
+| --- | --- |
+| D06 | The bounded learned generator uses label-conditioned cross-moments, which contain gradient information. It optimizes offline; held-out generation performs no new-host fitting. No strict task-gradient-free or beyond-first-order claim |
+| D11 | Keep Sultai standalone. No live Simic imports/edits or dependency installation in this demonstrator |
+| D13 | Sultai explicitly uses Emrakul for edit formation/admission and Tamiyo for coarse opportunity nomination. Simic's witness/destruction names retain their separate meanings |
+| D15 | Small procedural fixtures have predeclared engineering acceptance targets, no population safety or capability-equivalence claim. Real-task margins remain open |
+| D17/D20 | Independent comparison completed. All six Claude source files delivered in 72f9eeb and locally verified; independent original plus revision pointer distinguished. Original three pasted attachments remain missing |
+| D21 | Primary nonlinear272 retained. Claude affine272 becomes a folding/identification control. Affine-route failure cannot reject nonlinear/structural growth |
+| D22 | Formation holds out procedural lineages within one disclosed template family. It does not satisfy the stronger joint unseen-family protocol |
+| D23 | Lifecycle demonstrates planted same-feature learning and physical deletion, with no weight copying and matched final-size static/removal control. Initial allocated host weights count; no near-empty or half-size claim |
+| D24 | Signed nonlinear probes require cross-host equality A(+epsilon)=B(-epsilon), not opposite finite output changes. Empirical teacher fits are not impossibility proofs; comparative wins do not establish information order |
+| D25 | Admission uses independent selection data; final tests audit outcomes. No finite-sample safety calibration promise; sample/lineage dependence must be handled before any such later claim |
+
+See [HYBRID_CONTRACT.md](HYBRID_CONTRACT.md) and the independent design review
+for concrete implementation gates. The full Claude GPU estimates remain
+unmeasured proposals without approval.
