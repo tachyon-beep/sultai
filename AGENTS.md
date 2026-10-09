@@ -15,5 +15,6 @@ Exclude credentials, private raw logs, model weights and live tracker DBs
 from Git. Commit coherent milestones and update the resume brief.
 
 Use Sol implementers and independent Astra design/correctness review when
-useful; keep ownership disjoint and avoid repeated review loops. Clarify TCD
-with the parent before selecting a materially different deliverable.
+useful; keep ownership disjoint and avoid repeated review loops. TCD means
+technical concept demonstrator (John, 2026-10-09). Keep the current synthetic
+instrument distinct from real-host/generated-repair and removal stages.

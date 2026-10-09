@@ -7,17 +7,14 @@ The delegated request from John on 2026-10-09 authorizes basic Sultai work at
 documentation before reboot. The request is the authority for this scope;
 the three attached reports contain research proposals, not validated results.
 
-## TCD is unresolved
+## TCD means technical concept demonstrator
 
-No definition of TCD was supplied in the delegation. Sultai did not exist at
-initial inspection. A read-only text search of Simic docs and the Esper-lite
-archive found no TCD or Sultai definition. The parent thread was asked for
-clarification, but both delivery attempts returned thread-not-found.
-
-Do not expand this acronym by guess. This checkpoint provides the expressly
-requested research pack, design, test plan, and resume brief. A short synthetic
-implementation of the expressly described one-site probe can support that
-design, but must not be represented as completion of an undefined TCD.
+John clarified the acronym directly during this task on 2026-10-09. The
+initial documentation commit preserved the ambiguity rather than guessing.
+This first TCD is the bounded synthetic instrument described below, supported
+by a research pack, design, test plan and explicit resume brief. Completion of
+that instrument does not establish learned generative repair, development from
+near-empty, physical removal, or the final parameter-efficiency target.
 
 ## Agreed intent
 
@@ -43,7 +40,8 @@ are later milestones requiring additional design and experiments.
 
 ## Open decisions
 
-- TCD expansion, required artifact, and completion criteria (parent).
+- Acceptance of a later real-host/generated-repair TCD beyond this synthetic
+  instrument; the acronym itself is resolved.
 - Real host task, independent lineage/bottleneck definitions, capability
   margin, handover step unit, and fixed future evaluation horizon.
 - Physical removable structure and optimizer-state removal contract.

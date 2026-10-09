@@ -11,7 +11,14 @@
       "reported_size_bytes": 68158,
       "local_path": null,
       "sha256": null,
-      "verified_local_bytes": false
+      "verified_local_bytes": false,
+      "api_text_read": {
+        "available": true,
+        "total_lines": 996,
+        "has_more": false,
+        "exact_local_original": false,
+        "date": "2026-10-09"
+      }
     },
     {
       "library_file_id": "libfile_d643f55842e88191b58ec69df6ee006a",
@@ -21,7 +28,14 @@
       "reported_size_bytes": 26238,
       "local_path": null,
       "sha256": null,
-      "verified_local_bytes": false
+      "verified_local_bytes": false,
+      "api_text_read": {
+        "available": true,
+        "total_lines": 314,
+        "has_more": false,
+        "exact_local_original": false,
+        "date": "2026-10-09"
+      }
     },
     {
       "library_file_id": "libfile_7de516b203408191905c86eb469c63da",
@@ -31,7 +45,14 @@
       "reported_size_bytes": 48895,
       "local_path": null,
       "sha256": null,
-      "verified_local_bytes": false
+      "verified_local_bytes": false,
+      "api_text_read": {
+        "available": true,
+        "total_lines": 468,
+        "has_more": false,
+        "exact_local_original": false,
+        "date": "2026-10-09"
+      }
     }
   ]
 }

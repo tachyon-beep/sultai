@@ -1,5 +1,8 @@
 # Research pack and evidence ledger
 
+Read [COMPARISON.md](COMPARISON.md) for the grounded report synthesis, checked
+primary references, mathematical corrections and minimal lifecycle lessons.
+
 ## Original attachment inventory
 
 Originals belong in `originals/`, under their exact supplied names. They have
@@ -29,7 +32,7 @@ inventory. Do not put signed URLs or transfer credentials in this repository.
 | Diffusion can generate useful local repairs | Research hypothesis | Must beat adequate deterministic/retrieval/optimization controls |
 | One 16-channel nonlinear 272-parameter probe is useful | Supplied Astra proposal | Tests repair formation only |
 | Esper-lite good seeds hand over with negligible initial impact then improve after 3–4 steps; bad seeds tank | User-reported, unverified; unit of step unresolved | Measure delayed benefit and early harm; no invented step unit |
-| Original reports' detailed claims/citations | Not yet inspected at this checkpoint | Do not infer them from filenames |
+| Original reports' detailed claims/citations | Complete API text available; selected sections inspected after first commit | Reading succeeded; exact local originals still absent; only listed primary references checked |
 
 ## Corrections carried from the delegated comparison
 
@@ -45,9 +48,8 @@ inventory. Do not put signed URLs or transfer credentials in this repository.
 
 ## Local sources (read-only)
 
-Simic AGENTS.md describes a current lifecycle/authority separation and a
-bounded experiment whose graft and static-capacity arms earned nothing at
-that scale. This is a different project and an author-maintained summary,
-not a Sultai measurement. Avoid importing its full architecture or silently
-redefining its observability-only Tamiyo role. `/mnt/data/archive/esper-lite`
-is available for targeted lifecycle reading; no source has been copied.
+Simic's constitution and current-state document and Esper-lite's README,
+ROADMAP and lifecycle reference were read without modification. The newer
+Simic current-state document reports partial graft capture after the initial
+screen; see COMPARISON.md for context and commit identities. None is a Sultai
+measurement. No implementation or private runtime log was copied.

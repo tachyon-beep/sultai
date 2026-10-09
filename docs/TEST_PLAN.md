@@ -12,6 +12,11 @@
   sample IDs disjoint; independent host lineage and bottleneck split guards.
 - Candidate selection uses selection loss, with an adversarial fixture where
   test ranking differs; best-of-K accounting includes all candidates/queries.
+- Changing selection labels cannot alter the pre-selection candidate bank;
+  transitive lineage/family overlap must fail the outer split guard.
+- Opposite frozen downstream maps share passive observations at zero, but one
+  fixed positive probe exposes opposite local influence. This is a diagnostic
+  fixture, not learned intervention discovery.
 - Shuffling paired targets changes fitting evidence; changing test targets
   cannot change learned weights or selected candidate.
 
@@ -24,8 +29,10 @@ Pre-register host/task, independent lineage/bottleneck partitions, sample
 counts, capability/error margin, failure threshold, horizon, units, seeds,
 query budgets, and K before collecting confirmatory results. Compare every
 method in DESIGN.md under all three telemetry conditions and shuffle controls.
-Use paired uncertainty estimates grouped by independent lineage, not by
-individual example or sibling branch. Retain failures and no-op wins.
+Use paired uncertainty estimates over independent groups, not individual
+examples or sibling branches. If bottleneck families induce cross-lineage
+dependence, group by independent lineage–family components or use a suitable
+two-way grouped analysis. Retain failures and no-op wins.
 
 If a teacher or optimizer fails to repair, inspect optimization capacity,
 data coverage and horizon; failure is not proof of unrepairability. If all
@@ -34,8 +41,10 @@ benefit. Evaluate oracle telemetry separately from implementable telemetry.
 
 ## Physical removal and efficiency gate, later
 
-Measure allocated trainable parameters before addition, at peak growth and
-after actual removal, including retained optimizer state and inference cost.
+Measure all physically retained model parameters before addition, at peak
+growth and after actual removal. Report trainable and frozen subsets,
+retained optimizer-state bytes and inference cost separately. Include any
+builder/controller/retrieval assets still required at inference.
 Use a predeclared task-capability tolerance and final retained parameter ratio
 near 0.5 relative to a properly tuned reference. Report search/training cost
 separately. Compare growth-only, pruning-only where applicable, joint

@@ -11,10 +11,9 @@ local Git repository, own Filigree store, research inventory, scope, bounded
 design and test plan. No training, GPU run, paid service or remote publication
 has occurred. Simic, Esper and ELSPETH were not modified.
 
-TCD is undefined in the supplied and searched project text. Parent
-clarification delivery failed (thread not found). Ask parent for its expansion
-and required completion criteria before treating any artifact as a finished
-TCD. The explicitly described local repair probe remains a bounded proposal.
+John clarified TCD as **technical concept demonstrator** during the task.
+The bounded first implementation is a short CPU synthetic instrument, not
+a completed learned-generator, handover, or physical-removal system.
 
 Original Library import is blocked: preparation succeeded, but byte transfer
 and the one supported retry failed (retry: HTTP 403 for each attachment).
@@ -26,7 +25,7 @@ transfer/re-attachment before claiming exact research import.
 1. `cd /home/john/sultai`; read AGENTS.md, README.md and this file.
 2. Run `git status --short`, `git log -5 --oneline`, and `git remote -v`.
 3. Run `filigree session-context`; use atomic `start-work` for any task.
-4. Confirm ELSPETH/reboot constraints and TCD meaning with the parent.
+4. Confirm ELSPETH/reboot constraints before any further experiments.
 5. Read docs/SCOPE.md, DESIGN.md, TEST_PLAN.md and research/README.md.
 6. Resolve attachment import and open decisions without modifying other repos.
 
@@ -40,5 +39,6 @@ may be added before handoff and must be reported as same-host only.
 ## Initial validation
 
 Documentation checkpoint only. No implementation tests have run yet.
-Track progress in `sultai-5d22f48e2a`; original import and TCD definition must
-remain visible blockers rather than expiring observations.
+Track documentation in `sultai-5d22f48e2a`, implementation in
+`sultai-b8bae4fcc2`, and the original-import blocker in `sultai-9c01e0943e`.
+TCD definition issue `sultai-d06d9abe1d` is resolved by John's clarification.
