@@ -10,8 +10,11 @@ The reviewed `2026-10-09-correction-protocol.md` fixes the current synthetic
 host, four-template action family, oracle telemetry, seeds, splits, controls,
 trajectory metrics and fail/stop meanings. The correction command needs one
 CPU process and the standard library, no GPU or external dataset. The existing
-120-second per-check ceiling applies; runtime and RAM estimates will be
-replaced by measured development validation before handover.
+120-second per-check ceiling applies. Development measured 16.13 seconds wall,
+16.12 seconds CPU and 62.7 MiB peak RSS on cloud CPython 3.12.14/x86_64.
+Confirmation doubles lifecycle streams: estimate 25–40 seconds and below
+256 MiB per process on comparable hardware, not a Nyx benchmark. See the
+confirmation handover for commands and retain the 120-second stop unchanged.
 
 Confirmation will execute on Nyx only after merged-source verification. It
 does not satisfy HTTYE's beyond-template transfer or population safety gates.

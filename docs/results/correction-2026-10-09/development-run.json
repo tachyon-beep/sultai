@@ -1,0 +1,18 @@
+{
+  "started_utc": "2026-10-09T16:18:26.795669+00:00",
+  "elapsed_seconds": 16.126540966999983,
+  "user_cpu_seconds": 16.056302,
+  "system_cpu_seconds": 0.06709,
+  "max_rss_kib": 64240,
+  "exit_code": 0,
+  "stdout": "",
+  "stderr": "",
+  "command": [
+    "sh",
+    "scripts/correction.sh",
+    "--phase",
+    "development",
+    "--output",
+    "/tmp/sultai-correction-development-64439d8.json"
+  ]
+}
