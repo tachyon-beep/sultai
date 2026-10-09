@@ -76,7 +76,7 @@
     }
   ],
   "claude_handoff": {
-    "status": "blocked",
+    "status": "source_files_delivered_and_verified; earlier bundle transfers remain failed",
     "date": "2026-10-09",
     "reserved_directory": "docs/research/claude-handoff/",
     "error": "library file transfer failed: download failed with HTTP status 403",
@@ -145,6 +145,72 @@
         "local_path": null
       }
     ],
-    "relationship": "Historical source reports only; independent adversarial Claude TCD excluded and still pending. Not verified as byte-identical replacements for the three original attachments."
+    "relationship": "Delivered historical source reports plus complete independent TCD and later Emrakul/Tamiyo revision. These are not byte-identical replacements for the three original requested attachments; those remain absent.",
+    "local_delivery_commit": "72f9eeba7110654c73b9b34f4f24d2e9f4af6f63",
+    "verified_delivered_files": [
+      {
+        "name": "00-index-provenance-and-conflicts.md",
+        "local_path": "docs/research/claude-handoff/00-index-provenance-and-conflicts.md",
+        "verified_size_bytes": 11114,
+        "sha256": "7494b2bb1ce73db5fb8df5817414fa9ff04bacf79926353e1cfd8d563bfeac94",
+        "verified_local_bytes": true
+      },
+      {
+        "name": "emrakul-tamiyo-revision.md",
+        "local_path": "docs/research/claude-handoff/emrakul-tamiyo-revision.md",
+        "verified_size_bytes": 23027,
+        "sha256": "64b622478453f394eac55d258d1bdc77f0082c10b37968d24665e31f9e199493",
+        "verified_local_bytes": true
+      },
+      {
+        "name": "esper-lite-review.md",
+        "local_path": "docs/research/claude-handoff/esper-lite-review.md",
+        "verified_size_bytes": 6825,
+        "sha256": "4673c4f08ff80d46d463079c83e5fdf4514d5e2e8c8a5155654f1d7369eda306",
+        "verified_local_bytes": true
+      },
+      {
+        "name": "openai-report-vs-repos.md",
+        "local_path": "docs/research/claude-handoff/openai-report-vs-repos.md",
+        "verified_size_bytes": 6391,
+        "sha256": "8c86478d7a68c95c217ee7b29a5af45895ee9f3b2b47e2059f2d235d0a019564",
+        "verified_local_bytes": true
+      },
+      {
+        "name": "simic-diffusion-grown-modules.md",
+        "local_path": "docs/research/claude-handoff/simic-diffusion-grown-modules.md",
+        "verified_size_bytes": 48427,
+        "sha256": "4d3f5aa845766c2a34406213e2c4d39b65113a3d640d8614e5da76eb29e1d69d",
+        "verified_local_bytes": true
+      },
+      {
+        "name": "simic-seed-comparison.md",
+        "local_path": "docs/research/claude-handoff/simic-seed-comparison.md",
+        "verified_size_bytes": 6253,
+        "sha256": "d31ca487ad0050e8280a4736157e2b0444cde01acdb17a84d3e5eb242113c702",
+        "verified_local_bytes": true
+      },
+      {
+        "name": "sultai-concept-demonstrator-design.md",
+        "local_path": "docs/research/claude-handoff/sultai-concept-demonstrator-design.md",
+        "verified_size_bytes": 60395,
+        "sha256": "e376250015bad71675f2194636bf82e85de9638c1d1f820b97e7ef1921ad38cf",
+        "verified_local_bytes": true
+      }
+    ]
+  },
+  "independent_tcd": {
+    "library_file_id": "libfile_7bdd095b291881919ac3aabe66ed9616",
+    "file_name": "Sultai concept demonstrator design.md",
+    "reported_size_bytes": 59999,
+    "reported_sha256": "a8738913191651920aabc113eb7a2376fdb8817c4425075b1a63fa9637e24895",
+    "api_text_read": {
+      "total_lines": 350,
+      "has_more": false
+    },
+    "supported_transfer_status": "initial failure, one fresh retry HTTP 403; not repeated",
+    "local_delivered_path": "docs/research/claude-handoff/sultai-concept-demonstrator-design.md",
+    "local_revision_pointer_removal_matches_original_hash": true,
+    "comparison_status": "completed before hybrid implementation; later revision separately preserved"
   }
 }

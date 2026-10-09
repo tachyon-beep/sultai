@@ -19,9 +19,13 @@ useful; keep ownership disjoint and avoid repeated review loops. TCD means
 technical concept demonstrator (John, 2026-10-09). Keep the current synthetic
 instrument distinct from real-host/generated-repair and removal stages.
 
-Read docs/CONCEPT.md, docs/DECISIONS.md and docs/research/SOURCE_MAP.md for the
-canonical consolidation. Core docs belong to the Nyx Sultai coordinator during
-the pending handoff. Reserve docs/research/claude-handoff/ for authorized
-additive imports; do not edit another worker's contributions there. Claude's
-separate TCD is an independent adversarial review: do not send our design or
-steer its conclusions before completion. See docs/research/CLAUDE_HANDOFF.md.
+The active hybrid contract is docs/HYBRID_CONTRACT.md. John authorized bounded
+hybrid implementation after the independent Claude review completed. The
+source designs are preserved in docs/designs/ and docs/research/claude-handoff/;
+do not overwrite them. Docs/DESIGN.md links active versus historical scope.
+Only short, single-process CPU work is authorized. No GPU pilot, large corpus,
+paid service or Simic/ELSPETH changes. The lead owns docs/integration/commits;
+workers have disjoint files recorded in docs/plans/2026-10-09-hybrid-tcd.md.
+Avoid `filigree session-context` during read-only inspection: this installed
+version auto-refreshes instruction files and can start a dashboard. Use
+`filigree list`/`show` for ownership checks; writes use the atomic workflow.

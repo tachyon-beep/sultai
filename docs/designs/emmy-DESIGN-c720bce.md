@@ -1,18 +1,3 @@
-# Sultai design: active hybrid and preserved emmy proposal
-
-The active implementation contract is [HYBRID_CONTRACT.md](HYBRID_CONTRACT.md),
-authorized by John on 2026-10-09. [Source provenance](designs/README.md)
-preserves the emmy and Claude designs. The nonlinear adapter remains primary;
-affine repair is a diagnostic control. Formation and same-feature handover are
-separate small synthetic assays, with no general safety or half-size claim.
-
-The text below is the earlier bounded emmy proposal, retained for context.
-Where the new contract is narrower (especially synthetic seen-family lineage
-holdout), it governs the implemented hybrid. The proposed real-host study and
-joint unseen-family split remain future research, not current capabilities.
-
----
-
 # Bounded technical concept demonstrator — design v2
 
 The broader canonical concept is in [CONCEPT.md](CONCEPT.md); corrections and
