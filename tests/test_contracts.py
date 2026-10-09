@@ -346,4 +346,5 @@ class EvidenceContracts(unittest.TestCase):
         reference.pop("runtime")
         self.assertEqual(actual, reference)
         self.assertEqual(actual["protocol"], "sultai-hybrid-cpu-v2")
-        self.assertEqual(len(actual["source_identity"]["files"]), 8)
+        self.assertEqual(len(actual["source_identity"]["files"]), 12)
+        self.assertEqual(set(actual["source_identity"]["files"]), set(SOURCE_FILES))

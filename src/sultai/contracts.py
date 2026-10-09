@@ -7,19 +7,28 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from .report_types import PartitionIdentity, SplitIdentity, count, number, sequence, string, validate_isolation
+from .trust import InputDataError, t3_boundary
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_numeric_boundaries",
+    fingerprint="0404ad9ffc3dd18aaa09deed859b847a4d88fec30950721c85377e5e0162265e",
+)
 def numeric_vector(value: object, width: int) -> tuple[float, ...]:
     values = tuple(sequence(value, number))
     if len(values) != width:
-        raise ValueError(f"expected exactly {width} channels")
+        raise InputDataError(f"expected exactly {width} channels")
     return values
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_numeric_boundaries",
+    fingerprint="0404ad9ffc3dd18aaa09deed859b847a4d88fec30950721c85377e5e0162265e",
+)
 def numeric_matrix(value: object, rows: int, columns: int) -> tuple[tuple[float, ...], ...]:
     values = tuple(sequence(value, lambda row: numeric_vector(row, columns)))
     if len(values) != rows:
-        raise ValueError(f"expected exactly {rows} weight rows")
+        raise InputDataError(f"expected exactly {rows} weight rows")
     return values
 
 

@@ -1,5 +1,37 @@
 # Strict typing and required-state contracts
 
+## Current operation-relative extension
+
+John's later T1/T2/T3 policy supersedes the earlier optional-default discussion
+where they differ. T1 owns types and operation-specific values; T2 owns types
+and documents recoverable domain failures; T3 trusts neither. Tiers attach to
+the operation, not a permanent label on a data object. `.get()` is banned in
+T1/T2; the local gate conservatively bans the attribute throughout production.
+
+`trust.py` supplies distinct `InputDataError` (malformed boundary data),
+`ContractViolation` (trusted-code fault), and `FitUnavailable` (documented
+machine-precision solve failure). None becomes a no-op or successful report.
+The positive-ridge solvers declare T2 preconditions and the specific recoverable
+failure; tiny finite regularization on collinear data exercises the real path.
+No broad exception handler conceals unrelated faults.
+
+Public unknown-object parsers, array boundaries and adapter JSON parsing carry
+`@t3_boundary(test=..., fingerprint=...)`. Paired tests exercise permitted
+normalization/coercion, type rejection and value/shape/coverage validation.
+The SHA256 is over normalized test-function AST, so formatting alone does not
+invalidate it. `scripts/check_policy.py` rejects missing/stale references,
+`.get`, Any/cast/ignore escapes and empty source coverage. Mutation tests remove
+a real decorator and alter a paired test to demonstrate gate refusal. Fingerprint
+refresh is explicit and must accompany review of changed assertions.
+
+Typed numerical operations and internally owned serialization helpers are T1
+unless explicitly T2; new reports are complete frozen dataclasses. Private
+digest helpers serialize owned values and do not ingest an external report.
+The local syntax checks are not a universal proof of semantic invariants or
+adversarial authenticity. Strict typing, actual positive/negative runtime tests
+and independent review remain required. Existing v1/v2 evidence below is
+historical; it is not overwritten by correction verification.
+
 This is successor hardening of the delivered hybrid at
 `ccdfd5225ee5575f365aa6a4a0698bed0f652958`. The independent Claude handoff
 continues to target that immutable commit. No scientific fixture, optimizer,

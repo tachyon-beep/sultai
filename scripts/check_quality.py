@@ -7,6 +7,7 @@ import hashlib
 import json
 import shutil
 import subprocess
+import sys
 import tempfile
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -49,6 +50,7 @@ def main() -> int:
         ruff_base = [ruff, "check", "--no-cache", "--config", config]
         check("mypy_version", [mypy, "--version"], 0)
         check("ruff_version", [ruff, "--version"], 0)
+        check("operation_trust_policy", [sys.executable, "scripts/check_policy.py"], 0)
         check("strict_source_types", [*mypy_base, "src/sultai"], 0)
         check("source_and_test_lint", [*ruff_base, "src", "tests"], 0)
         check(

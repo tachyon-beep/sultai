@@ -8,11 +8,16 @@ from dataclasses import dataclass
 
 from .contracts import Readout, numeric_matrix, numeric_vector
 from .report_types import number, required
+from .trust import ContractViolation, FitUnavailable, InputDataError, _fit_finite, t2_operation, t3_boundary
 
 CHANNELS = 16
 PARAMETERS = CHANNELS * CHANNELS + CHANNELS
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_numeric_boundaries",
+    fingerprint="0404ad9ffc3dd18aaa09deed859b847a4d88fec30950721c85377e5e0162265e",
+)
 def finite(value: object) -> float:
     return number(value)
 
@@ -52,6 +57,10 @@ class Adapter:
         return json.dumps({"weights": self.weights, "bias": self.bias}, allow_nan=False)
 
     @classmethod
+    @t3_boundary(
+        test="tests/test_trust.py::BoundaryTests.test_adapter_json_boundary",
+        fingerprint="694f143a3601fed06425ec1ced03364441b0ea1888f1221d9e2dd3dc2715708d",
+    )
     def from_json(cls, payload: str) -> "Adapter":
         raw: object = json.loads(payload)
         data = required(raw, ("weights", "bias"))
@@ -180,15 +189,24 @@ def synthetic_episode(seed: int = 7, *, healthy: bool = False) -> Episode:
     )
 
 
+@t2_operation(
+    invariants="Finite complete examples, nonempty conditioning, and finite positive ridge; zero numeric pivot and nonfinite arithmetic are recoverable.",
+    failures=(FitUnavailable,),
+)
 def fit(conditioning: Sequence[Example], ridge: float = 1e-8) -> Adapter:
     """Ridge normal equations on tanh(h), fitting W and b only.
 
     This is conventional optimization on new-host conditioning pairs, not
     forward-only generated repair formation. No selection/test argument exists.
     """
-    ridge = finite(ridge)
+    # This typed callable owns its input preconditions; the reusable T3 parser
+    # does not change their classification into an external-data failure.
+    try:
+        ridge = finite(ridge)
+    except InputDataError as error:
+        raise ContractViolation("finite positive ridge is required") from error
     if ridge <= 0 or not conditioning:
-        raise ValueError("positive ridge and nonempty conditioning are required")
+        raise ContractViolation("positive ridge and nonempty conditioning are required")
     width = CHANNELS + 1
     gram = [[ridge if i == j else 0.0 for j in range(width)] for i in range(width)]
     rhs = [[0.0] * CHANNELS for _ in range(width)]
@@ -205,15 +223,15 @@ def fit(conditioning: Sequence[Example], ridge: float = 1e-8) -> Adapter:
     for column in range(width):
         pivot = max(range(column, width), key=lambda row: abs(augmented[row][column]))
         augmented[column], augmented[pivot] = augmented[pivot], augmented[column]
-        divisor = finite(augmented[column][column])
+        divisor = _fit_finite(augmented[column][column])
         if divisor == 0.0:
-            raise ValueError("singular conditioning system")
-        augmented[column] = [finite(value / divisor) for value in augmented[column]]
+            raise FitUnavailable("singular conditioning system at machine precision")
+        augmented[column] = [_fit_finite(value / divisor) for value in augmented[column]]
         for row in range(width):
             if row != column:
                 factor = augmented[row][column]
                 augmented[row] = [
-                    finite(a - factor * b) for a, b in zip(augmented[row], augmented[column], strict=True)
+                    _fit_finite(a - factor * b) for a, b in zip(augmented[row], augmented[column], strict=True)
                 ]
     solution = [row[width:] for row in augmented]
     return Adapter(tuple(tuple(solution[j][i] for j in range(CHANNELS)) for i in range(CHANNELS)), tuple(solution[-1]))

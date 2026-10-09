@@ -31,6 +31,7 @@ from .report_types import (
     validate_isolation,
     validate_phase,
 )
+from .trust import ContractViolation, FitUnavailable, InputDataError, _fit_finite, t2_operation, t3_boundary
 
 
 @dataclass(frozen=True)
@@ -84,9 +85,13 @@ def costs(**entries: int) -> CostLedger:
     return parse_CostLedger({key: entries[key] if key in entries else 0 for key in COST_KEYS})
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_formation_object_boundaries",
+    fingerprint="b5eece8fe3e171bd5c634077a4077ebb6178e8c420aa7c88d0ba748a3abcc5ad",
+)
 def add_costs(*ledgers: object) -> CostLedger:
     if not ledgers:
-        raise ValueError("cost aggregation requires complete ledgers")
+        raise InputDataError("cost aggregation requires complete ledgers")
     validated = tuple(named(parse_CostLedger(ledger), count) for ledger in ledgers)
     return parse_CostLedger({key: sum(ledger[key] for ledger in validated) for key in COST_KEYS})
 
@@ -234,16 +239,26 @@ def _teacher_coefficients(adapter: Adapter) -> tuple[float, ...]:
     )
 
 
+@t2_operation(
+    invariants="Finite rectangular nonempty matched arrays and finite positive ridge; zero numeric pivot and nonfinite arithmetic are recoverable.",
+    failures=(FitUnavailable,),
+)
 def _regress(
     rows: Sequence[Sequence[float]], targets: Sequence[Sequence[float]], ridge: float = FIXED.meta_ridge
 ) -> tuple[tuple[float, ...], ...]:
-    ridge = finite(ridge)
+    try:
+        ridge = finite(ridge)
+    except InputDataError as error:
+        raise ContractViolation("finite positive ridge is required") from error
     if ridge <= 0 or not rows or not targets or len(rows) != len(targets):
-        raise ValueError("nonempty matched regression arrays and positive ridge required")
-    rows = numeric_matrix(rows, len(rows), len(rows[0]))
-    targets = numeric_matrix(targets, len(targets), len(targets[0]))
+        raise ContractViolation("nonempty matched regression arrays and positive ridge required")
+    try:
+        rows = numeric_matrix(rows, len(rows), len(rows[0]))
+        targets = numeric_matrix(targets, len(targets), len(targets[0]))
+    except InputDataError as error:
+        raise ContractViolation("finite rectangular regression arrays are required") from error
     if not rows[0] or not targets[0]:
-        raise ValueError("regression columns must be nonempty")
+        raise ContractViolation("regression columns must be nonempty")
     width = len(rows[0]) + 1
     outputs = len(targets[0])
     augmented = [[ridge if i == j else 0.0 for j in range(width)] + [0.0] * outputs for i in range(width)]
@@ -257,15 +272,15 @@ def _regress(
     for column in range(width):
         pivot = max(range(column, width), key=lambda i: abs(augmented[i][column]))
         augmented[column], augmented[pivot] = augmented[pivot], augmented[column]
-        divisor = finite(augmented[column][column])
+        divisor = _fit_finite(augmented[column][column])
         if divisor == 0:
-            raise ValueError("singular meta regression")
-        augmented[column] = [finite(v / divisor) for v in augmented[column]]
+            raise FitUnavailable("singular meta regression at machine precision")
+        augmented[column] = [_fit_finite(v / divisor) for v in augmented[column]]
         for row_index in range(width):
             if row_index != column:
                 factor = augmented[row_index][column]
                 augmented[row_index] = [
-                    finite(a - factor * b) for a, b in zip(augmented[row_index], augmented[column], strict=True)
+                    _fit_finite(a - factor * b) for a, b in zip(augmented[row_index], augmented[column], strict=True)
                 ]
     return tuple(tuple(row[width:]) for row in augmented)
 
@@ -593,12 +608,16 @@ def _evaluate(
     return {"lineages": rows, "summary": summary, "costs": add_costs(*(row["costs"] for row in rows))}
 
 
+@t3_boundary(
+    test="tests/test_trust.py::BoundaryTests.test_formation_object_boundaries",
+    fingerprint="b5eece8fe3e171bd5c634077a4077ebb6178e8c420aa7c88d0ba748a3abcc5ad",
+)
 def formation_acceptance(
     development: object, test: object, healthy: object, *, isolation: SplitValidation | None = None
 ) -> FormationGates:
     """Require complete evidence and the guard's fixed-split validation result."""
     if isolation is None:
-        raise ValueError("validated split provenance is required")
+        raise InputDataError("validated split provenance is required")
     provenance = isolation.report()
     validate_isolation(provenance)
     dev = parse_PhaseReport(development)
@@ -627,6 +646,13 @@ def run_formation() -> tuple[FormationReport, FrozenGenerator]:
     training = tuple(make_episode(seed) for seed in FIXED.train_seeds)
     development = tuple(make_episode(seed) for seed in FIXED.dev_seeds)
     evaluation = tuple(make_episode(seed) for seed in FIXED.test_seeds)
+    healthy_episodes = tuple(make_episode(seed, healthy=True) for seed in FIXED.test_seeds)
+    # Healthy evidence participates in isolation before any teacher is fitted.
+    # The legacy v2 report retains its three-part provenance schema; the current
+    # correction report additionally records every healthy cohort's identity.
+    guard_lineage_splits(
+        {"train": training, "development": development, "test": evaluation, "healthy": healthy_episodes}
+    )
     isolation = guard_lineage_splits({"train": training, "development": development, "test": evaluation})
     if isolation is None:
         raise ValueError("fixed split validation missing")
@@ -634,7 +660,7 @@ def run_formation() -> tuple[FormationReport, FrozenGenerator]:
     # No settings are selected from development; evaluate it as a separate audit.
     dev = _evaluate(development, generators, teachers)
     test = _evaluate(evaluation, generators, teachers)
-    healthy = _evaluate(tuple(make_episode(seed, healthy=True) for seed in FIXED.test_seeds), generators, teachers)
+    healthy = _evaluate(healthy_episodes, generators, teachers)
     config: FormationConfig = {
         "train_seeds": FIXED.train_seeds,
         "dev_seeds": FIXED.dev_seeds,
