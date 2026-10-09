@@ -1,0 +1,23 @@
+# Never retain credentials, private runtime logs, model weights, or local stores.
+.env
+.env.*
+*.pem
+*.key
+credentials*
+secrets*
+logs/
+runtime/
+runs/
+checkpoints/
+*.pt
+*.pth
+*.ckpt
+.weft/
+.filigree/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+dist/
+build/
+*.egg-info/

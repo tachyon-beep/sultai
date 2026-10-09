@@ -1,0 +1,37 @@
+{
+  "checkpoint_date": "2026-10-09",
+  "status": "blocked",
+  "reason": "Supported Library transfer failed; one fresh preparation/retry returned HTTP 403 for each attachment.",
+  "files": [
+    {
+      "library_file_id": "libfile_8a7b298915588191b512a92d77443579",
+      "file_id": "file_00000000adbc82308029b098df7ce898",
+      "file_name": "Pasted text.txt",
+      "library_version": 0,
+      "reported_size_bytes": 68158,
+      "local_path": null,
+      "sha256": null,
+      "verified_local_bytes": false
+    },
+    {
+      "library_file_id": "libfile_d643f55842e88191b58ec69df6ee006a",
+      "file_id": "file_0000000050d481f5bfdd7daa0c0da265",
+      "file_name": "Pasted text(1).txt",
+      "library_version": 0,
+      "reported_size_bytes": 26238,
+      "local_path": null,
+      "sha256": null,
+      "verified_local_bytes": false
+    },
+    {
+      "library_file_id": "libfile_7de516b203408191905c86eb469c63da",
+      "file_id": "file_0000000027a88230b720fb8dd4452b4c",
+      "file_name": "Pasted text(2).txt",
+      "library_version": 0,
+      "reported_size_bytes": 48895,
+      "local_path": null,
+      "sha256": null,
+      "verified_local_bytes": false
+    }
+  ]
+}
