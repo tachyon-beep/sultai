@@ -30,6 +30,23 @@ oracle-site/target controls from practical allocation, and treat addition AND
 deliberate removal during continued learning as the growth mechanism.
 Experimental ablations test that mechanism; they do not define it.
 
+Canonical consolidation (documentation only): read `docs/CONCEPT.md`,
+`docs/DECISIONS.md`, and `docs/research/SOURCE_MAP.md`. These integrate the
+original reports, local telemetry follow-up, Astra reviews, existing TCD,
+current Simic audit and historical Claude handoff reports. Material conflicts
+are explicit, including strict formation, null outcomes, representation,
+static capacity, physical removal and causal attribution. No implementation
+was expanded by these follow-ups.
+
+Claude's separate TCD is an independent adversarial design and is still pending.
+Do not send it our design or steer it before completion. The reserved
+`docs/research/claude-handoff/` directory is empty. A separate four-report
+source bundle and manifest were readable through Library, but supported Nyx
+transfers both failed: `library file transfer failed: download failed with
+HTTP status 403`. Expected checksums are recorded as reported only; no local
+bytes or matches were verified. See `docs/research/CLAUDE_HANDOFF.md` before
+any follow-up transfer or design comparison.
+
 Original Library import is blocked: preparation succeeded, but byte transfer
 and the one supported retry failed (retry: HTTP 403 for each attachment).
 Do not restart an unbounded retry loop. Obtain a working supported Library
@@ -41,7 +58,8 @@ transfer/re-attachment before claiming exact research import.
 2. Run `git status --short`, `git log -5 --oneline`, and `git remote -v`.
 3. Run `filigree session-context`; use atomic `start-work` for any task.
 4. Confirm ELSPETH/reboot constraints before any further experiments.
-5. Read docs/SCOPE.md, DESIGN.md, TEST_PLAN.md and research/README.md.
+5. Read docs/CONCEPT.md, DECISIONS.md, SCOPE.md, DESIGN.md, TEST_PLAN.md and
+   research/SOURCE_MAP.md; distinguish pending sources from settled decisions.
 6. Run `sh scripts/smoke.sh` for the 12 short unit checks and JSON smoke.
 7. Resolve attachment import and open decisions without modifying other repos.
 
@@ -52,6 +70,10 @@ transfer/re-attachment before claiming exact research import.
 - `6d655e4`: reviewed CPU demonstrator; 12 tests passed on installed Nyx path.
 - `8220ccc`: initial reboot handoff. Use `git log` for the follow-up
   reconciliation/consolidation documentation commits.
+- `858f6d5`: current Simic source reconciliation and developmental removal.
+- The subsequent canonical consolidation adds CONCEPT.md, DECISIONS.md,
+  SOURCE_MAP.md and CLAUDE_HANDOFF.md. `git log -3 --oneline` and the recovery
+  manifest identify its exact commit; do not assume an older bundle covers it.
 - `src/sultai/repair.py`: immutable nonlinear 272-parameter adapter, conventional
   ridge fit, synthetic fixture, disjoint split guard, selection and scalar probe.
 - `src/sultai/smoke.py`, `scripts/smoke.sh`, `tests/test_repair.py`: executable
@@ -107,3 +129,4 @@ Track documentation in `sultai-5d22f48e2a`, implementation in
 TCD definition issue `sultai-d06d9abe1d` is resolved by John's clarification.
 Next research gate: `sultai-8c727be6b1`; no campaign is authorized by that issue.
 Reconciliation documentation task: `sultai-5630caa657`.
+Canonical consolidation task: `sultai-0dabe18434`.

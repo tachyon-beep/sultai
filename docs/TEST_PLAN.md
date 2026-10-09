@@ -60,3 +60,8 @@ Compare developmental removals with growth-only and matched late-removal or
 pruning schedules, measuring subsequent learning as well as final capability.
 Shuffling telemetry and disabling a mechanism are experimental ablations;
 they must not be counted as the model's developmental removal policy.
+Separate immediate same-host removal cost from causal value across training.
+The former includes acquired dependence; the latter needs a matched trajectory.
+For maintenance/removal, declare the post-removal learning horizon and whether
+a full-tenure control exists. Test absence of missing-metric-to-zero coercion
+and passive observer effects before trusting an instrumented host comparison.

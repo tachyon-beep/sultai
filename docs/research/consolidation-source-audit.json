@@ -1,0 +1,19 @@
+{
+  "date": "2026-10-09",
+  "files": [
+    {
+      "repository": "/home/john/simic",
+      "revision": "454c7314cc2728ceee17513928541d60616bd081",
+      "path": "docs/design/01-claim.md",
+      "sha256": "bdd64e9fcc3f210e31874d10cca40b18c3d4430eb0479e50b8789dd5fbbc907d",
+      "read_scope": "attribution discussion/docstring; source read only; no experiment executed"
+    },
+    {
+      "repository": "/mnt/data/archive/esper-lite",
+      "revision": "5ad6f9a657ceffba04946f68ef2c9b9a21f040b4",
+      "path": "src/esper/simic/attribution/counterfactual.py",
+      "sha256": "a83787cfeeac4f8f61794ff683cf9f9d3e33b5f7820832fdf90b3caed1d57fd1",
+      "read_scope": "attribution discussion/docstring; source read only; no experiment executed"
+    }
+  ]
+}

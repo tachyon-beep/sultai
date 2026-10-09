@@ -1,5 +1,10 @@
 # Bounded technical concept demonstrator — design v2
 
+The broader canonical concept is in [CONCEPT.md](CONCEPT.md); corrections and
+unresolved choices are in [DECISIONS.md](DECISIONS.md). This design specifies
+the bounded sequence, while [SMOKE.md](SMOKE.md) identifies the implemented
+subset. Consolidation adds no runtime feature or experiment authorization.
+
 ## Question and non-claims
 
 Can a seed form a useful nonlinear local repair when its instruction stays
@@ -171,6 +176,11 @@ The next stage adds physically removable units, an explicit blend/handback
 schedule, and retained parameter/optimizer-state measurements. Removal must
 delete tensors and corresponding optimizer state or recompile a smaller
 model; zero masks alone do not establish reduction.
+Abstaining at formation is not the same as removing an established component.
+Same-host ablation estimates removal cost including acquired dependence;
+use matched common-future branches for causal developmental claims, and state
+the adaptation horizon for later replaceability tests. A full-tenure control
+is an additional trajectory whose cost must be reported.
 Count all retained parameters, including frozen tensors, plus optimizer-state
 bytes and any builder/controller/retrieval assets still needed at inference.
 Report trainable/frozen subsets and search-only assets separately. Compare the

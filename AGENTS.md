@@ -18,3 +18,10 @@ Use Sol implementers and independent Astra design/correctness review when
 useful; keep ownership disjoint and avoid repeated review loops. TCD means
 technical concept demonstrator (John, 2026-10-09). Keep the current synthetic
 instrument distinct from real-host/generated-repair and removal stages.
+
+Read docs/CONCEPT.md, docs/DECISIONS.md and docs/research/SOURCE_MAP.md for the
+canonical consolidation. Core docs belong to the Nyx Sultai coordinator during
+the pending handoff. Reserve docs/research/claude-handoff/ for authorized
+additive imports; do not edit another worker's contributions there. Claude's
+separate TCD is an independent adversarial review: do not send our design or
+steer its conclusions before completion. See docs/research/CLAUDE_HANDOFF.md.

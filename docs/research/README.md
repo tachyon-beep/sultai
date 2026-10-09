@@ -1,5 +1,13 @@
 # Research pack and evidence ledger
 
+Start with [the canonical concept](../CONCEPT.md),
+[decision register](../DECISIONS.md), and [source map](SOURCE_MAP.md).
+The synthesis incorporates the original reports, telemetry follow-up, Astra
+reviews, current Simic source audit, historical Claude source bundle and
+existing Sultai work. It preserves source disagreements and evidence status.
+The independent Claude TCD is still pending; [handoff status](CLAUDE_HANDOFF.md)
+also records the separate source bundle's failed byte transfer.
+
 Read [COMPARISON.md](COMPARISON.md) for the grounded report synthesis, checked
 primary references, mathematical corrections and minimal lifecycle lessons.
 The follow-up [Simic reconciliation](SIMIC_RECONCILIATION.md) checks Claude's
@@ -57,3 +65,12 @@ ROADMAP and lifecycle reference were read without modification. The newer
 Simic current-state document reports partial graft capture after the initial
 screen; see COMPARISON.md for context and commit identities. None is a Sultai
 measurement. No implementation or private runtime log was copied.
+
+## New Claude source bundle
+
+The bundle and supplied manifest were fully available as Library API text.
+Supported materialization on Nyx failed with HTTP 403 for each file. The
+reserved `claude-handoff/` directory remains empty. Expected hashes in
+`sources.json` are reported by the manifest and have not been verified locally.
+Source keys H1–H4 cover the four embedded historical reports. They are not
+the independent adversarial TCD, which has not yet been received.

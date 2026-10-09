@@ -56,23 +56,95 @@
     }
   ],
   "read_only_addenda": [
-  {
-    "library_file_id": "libfile_e75b9396a0508191b5ff86fcd350b047",
-    "file_id": "file_00000000f01c81fb9d0fcf23dea44d6f",
-    "file_name": "Pasted text(20261009-054538).txt",
-    "reported_size_bytes": 6450,
-    "api_text_read": {
-      "available": true,
-      "total_lines": 59,
-      "has_more": false,
-      "exact_local_original": false,
-      "date": "2026-10-09"
-    },
-    "local_path": null,
-    "sha256": null,
-    "verified_local_bytes": false,
-    "materialization_attempted": false,
-    "role": "Claude follow-up comparison, read-only by request"
+    {
+      "library_file_id": "libfile_e75b9396a0508191b5ff86fcd350b047",
+      "file_id": "file_00000000f01c81fb9d0fcf23dea44d6f",
+      "file_name": "Pasted text(20261009-054538).txt",
+      "reported_size_bytes": 6450,
+      "api_text_read": {
+        "available": true,
+        "total_lines": 59,
+        "has_more": false,
+        "exact_local_original": false,
+        "date": "2026-10-09"
+      },
+      "local_path": null,
+      "sha256": null,
+      "verified_local_bytes": false,
+      "materialization_attempted": false,
+      "role": "Claude follow-up comparison, read-only by request"
+    }
+  ],
+  "claude_handoff": {
+    "status": "blocked",
+    "date": "2026-10-09",
+    "reserved_directory": "docs/research/claude-handoff/",
+    "error": "library file transfer failed: download failed with HTTP status 403",
+    "attempts": "One fresh supported Library preparation/materialization per newly supplied bundle and manifest; no further retry after failure.",
+    "files": [
+      {
+        "library_file_id": "libfile_c1a641abe658819187e616c9dffbf020",
+        "file_id": "file_00000000864481f5a6973500911aa880",
+        "file_name": "sultai-claude-handoff-bundle.md",
+        "library_version": 0,
+        "reported_size_bytes": 74620,
+        "api_text_read": {
+          "available": true,
+          "total_lines": 719,
+          "has_more": false,
+          "exact_local_original": false
+        },
+        "local_path": null,
+        "sha256": null,
+        "verified_local_bytes": false
+      },
+      {
+        "library_file_id": "libfile_44706a3c3ff48191883e4bce66894fa1",
+        "file_id": "file_00000000b10481f5ba41160e37604c9f",
+        "file_name": "verified-manifest.json",
+        "library_version": 0,
+        "reported_size_bytes": 632,
+        "api_text_read": {
+          "available": true,
+          "total_lines": 22,
+          "has_more": false,
+          "exact_local_original": false
+        },
+        "local_path": null,
+        "sha256": null,
+        "verified_local_bytes": false
+      }
+    ],
+    "expected_embedded_reports": [
+      {
+        "name": "notes/esper-lite-review.md",
+        "bytes": 6825,
+        "sha256": "4673c4f08ff80d46d463079c83e5fdf4514d5e2e8c8a5155654f1d7369eda306",
+        "verification_status": "reported by supplied manifest; not verified on Nyx",
+        "local_path": null
+      },
+      {
+        "name": "notes/simic-seed-comparison.md",
+        "bytes": 6253,
+        "sha256": "d31ca487ad0050e8280a4736157e2b0444cde01acdb17a84d3e5eb242113c702",
+        "verification_status": "reported by supplied manifest; not verified on Nyx",
+        "local_path": null
+      },
+      {
+        "name": "notes/openai-report-vs-repos.md",
+        "bytes": 6391,
+        "sha256": "8c86478d7a68c95c217ee7b29a5af45895ee9f3b2b47e2059f2d235d0a019564",
+        "verification_status": "reported by supplied manifest; not verified on Nyx",
+        "local_path": null
+      },
+      {
+        "name": "research/simic-diffusion-grown-modules.md",
+        "bytes": 48427,
+        "sha256": "4d3f5aa845766c2a34406213e2c4d39b65113a3d640d8614e5da76eb29e1d69d",
+        "verification_status": "reported by supplied manifest; not verified on Nyx",
+        "local_path": null
+      }
+    ],
+    "relationship": "Historical source reports only; independent adversarial Claude TCD excluded and still pending. Not verified as byte-identical replacements for the three original attachments."
   }
-]
 }
