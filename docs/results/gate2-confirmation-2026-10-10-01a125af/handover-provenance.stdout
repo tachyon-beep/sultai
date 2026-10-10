@@ -1,0 +1,113 @@
+Replay and report provenance checks passed; scientific verdicts follow:
+{
+  "gates": [
+    {
+      "gate": 1,
+      "name": "contract_hardening",
+      "reason": "See exact-source unit, type and policy evidence.",
+      "verdict": "separate_verification"
+    },
+    {
+      "gate": 2,
+      "name": "instrument_truth",
+      "reason": "Single-run checks only; complete gate needs separate fault-injection, quality and deterministic replay evidence.",
+      "verdict": "bounded_checks_passed"
+    },
+    {
+      "gate": 3,
+      "name": "useful_repair_headroom",
+      "reason": "Shared four-template family; no transfer test.",
+      "verdict": "not_established"
+    },
+    {
+      "gate": 4,
+      "name": "honest_admission",
+      "reason": "All clean/noisy outcomes retained; no population safety claim.",
+      "verdict": "measured"
+    },
+    {
+      "gate": 5,
+      "name": "benefit_after_removal",
+      "reason": "Pre-removal specificity is not retained benefit.",
+      "verdict": "not_established"
+    },
+    {
+      "gate": 6,
+      "name": "calibrated_safety_and_utility",
+      "reason": "Domain, utility/risk margins and budget are unset.",
+      "verdict": "blocked"
+    },
+    {
+      "gate": 7,
+      "name": "training_readiness",
+      "reason": "Predecessor scientific requirements remain unproven.",
+      "verdict": "not_established"
+    }
+  ],
+  "specificity": false,
+  "contrasts": [
+    {
+      "comparator": "no_growth",
+      "maximum_improvement": 0.0031965909023009783,
+      "mean_improvement": 0.0029677069008225564,
+      "minimum_improvement": 0.0027275770584094965,
+      "negative_streams": 0,
+      "neutral_streams": 0,
+      "positive_streams": 4
+    },
+    {
+      "comparator": "no_growth_lr_matched",
+      "maximum_improvement": -0.0003911543095656395,
+      "mean_improvement": -0.0005289298877796289,
+      "minimum_improvement": -0.0006301340254507596,
+      "negative_streams": 4,
+      "neutral_streams": 0,
+      "positive_streams": 0
+    },
+    {
+      "comparator": "early_static_retained",
+      "maximum_improvement": -0.0003911543095656395,
+      "mean_improvement": -0.0005289298877796289,
+      "minimum_improvement": -0.0006301340254507594,
+      "negative_streams": 4,
+      "neutral_streams": 0,
+      "positive_streams": 0
+    },
+    {
+      "comparator": "early_static_taper",
+      "maximum_improvement": 0.0005382768720285837,
+      "mean_improvement": 0.00044146036465053873,
+      "minimum_improvement": 0.0003825191771459743,
+      "negative_streams": 0,
+      "neutral_streams": 0,
+      "positive_streams": 4
+    },
+    {
+      "comparator": "frozen_zero_taper",
+      "maximum_improvement": 0.0031965909023009783,
+      "mean_improvement": 0.0029677069008225564,
+      "minimum_improvement": 0.0027275770584094965,
+      "negative_streams": 0,
+      "neutral_streams": 0,
+      "positive_streams": 4
+    },
+    {
+      "comparator": "frozen_negated_taper",
+      "maximum_improvement": 0.016207755744809142,
+      "mean_improvement": 0.014259546909936747,
+      "minimum_improvement": 0.013064612509813906,
+      "negative_streams": 0,
+      "neutral_streams": 0,
+      "positive_streams": 4
+    },
+    {
+      "comparator": "frozen_random_taper",
+      "maximum_improvement": 0.011935871718696828,
+      "mean_improvement": 0.007621306433615794,
+      "minimum_improvement": 0.0035387058500598394,
+      "negative_streams": 0,
+      "neutral_streams": 0,
+      "positive_streams": 4
+    }
+  ]
+}

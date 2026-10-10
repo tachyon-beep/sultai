@@ -1,0 +1,52 @@
+{
+  "command": [
+    "/usr/bin/time",
+    "-v",
+    "-o",
+    "/tmp/sultai-confirmation-evidence.ZI3J18/replay-time.txt",
+    "sh",
+    "scripts/correction.sh",
+    "--phase",
+    "confirmation",
+    "--output",
+    "/tmp/sultai-confirmation-evidence.ZI3J18/replay.json"
+  ],
+  "cwd": "/tmp/sultai-confirmation-64439d8",
+  "started_utc": "2026-10-10T12:16:25Z",
+  "finished_utc": "2026-10-10T12:16:44Z",
+  "raw_invocation_exit": 0,
+  "gnu_time_exit": 0,
+  "outer_execution_tool_exit": 0,
+  "resources": {
+    "wall_seconds": 18.53,
+    "user_cpu_seconds": 18.46,
+    "system_cpu_seconds": 0.06,
+    "peak_rss_kib": 78288
+  },
+  "runtime": {
+    "canonical_command": [
+      "python3",
+      "-m",
+      "sultai.correction",
+      "--phase",
+      "confirmation"
+    ],
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "plan_path": "docs/plans/2026-10-09-correction-protocol.md",
+    "plan_sha256": "abbf3f52d1ef4eb148536b3cc0fc5bb13a24962a5353f55d739c541486bda486",
+    "python": "3.12.3",
+    "source_commit": "64439d80bdd7897aa94f8aa819ab23c17fcaffba",
+    "source_tree": "381dcf3138fda77f41191497f833c7ac27ff6ae9"
+  },
+  "attempts": {
+    "confirmation": 1,
+    "replay": 1
+  },
+  "confirmation_replay_bytes_equal": true,
+  "replay_sha256": "569a362b6dc987850801eab437b846a8129cf9a6e6d33ead096269b8610b0339",
+  "cmp_exit": 0,
+  "handover_provenance_exit": 0,
+  "post_run_source_commit": "64439d80bdd7897aa94f8aa819ab23c17fcaffba",
+  "post_run_source_status": ""
+}
