@@ -1,0 +1,44 @@
+{
+ "date_utc": "2026-10-10T13:47:35.556713+00:00",
+ "purpose": "Gate 3 headroom screen: reproduce Simic fit/dev split and commit dev indices as source of truth",
+ "derivation": {
+  "base_seed": 20261004,
+  "label": "cifar-fit-dev-v1",
+  "encoding": "sha256(seed.to_bytes(8,big) || len(label).to_bytes(4,big) || label); int.from_bytes(digest[:8],big)",
+  "derived_seed": 6798730733443669431,
+  "generator": "torch.Generator() CPU manual_seed",
+  "op": "torch.randperm(50000)"
+ },
+ "environment": {
+  "torch": "2.9.1+cu128",
+  "python": "3.12.3",
+  "host": "nyx.foundryside.dev"
+ },
+ "simic_artifact": {
+  "path": "/home/john/simic/runs/bounded-pilot-2026-10-08/manifest.json",
+  "saved_fit_len": 1024,
+  "saved_dev_len": 256,
+  "read_only": true
+ },
+ "checks": {
+  "fit_prefix_equal": true,
+  "dev_prefix_equal": true,
+  "first_eight": [
+   17416,
+   42096,
+   29166,
+   33200,
+   42989,
+   19545,
+   24596,
+   13704
+  ]
+ },
+ "permutation_sha256_int64_le": "df1d87871f9afe3b15d7c5a434c31c5f68ff99564b4512410cc64fb1d042a24e",
+ "dev_indices_artifact": {
+  "file": "dev-indices-int32-le.bin",
+  "count": 5000,
+  "dtype": "int32 little-endian",
+  "sha256": "27173d10eb5edba1d0fd331e7f85ea633753cfae11400c4e7ef81810c94eeeba"
+ }
+}
