@@ -99,12 +99,13 @@ are no project-specific source suppressions to conceal type defects.
 The local command is:
 
 ```sh
-nice -n 10 timeout 600 python3 scripts/check_quality.py
+nice -n 10 timeout 1200 python3 scripts/check_quality.py
 ```
 
 Each subprocess inside the gate has a 300-second ceiling (widened from 60 on
 2026-10-11 when the gate began scanning a torch-importing root; a cold mypy on
-such a module measured 13.7 s). The gate's negative controls mutate one real
+such a module measured 13.7 s). The outer `timeout` is 1200 s because the gate
+runs about nine mypy invocations and must fail on its own merits, not the clock. The gate's negative controls mutate one real
 module per declared root and plant a prohibited `Any` in the newest root to
 prove the policy scan reaches it.
 
