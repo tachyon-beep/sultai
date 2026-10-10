@@ -1,5 +1,21 @@
 # Resume Sultai after the bounded correction
 
+## Nyx Gate 2 checkpoint — 2026-10-10
+
+John authorized historical-claim takeover and CPU clearance. Live GitHub main
+and merged PR #1 were verified through the supported connector. Exactly one
+frozen confirmation ran: raw invocation/GNU time exits 0, 18.82 seconds,
+79,132 KiB peak RSS; software-valid true, specificity false, training-ready
+false. The outer execution tool reported exit 1, so execution stopped before
+replay for honest adjudication. Attempts **1/0**, no retry or budget reset.
+Gate 2 remains incomplete; STOP / NOT READY unchanged. See the
+[new checkpoint](certificates/2026-10-10-gate2-confirmation-checkpoint.md)
+and its durable local evidence. Obtain explicit parent disposition of the
+linked exit discrepancy before continuation. Independent Astra accepted the
+internally consistent scientific-negative confirmation with that unresolved
+execution-envelope qualification and accepted stopping before replay.
+Historical development evidence below remains unchanged.
+
 Parent task: `01a10aef-253f-7248-9619-7bb7271430ed`. John assigned exclusive
 Sultai correction ownership to this cloud session. The original orientation
 was read-only; implementation, draft PR and normal merge were subsequently

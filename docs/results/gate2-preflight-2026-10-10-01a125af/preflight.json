@@ -1,0 +1,251 @@
+{
+  "recorded_at_utc": "2026-10-10T12:04:23.134946+00:00",
+  "task_id": "01a125af-1631-79f1-b7bb-c3cdc20ec13f",
+  "commands": [
+    {
+      "argv": [
+        "hostname"
+      ],
+      "exit_code": 0,
+      "stdout": "command-00.stdout",
+      "stderr": "command-00.stderr"
+    },
+    {
+      "argv": [
+        "pwd"
+      ],
+      "exit_code": 0,
+      "stdout": "command-01.stdout",
+      "stderr": "command-01.stderr"
+    },
+    {
+      "argv": [
+        "/usr/bin/time",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "command-02.stdout",
+      "stderr": "command-02.stderr"
+    },
+    {
+      "argv": [
+        "python3",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "command-03.stdout",
+      "stderr": "command-03.stderr"
+    },
+    {
+      "argv": [
+        "git",
+        "status",
+        "--porcelain=v1"
+      ],
+      "exit_code": 0,
+      "stdout": "command-04.stdout",
+      "stderr": "command-04.stderr"
+    },
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "exit_code": 0,
+      "stdout": "command-05.stdout",
+      "stderr": "command-05.stderr"
+    },
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "origin/main"
+      ],
+      "exit_code": 0,
+      "stdout": "command-06.stdout",
+      "stderr": "command-06.stderr"
+    },
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "64439d80bdd7897aa94f8aa819ab23c17fcaffba^{tree}"
+      ],
+      "exit_code": 0,
+      "stdout": "command-07.stdout",
+      "stderr": "command-07.stderr"
+    },
+    {
+      "argv": [
+        "git",
+        "merge-base",
+        "--is-ancestor",
+        "64439d80bdd7897aa94f8aa819ab23c17fcaffba",
+        "HEAD"
+      ],
+      "exit_code": 0,
+      "stdout": "command-08.stdout",
+      "stderr": "command-08.stderr"
+    },
+    {
+      "argv": [
+        "git",
+        "diff",
+        "--exit-code",
+        "64439d80bdd7897aa94f8aa819ab23c17fcaffba",
+        "HEAD",
+        "--",
+        "src",
+        "scripts",
+        "tests",
+        "pyproject.toml",
+        "docs/plans/2026-10-09-correction-protocol.md"
+      ],
+      "exit_code": 0,
+      "stdout": "command-09.stdout",
+      "stderr": "command-09.stderr"
+    },
+    {
+      "argv": [
+        "git",
+        "worktree",
+        "list"
+      ],
+      "exit_code": 0,
+      "stdout": "command-10.stdout",
+      "stderr": "command-10.stderr"
+    },
+    {
+      "argv": [
+        "ps",
+        "-eo",
+        "pid,ppid,ni,etime,comm"
+      ],
+      "exit_code": 0,
+      "stdout": "command-11.stdout",
+      "stderr": "command-11.stderr"
+    }
+  ],
+  "frozen_manifest_verification": {
+    "artifacts": {
+      "docs/results/correction-2026-10-09/development-run.json": true,
+      "docs/results/correction-2026-10-09/development.json": true,
+      "docs/results/correction-2026-10-09/quality.json": true,
+      "docs/results/correction-2026-10-09/unit-tests.txt": true
+    },
+    "checked_files": {
+      "scripts/check_policy.py": true,
+      "scripts/check_quality.py": true,
+      "src/sultai/__init__.py": true,
+      "src/sultai/contracts.py": true,
+      "src/sultai/correction.py": true,
+      "src/sultai/formation.py": true,
+      "src/sultai/formation_controls.py": true,
+      "src/sultai/hybrid.py": true,
+      "src/sultai/lifecycle.py": true,
+      "src/sultai/repair.py": true,
+      "src/sultai/report_types.py": true,
+      "src/sultai/smoke.py": true,
+      "src/sultai/trajectory.py": true,
+      "src/sultai/trust.py": true,
+      "tests/report_fixture.py": true,
+      "tests/test_contracts.py": true,
+      "tests/test_correction_cli.py": true,
+      "tests/test_formation.py": true,
+      "tests/test_formation_controls.py": true,
+      "tests/test_healthy_provenance.py": true,
+      "tests/test_hybrid_cli.py": true,
+      "tests/test_lifecycle.py": true,
+      "tests/test_repair.py": true,
+      "tests/test_trajectory.py": true,
+      "tests/test_trust.py": true
+    }
+  },
+  "prior_handoff_root": "/home/john/Documents/Codex/2026-10-09/task-6/nyx-correction-confirmation/checkpoint-2026-10-10-01a125a6",
+  "handoff_manifest_sha256": "346f9ad1a9e79f58431043d05d408444eb8b11fca8f65b04122301acc2932a03",
+  "role_release_sha256": "49f78e9a0b20f1092e33d6a1bab1d26119789c8b91a6bd22a18d3ffdba7be3bf",
+  "prior_durability_checks": [
+    {
+      "path": "original-packet/CHECKPOINT.md",
+      "sha256_matches": true,
+      "source_bytes_equal": true
+    },
+    {
+      "path": "original-packet/independent-astra-review.md",
+      "sha256_matches": true,
+      "source_bytes_equal": true
+    },
+    {
+      "path": "original-packet/manifest.json",
+      "sha256_matches": true,
+      "source_bytes_equal": true
+    },
+    {
+      "path": "original-packet/preflight.json",
+      "sha256_matches": true,
+      "source_bytes_equal": true
+    },
+    {
+      "path": "new-handover/MORNING-HANDOVER.md",
+      "sha256_matches": true,
+      "source_bytes_equal": true
+    },
+    {
+      "path": "new-handover/handover-addendum.json",
+      "sha256_matches": true,
+      "source_bytes_equal": true
+    },
+    {
+      "path": "new-handover/receipts/FLIGHT-REPORT.md",
+      "sha256_matches": true,
+      "source_bytes_equal": true
+    },
+    {
+      "path": "new-handover/receipts/wind-down-ci.json",
+      "sha256_matches": true,
+      "source_bytes_equal": true
+    },
+    {
+      "path": "new-handover/receipts/wind-down-lanes-final.json",
+      "sha256_matches": true,
+      "source_bytes_equal": true
+    },
+    {
+      "path": "new-handover/receipts/wind-down-resource-snapshot.json",
+      "sha256_matches": true,
+      "source_bytes_equal": true
+    }
+  ],
+  "protocol_sha256": "abbf3f52d1ef4eb148536b3cc0fc5bb13a24962a5353f55d739c541486bda486",
+  "proc_numeric_entries": 3,
+  "expected_experiment_worktree_exists": false,
+  "attempts": {
+    "confirmation": 0,
+    "replay": 0
+  },
+  "claims_changed": false,
+  "tests_rerun": false,
+  "live_remote_check": {
+    "argv": [
+      "git",
+      "ls-remote",
+      "origin",
+      "refs/heads/main"
+    ],
+    "exit_code": 128,
+    "stderr": "fatal: unable to access 'https://github.com/tachyon-beep/sultai.git/': Could not resolve host: github.com\n",
+    "note": "Earlier read-only invocation; no retry"
+  },
+  "coordination_send": {
+    "thread_id": "01a12334-35ad-748b-99eb-2d3a16598084",
+    "isError": true,
+    "message": "thread/read failed: thread not loaded (code -32600)"
+  },
+  "remaining_prerequisites": [
+    "Historical claim holder/origin disposition; lease remains active until 2026-10-11T16:34:06Z",
+    "Explicit host-owner bounded CPU clearance; restricted PID namespace cannot establish it",
+    "Live remote main verification; local DNS unavailable"
+  ],
+  "scientific_status": "Gate 2 pending; STOP / NOT READY unchanged"
+}

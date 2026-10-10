@@ -1,0 +1,79 @@
+{
+  "compare": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Action completed."
+      }
+    ],
+    "structuredContent": {
+      "repository_full_name": "tachyon-beep/sultai",
+      "base": "8034cf8e59641c4ae46c12c2d21d7fa6bf171e20",
+      "head": "main",
+      "status": "identical",
+      "ahead_by": 0,
+      "behind_by": 0,
+      "total_commits": 0,
+      "too_large": null,
+      "base_commit": {
+        "sha": "8034cf8e59641c4ae46c12c2d21d7fa6bf171e20",
+        "url": "https://api.github.com/repos/tachyon-beep/sultai/commits/8034cf8e59641c4ae46c12c2d21d7fa6bf171e20",
+        "html_url": "https://github.com/tachyon-beep/sultai/commit/8034cf8e59641c4ae46c12c2d21d7fa6bf171e20"
+      },
+      "merge_base_commit": {
+        "sha": "8034cf8e59641c4ae46c12c2d21d7fa6bf171e20",
+        "url": "https://api.github.com/repos/tachyon-beep/sultai/commits/8034cf8e59641c4ae46c12c2d21d7fa6bf171e20",
+        "html_url": "https://github.com/tachyon-beep/sultai/commit/8034cf8e59641c4ae46c12c2d21d7fa6bf171e20"
+      },
+      "files": []
+    },
+    "isError": false
+  },
+  "pull_request": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Action completed."
+      }
+    ],
+    "structuredContent": {
+      "url": "https://github.com/tachyon-beep/sultai/pull/1",
+      "number": 1,
+      "state": "closed",
+      "merged": true,
+      "mergeable": false,
+      "draft": false,
+      "body": "The prior hybrid could pass its final loss threshold after zero, negated or random repair, confounded retained capacity with effective learning rate, and omitted healthy cohorts from isolation checks. This correction adds matched-rate trajectories, analytic and marginal controls, noisy healthy admission audits, explicit bad repairs and operation-relative trust/failure contracts. Historical source snapshots, research and result files are preserved.\n\nThe frozen development run is valid but scientifically negative: paired formation loses to analytic fitting; harmful noisy-healthy admissions remain; formed trajectories lose to the LR1.6 host/static retained controls in both streams. All endpoint arms still pass .01, so endpoint recovery is descriptive only. Verdict: STOP programme advancement / NOT READY for broader training. Confirmation and exact replay remain reserved for Nyx.\n\nVerification at exact PR head **6658871f4f1874b9da58d22b6bd216baf5fba131**, clean before/after:\n- 108 tests passed in 24.707 seconds.\n- All 17 quality checks passed, including strict mypy over 12 production modules, Ruff, positive/negative mutation controls and AST-bound T3 policy checks.\n- Executable inputs and protocol are byte-identical to independently reviewed experiment commit 64439d80bdd7897aa94f8aa819ab23c17fcaffba.\n- Independent Astra design, regression and scientific evidence reviews accepted the correction. S1 (gate-2 overclaim) and R1 (T2 error classification) were reproduced and closed before development. R1 closure independently passed six focused tests.\n- One preregistered development run: 16.13 seconds, 62.7 MiB peak RSS, exit 0. No confirmation, GPU, paid calls or broad training.\n- All 23 previously tracked research/result files remain byte-identical to the strict base.\n\nExact-head quality JSON SHA-256: `8325d93ef8d67695bc8e30b665d813f5ff7708b480861019941b2083d1aa2957`.\nExact-head unit-log SHA-256: `e32224412737a3c8b64626644a984ac4e1a55d9ef92e95ed1e42c8c2615c3c18`.\n\nReviewable deliverables:\n- [Evidence certificate](https://github.com/tachyon-beep/sultai/blob/6658871f4f1874b9da58d22b6bd216baf5fba131/docs/certificates/2026-10-09-hybrid-correction.md)\n- [Full result and provenance manifest](https://github.com/tachyon-beep/sultai/blob/6658871f4f1874b9da58d22b6bd216baf5fba131/docs/results/correction-2026-10-09/manifest.json)\n- [Independent review dispositions](https://github.com/tachyon-beep/sultai/blob/6658871f4f1874b9da58d22b6bd216baf5fba131/docs/reviews/correction-implementation-review.md)\n- [Exact Nyx confirmation/replay handover](https://github.com/tachyon-beep/sultai/blob/6658871f4f1874b9da58d22b6bd216baf5fba131/docs/NYX_CORRECTION_HANDOVER.md)\n- [Separate transfer recommendation and owner decisions](https://github.com/tachyon-beep/sultai/blob/6658871f4f1874b9da58d22b6bd216baf5fba131/docs/plans/2026-10-09-nyx-transfer-proposal.md)\n- [Parent-owned Page change summary](https://github.com/tachyon-beep/sultai/blob/6658871f4f1874b9da58d22b6bd216baf5fba131/docs/plans/2026-10-09-page-change-summary.md)\n\nMain is unprotected and repository rulesets are empty as verified through GitHub reads; no server protection was bypassed or changed. Local reviewed-head checks govern this authorized normal PR merge. Independent reviews are preserved in the repository, not claimed as GitHub review approvals.",
+      "title": "Correct hybrid evidence with matched controls and explicit trust contracts",
+      "base": "main",
+      "base_sha": "88b2b4b6dffb6ad315443b38e29638b7aae87ec8",
+      "head": "codex/hybrid-corrections",
+      "head_sha": "6658871f4f1874b9da58d22b6bd216baf5fba131",
+      "head_repo_id": 1412015823,
+      "head_repo_full_name": "tachyon-beep/sultai",
+      "merge_commit_sha": "8034cf8e59641c4ae46c12c2d21d7fa6bf171e20",
+      "user": {
+        "login": "tachyon-beep",
+        "name": "tachyon-beep",
+        "email": null,
+        "avatar_url": "https://avatars.githubusercontent.com/u/544926?v=4",
+        "id": 544926
+      },
+      "requested_reviewers": null,
+      "requested_team_reviewers": null,
+      "diff": null,
+      "comments": null,
+      "created_at": "2026-10-09T16:10:47Z",
+      "updated_at": "2026-10-09T16:27:21Z",
+      "closed_at": "2026-10-09T16:26:11Z",
+      "merged_at": "2026-10-09T16:26:11Z",
+      "commits": 4,
+      "changed_files": 36,
+      "additions": 58530,
+      "deletions": 189,
+      "display_url": "https://github.com/tachyon-beep/sultai/pull/1",
+      "display_title": "Correct hybrid evidence with matched controls and explicit trust contracts"
+    },
+    "isError": false
+  }
+}

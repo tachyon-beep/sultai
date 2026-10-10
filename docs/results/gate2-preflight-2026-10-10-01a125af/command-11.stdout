@@ -1,0 +1,5 @@
+    PID    PPID  NI     ELAPSED COMMAND
+      1       0   0       00:00 codex
+      2       1   0       00:00 bash
+      3       2   0       00:00 python3
+     15       3   0       00:00 ps

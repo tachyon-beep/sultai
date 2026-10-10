@@ -1,0 +1,35 @@
+{
+  "recorded_at_utc": "2026-10-10T12:05:31.596426+00:00",
+  "issue_id": "sultai-867f1114e7",
+  "status": "in_progress",
+  "assignee": "sultai-nyx-confirmation",
+  "last_heartbeat_at": "2026-10-09T16:34:06.323910+00:00",
+  "claim_expires_at": "2026-10-11T16:34:06.323910+00:00",
+  "blocking_issue": "sultai-8ecac4bad4",
+  "events_observed": [
+    {
+      "event_id": 36,
+      "type": "dependency_added"
+    },
+    {
+      "event_id": 34,
+      "type": "status_changed"
+    },
+    {
+      "event_id": 33,
+      "type": "claimed"
+    },
+    {
+      "event_id": 32,
+      "type": "created"
+    }
+  ],
+  "events_actor": "sultai-nyx-confirmation",
+  "verified_actor": "john",
+  "origin_thread": "unknown",
+  "transfer_observed": false,
+  "source": "Supported MCP issue_get and issue_event_list read-only calls in current turn; summarized projection, not raw tool log",
+  "supported_thread_listing": "Active list found released prior preflight and read-only investigator; first archived page found no Sultai match. Lists are truncated and do not establish historical owner absence.",
+  "claim_mutations": [],
+  "user_question": "Requested authorized historical-claim disposition and explicit host-owner bounded CPU clearance through request_user_input_async; no response received at this checkpoint."
+}

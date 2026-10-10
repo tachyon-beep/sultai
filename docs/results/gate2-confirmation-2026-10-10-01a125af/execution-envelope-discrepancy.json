@@ -1,0 +1,19 @@
+{
+  "confirmation_attempts": 1,
+  "replay_attempts": 0,
+  "tool": "exec_command session 74756, completion from write_stdin",
+  "completion_chunk_id": "e38a8e",
+  "outer_tool_exit_code": 1,
+  "saved_literal_invocation_exit": 0,
+  "gnu_time_exit_status": 0,
+  "gnu_time_wall_seconds": 18.82,
+  "gnu_time_peak_rss_kib": 79132,
+  "confirmation_stdout_bytes": 0,
+  "confirmation_stderr_bytes": 0,
+  "confirmation_json_bytes": 2062797,
+  "software_valid": true,
+  "diagnostic_specificity": false,
+  "training_ready": false,
+  "disposition": "Stopped before replay; preserve uncertainty and obtain independent adjudication and parent disposition. No retry or budget reset.",
+  "note": "Wrapper saved invocation exit 0 and finish timestamp, printed exit/resource records, then executed exit with saved code. Tool completion nevertheless reported outer exit 1. Cause unresolved; neither exit is rewritten."
+}
