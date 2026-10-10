@@ -7,9 +7,23 @@ import ast
 import hashlib
 from pathlib import Path
 
+SOURCE_ROOTS: tuple[str, ...] = ("src/sultai", "src/sultai_screen")
+"""Declared production roots scanned by every Sultai gate; widen here, nowhere else."""
+
 
 class PolicyInputError(ValueError):
     """The policy reference cannot name one test function inside the checkout."""
+
+
+def production_sources(root: Path) -> list[Path]:
+    """Every production module under every declared root; an empty declared root is an error."""
+    sources: list[Path] = []
+    for relative in SOURCE_ROOTS:
+        found = sorted((root / relative).rglob("*.py"))
+        if not found:
+            raise PolicyInputError(f"declared source root has no modules: {relative}")
+        sources.extend(found)
+    return sources
 
 
 def ast_fingerprint(node: ast.AST) -> str:
@@ -68,9 +82,10 @@ def has_unknown_input(annotation: ast.expr | None) -> bool:
 
 
 def check_policy(root: Path) -> list[str]:
-    sources = sorted((root / "src/sultai").rglob("*.py"))
-    if not sources:
-        return ["empty production surface"]
+    try:
+        sources = production_sources(root)
+    except PolicyInputError as error:
+        return [f"empty production surface: {error}"]
     errors: list[str] = []
     for path in sources:
         text = path.read_text()

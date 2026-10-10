@@ -86,7 +86,9 @@ Ruff 0.15.4. They are not runtime dependencies. Existing installed executables
 can be supplied explicitly; the gate runner never downloads or installs them.
 The ordinary demo remains standard-library only.
 
-Mypy checks all production modules under `src/sultai`, targeting Python 3.10,
+Mypy checks all production modules under every declared source root
+(`SOURCE_ROOTS` in `scripts/check_policy.py`, currently `src/sultai` and
+`src/sultai_screen`, scanned recursively), targeting Python 3.10,
 with strict mode, explicit-Any refusal, unreachable-code warnings and unused
 configuration warnings. Ruff checks/formats `src` and `tests` with Python 3.10
 as its target. The selected rules are E/F/W/I/UP/B/C4/RUF. Line wrapping is
@@ -97,8 +99,14 @@ are no project-specific source suppressions to conceal type defects.
 The local command is:
 
 ```sh
-nice -n 10 timeout 120 python3 scripts/check_quality.py
+nice -n 10 timeout 600 python3 scripts/check_quality.py
 ```
+
+Each subprocess inside the gate has a 300-second ceiling (widened from 60 on
+2026-10-11 when the gate began scanning a torch-importing root; a cold mypy on
+such a module measured 13.7 s). The gate's negative controls mutate one real
+module per declared root and plant a prohibited `Any` in the newest root to
+prove the policy scan reaches it.
 
 If tools are outside PATH, supply `--mypy /path/to/mypy --ruff /path/to/ruff`.
 Optional `--output /tmp/sultai-quality.json` records every command and exit code.

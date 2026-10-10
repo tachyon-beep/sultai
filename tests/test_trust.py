@@ -230,7 +230,12 @@ class PolicyControls(unittest.TestCase):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
         self.root = Path(self.directory.name)
-        (self.root / "src/sultai").mkdir(parents=True)
+        for relative in POLICY.SOURCE_ROOTS:
+            (self.root / relative).mkdir(parents=True)
+            if relative != "src/sultai":
+                (self.root / relative / "__init__.py").write_text(
+                    '"""Declared root placeholder for the policy fixture."""\n'
+                )
         (self.root / "tests").mkdir()
         self.test_source = (
             "class Controls:\n    def test_parse(self):\n        assert parse(2) == 2.0\n"
@@ -309,6 +314,18 @@ class PolicyControls(unittest.TestCase):
     def test_empty_production_surface_is_refused(self):
         self.path.unlink()
         self.assertTrue(any("empty" in item for item in POLICY.check_policy(self.root)))
+
+    def test_missing_declared_root_is_refused_by_name(self):
+        self.assertEqual(POLICY.check_policy(self.root), [])
+        for relative in POLICY.SOURCE_ROOTS:
+            if relative == "src/sultai":
+                continue
+            shutil.rmtree(self.root / relative)
+            errors = POLICY.check_policy(self.root)
+            self.assertTrue(any("empty" in item and relative in item for item in errors), errors)
+            break
+        else:
+            self.fail("fixture expects at least one declared root beyond src/sultai")
 
     def test_normalization_ignores_locations_but_keeps_assertions(self):
         left = ast.parse("def test_a():\n    assert 2 == 2\n").body[0]

@@ -1,0 +1,293 @@
+{
+  "passed": true,
+  "source_files": {
+    "src/sultai/__init__.py": "e66c34ef37b48f60de6d67d8802193abcd7bf23414da274c86e5d3b700ede1d7",
+    "src/sultai/contracts.py": "3b7a3b7a6f53afd20880bc3ebdcdcf093808b2938e5ce48624bbc4f52c4f367f",
+    "src/sultai/correction.py": "d3bdbcf6b7eb9697fb919fc2a8c231458b250279ed117fe0c4789234bec728ec",
+    "src/sultai/formation.py": "c1446773dcc2d9d1765fb2d2fe1e3d6c04f0825de32b54e12a3e5403597afa74",
+    "src/sultai/formation_controls.py": "8f08960360c1bb52fe9834beeb8042d79bae7049e0481632cd42652022e8e119",
+    "src/sultai/hybrid.py": "00e7e6410f34521d1b4c6627279ccab2172aeecb075a5cad5bab9c40ebe253b8",
+    "src/sultai/lifecycle.py": "609722508a21c3a0106cc36a3270d7d86152ab2e3ecd8a278a8d636b0bf683ec",
+    "src/sultai/repair.py": "e0ae740de230a36470b8d02f1cb09b898a1233916d0d3df369056d3b390b9ff3",
+    "src/sultai/report_types.py": "c678ebedf2c09c774eb25fba2f488e4059469142cd808b11893e57ae98a33801",
+    "src/sultai/smoke.py": "20550ca0c1101505cdb2e49eb5e06eee9bc7cdca56ae2e109fc75c512f5abe8f",
+    "src/sultai/trajectory.py": "01a4802ddbcc0afbdfbe4cca864ad5c09219494dc209748f331fbc8bcfe6ff7e",
+    "src/sultai/trust.py": "bda93da0cd5a37f800955662d0b1a5fe1bf7f70c6723547aa0fd82a366de4a9a",
+    "src/sultai_screen/__init__.py": "9ab719e378626585fe2f7ce25262b976a8018226fd1772f3487c2f32898003f9"
+  },
+  "source_unchanged": true,
+  "checks": [
+    {
+      "name": "mypy_version",
+      "command": [
+        "/tmp/claude-1000/-home-john-sultai/5e6e694f-8ad1-4704-a1e7-ef9540bb893d/scratchpad/quality-venv/bin/mypy",
+        "--version"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "output": "mypy 1.19.1 (compiled: yes)\n"
+    },
+    {
+      "name": "ruff_version",
+      "command": [
+        "/tmp/claude-1000/-home-john-sultai/5e6e694f-8ad1-4704-a1e7-ef9540bb893d/scratchpad/quality-venv/bin/ruff",
+        "--version"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "output": "ruff 0.15.4\n"
+    },
+    {
+      "name": "operation_trust_policy",
+      "command": [
+        "/usr/bin/python3",
+        "scripts/check_policy.py"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "output": "Sultai trust policy passed\n"
+    },
+    {
+      "name": "strict_source_types",
+      "command": [
+        "/tmp/claude-1000/-home-john-sultai/5e6e694f-8ad1-4704-a1e7-ef9540bb893d/scratchpad/quality-venv/bin/mypy",
+        "--config-file",
+        "/home/john/sultai/pyproject.toml",
+        "--cache-dir",
+        "/tmp/sultai-quality-dai_7yt5/mypy",
+        "src/sultai",
+        "src/sultai_screen"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "output": "Success: no issues found in 13 source files\n"
+    },
+    {
+      "name": "source_and_test_lint",
+      "command": [
+        "/tmp/claude-1000/-home-john-sultai/5e6e694f-8ad1-4704-a1e7-ef9540bb893d/scratchpad/quality-venv/bin/ruff",
+        "check",
+        "--no-cache",
+        "--config",
+        "/home/john/sultai/pyproject.toml",
+        "src",
+        "tests"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "output": "All checks passed!\n"
+    },
+    {
+      "name": "source_and_test_format",
+      "command": [
+        "/tmp/claude-1000/-home-john-sultai/5e6e694f-8ad1-4704-a1e7-ef9540bb893d/scratchpad/quality-venv/bin/ruff",
+        "format",
+        "--check",
+        "--no-cache",
+        "--config",
+        "/home/john/sultai/pyproject.toml",
+        "src",
+        "tests"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "output": "24 files already formatted\n"
+    },
+    {
+      "name": "type_positive_control",
+      "command": [
+        "/tmp/claude-1000/-home-john-sultai/5e6e694f-8ad1-4704-a1e7-ef9540bb893d/scratchpad/quality-venv/bin/mypy",
+        "--config-file",
+        "/home/john/sultai/pyproject.toml",
+        "--cache-dir",
+        "/tmp/sultai-quality-dai_7yt5/mypy",
+        "/tmp/sultai-quality-dai_7yt5/good.py"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "output": "Success: no issues found in 1 source file\n"
+    },
+    {
+      "name": "lint_positive_control",
+      "command": [
+        "/tmp/claude-1000/-home-john-sultai/5e6e694f-8ad1-4704-a1e7-ef9540bb893d/scratchpad/quality-venv/bin/ruff",
+        "check",
+        "--no-cache",
+        "--config",
+        "/home/john/sultai/pyproject.toml",
+        "/tmp/sultai-quality-dai_7yt5/good.py"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "output": "All checks passed!\n"
+    },
+    {
+      "name": "format_positive_control",
+      "command": [
+        "/tmp/claude-1000/-home-john-sultai/5e6e694f-8ad1-4704-a1e7-ef9540bb893d/scratchpad/quality-venv/bin/ruff",
+        "format",
+        "--check",
+        "--no-cache",
+        "--config",
+        "/home/john/sultai/pyproject.toml",
+        "/tmp/sultai-quality-dai_7yt5/good.py"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "output": "1 file already formatted\n"
+    },
+    {
+      "name": "type_negative_missing_measurement.py",
+      "command": [
+        "/tmp/claude-1000/-home-john-sultai/5e6e694f-8ad1-4704-a1e7-ef9540bb893d/scratchpad/quality-venv/bin/mypy",
+        "--config-file",
+        "/home/john/sultai/pyproject.toml",
+        "--cache-dir",
+        "/tmp/sultai-quality-dai_7yt5/mypy",
+        "/tmp/sultai-quality-dai_7yt5/missing_measurement.py"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "output": "/tmp/sultai-quality-dai_7yt5/missing_measurement.py:8: error: Missing key \"value\" for TypedDict \"Measurement\"  [typeddict-item]\nFound 1 error in 1 file (checked 1 source file)\n"
+    },
+    {
+      "name": "type_negative_wrong_type.py",
+      "command": [
+        "/tmp/claude-1000/-home-john-sultai/5e6e694f-8ad1-4704-a1e7-ef9540bb893d/scratchpad/quality-venv/bin/mypy",
+        "--config-file",
+        "/home/john/sultai/pyproject.toml",
+        "--cache-dir",
+        "/tmp/sultai-quality-dai_7yt5/mypy",
+        "/tmp/sultai-quality-dai_7yt5/wrong_type.py"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "output": "/tmp/sultai-quality-dai_7yt5/wrong_type.py:2: error: Incompatible return value type (got \"str\", expected \"float\")  [return-value]\nFound 1 error in 1 file (checked 1 source file)\n"
+    },
+    {
+      "name": "type_negative_untyped.py",
+      "command": [
+        "/tmp/claude-1000/-home-john-sultai/5e6e694f-8ad1-4704-a1e7-ef9540bb893d/scratchpad/quality-venv/bin/mypy",
+        "--config-file",
+        "/home/john/sultai/pyproject.toml",
+        "--cache-dir",
+        "/tmp/sultai-quality-dai_7yt5/mypy",
+        "/tmp/sultai-quality-dai_7yt5/untyped.py"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "output": "/tmp/sultai-quality-dai_7yt5/untyped.py:1: error: Function is missing a type annotation  [no-untyped-def]\nFound 1 error in 1 file (checked 1 source file)\n"
+    },
+    {
+      "name": "type_negative_explicit_any.py",
+      "command": [
+        "/tmp/claude-1000/-home-john-sultai/5e6e694f-8ad1-4704-a1e7-ef9540bb893d/scratchpad/quality-venv/bin/mypy",
+        "--config-file",
+        "/home/john/sultai/pyproject.toml",
+        "--cache-dir",
+        "/tmp/sultai-quality-dai_7yt5/mypy",
+        "/tmp/sultai-quality-dai_7yt5/explicit_any.py"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "output": "/tmp/sultai-quality-dai_7yt5/explicit_any.py:4: error: Explicit \"Any\" is not allowed  [explicit-any]\nFound 1 error in 1 file (checked 1 source file)\n"
+    },
+    {
+      "name": "lint_negative_control",
+      "command": [
+        "/tmp/claude-1000/-home-john-sultai/5e6e694f-8ad1-4704-a1e7-ef9540bb893d/scratchpad/quality-venv/bin/ruff",
+        "check",
+        "--no-cache",
+        "--config",
+        "/home/john/sultai/pyproject.toml",
+        "/tmp/sultai-quality-dai_7yt5/lint_bad.py"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "output": "F401 [*] `os` imported but unused\n --> /tmp/sultai-quality-dai_7yt5/lint_bad.py:1:8\n  |\n1 | import os\n  |        ^^\n2 |\n3 | value = undefined_measurement\n  |\nhelp: Remove unused import: `os`\n\nF821 Undefined name `undefined_measurement`\n --> /tmp/sultai-quality-dai_7yt5/lint_bad.py:3:9\n  |\n1 | import os\n2 |\n3 | value = undefined_measurement\n  |         ^^^^^^^^^^^^^^^^^^^^^\n  |\n\nFound 2 errors.\n[*] 1 fixable with the `--fix` option.\n"
+    },
+    {
+      "name": "format_negative_control",
+      "command": [
+        "/tmp/claude-1000/-home-john-sultai/5e6e694f-8ad1-4704-a1e7-ef9540bb893d/scratchpad/quality-venv/bin/ruff",
+        "format",
+        "--check",
+        "--no-cache",
+        "--config",
+        "/home/john/sultai/pyproject.toml",
+        "/tmp/sultai-quality-dai_7yt5/format_bad.py"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "output": "Would reformat: /tmp/sultai-quality-dai_7yt5/format_bad.py\n1 file would be reformatted\n"
+    },
+    {
+      "name": "real_source_type_mutation_sultai",
+      "command": [
+        "/tmp/claude-1000/-home-john-sultai/5e6e694f-8ad1-4704-a1e7-ef9540bb893d/scratchpad/quality-venv/bin/mypy",
+        "--config-file",
+        "/home/john/sultai/pyproject.toml",
+        "--cache-dir",
+        "/tmp/sultai-quality-dai_7yt5/mypy",
+        "/tmp/sultai-quality-dai_7yt5/mutation/src/sultai"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "output": "/tmp/sultai-quality-dai_7yt5/mutation/src/sultai/repair.py:293: error: Incompatible return value type (got \"str\", expected \"int\")  [return-value]\nFound 1 error in 1 file (checked 12 source files)\n"
+    },
+    {
+      "name": "real_source_lint_mutation_sultai",
+      "command": [
+        "/tmp/claude-1000/-home-john-sultai/5e6e694f-8ad1-4704-a1e7-ef9540bb893d/scratchpad/quality-venv/bin/ruff",
+        "check",
+        "--no-cache",
+        "--config",
+        "/home/john/sultai/pyproject.toml",
+        "/tmp/sultai-quality-dai_7yt5/mutation/src/sultai"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "output": "F821 Undefined name `MISSING_MEASUREMENT_FOR_GATE_CONTROL_SULTAI`\n   --> /tmp/sultai-quality-dai_7yt5/mutation/src/sultai/repair.py:295:26\n    |\n293 |     return \"invalid measurement\"\n294 |\n295 | _quality_lint_mutation = MISSING_MEASUREMENT_FOR_GATE_CONTROL_SULTAI\n    |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    |\n\nFound 1 error.\n"
+    },
+    {
+      "name": "real_source_type_mutation_sultai_screen",
+      "command": [
+        "/tmp/claude-1000/-home-john-sultai/5e6e694f-8ad1-4704-a1e7-ef9540bb893d/scratchpad/quality-venv/bin/mypy",
+        "--config-file",
+        "/home/john/sultai/pyproject.toml",
+        "--cache-dir",
+        "/tmp/sultai-quality-dai_7yt5/mypy",
+        "/tmp/sultai-quality-dai_7yt5/mutation/src/sultai_screen"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "output": "/tmp/sultai-quality-dai_7yt5/mutation/src/sultai_screen/__init__.py:11: error: Incompatible return value type (got \"str\", expected \"int\")  [return-value]\nFound 1 error in 1 file (checked 1 source file)\n"
+    },
+    {
+      "name": "real_source_lint_mutation_sultai_screen",
+      "command": [
+        "/tmp/claude-1000/-home-john-sultai/5e6e694f-8ad1-4704-a1e7-ef9540bb893d/scratchpad/quality-venv/bin/ruff",
+        "check",
+        "--no-cache",
+        "--config",
+        "/home/john/sultai/pyproject.toml",
+        "/tmp/sultai-quality-dai_7yt5/mutation/src/sultai_screen"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "output": "F821 Undefined name `MISSING_MEASUREMENT_FOR_GATE_CONTROL_SULTAI_SCREEN`\n  --> /tmp/sultai-quality-dai_7yt5/mutation/src/sultai_screen/__init__.py:13:26\n   |\n11 |     return \"invalid measurement\"\n12 |\n13 | _quality_lint_mutation = MISSING_MEASUREMENT_FOR_GATE_CONTROL_SULTAI_SCREEN\n   |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n   |\n\nFound 1 error.\n"
+    },
+    {
+      "name": "real_source_policy_mutation_sultai_screen",
+      "command": [
+        "/usr/bin/python3",
+        "scripts/check_policy.py",
+        "--root",
+        "/tmp/sultai-quality-dai_7yt5/mutation"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "output": "src/sultai_screen/__init__.py:15: prohibited Any\n"
+    }
+  ]
+}

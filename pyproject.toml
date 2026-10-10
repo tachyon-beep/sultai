@@ -41,4 +41,4 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["sultai"]
+known-first-party = ["sultai", "sultai_screen"]
