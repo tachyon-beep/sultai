@@ -1,0 +1,30 @@
+{
+  "scope": "Saved confirmation and cross-phase checks only; no cohort execution. Replay absent, so Gate2 incomplete.",
+  "checks": {
+    "development_hash": true,
+    "phase": true,
+    "source_commit": true,
+    "source_tree": true,
+    "protocol_hash": true,
+    "production_source": true,
+    "software_valid": true,
+    "not_ready": true,
+    "shared_training_intentional": true,
+    "held_lineages_disjoint": true,
+    "evaluation_counts": true,
+    "evaluation_digests_differ": true,
+    "clean_healthy_counts": true,
+    "clean_healthy_digests_differ": true,
+    "noisy_healthy_counts": true,
+    "noisy_healthy_digests_differ": true,
+    "fixed_trajectory_roots": true,
+    "crossphase_trajectory_roots_disjoint": true,
+    "fixed_partition_seeds": true,
+    "lifecycle_known_answers": true,
+    "all_saved_metrics_finite": true
+  },
+  "confirmation_sha256": "569a362b6dc987850801eab437b846a8129cf9a6e6d33ead096269b8610b0339",
+  "replay_present": false,
+  "gate2": "pending_replay_and_execution_envelope_disposition",
+  "scientific_status": "STOP / NOT READY"
+}

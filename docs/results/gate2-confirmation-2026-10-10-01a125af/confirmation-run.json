@@ -1,0 +1,113 @@
+{
+  "host": "nyx.foundryside.dev",
+  "executor_task": "01a125af-1631-79f1-b7bb-c3cdc20ec13f",
+  "cwd": "/tmp/sultai-confirmation-64439d8",
+  "evidence_output_root": "/tmp/sultai-confirmation-evidence.ZI3J18",
+  "command": [
+    "/usr/bin/time",
+    "-v",
+    "-o",
+    "/tmp/sultai-confirmation-evidence.ZI3J18/confirmation-time.txt",
+    "sh",
+    "scripts/correction.sh",
+    "--phase",
+    "confirmation",
+    "--output",
+    "/tmp/sultai-confirmation-evidence.ZI3J18/confirmation.json"
+  ],
+  "stdout": "confirmation.stdout",
+  "stderr": "confirmation.stderr",
+  "started_utc": "2026-10-10T12:10:30Z",
+  "finished_utc": "2026-10-10T12:10:49Z",
+  "saved_invocation_exit": 0,
+  "gnu_time_exit": 0,
+  "outer_execution_tool_exit": 1,
+  "resources": {
+    "wall_seconds": 18.82,
+    "user_cpu_seconds": 18.77,
+    "system_cpu_seconds": 0.04,
+    "peak_rss_kib": 79132
+  },
+  "runtime": {
+    "canonical_command": [
+      "python3",
+      "-m",
+      "sultai.correction",
+      "--phase",
+      "confirmation"
+    ],
+    "implementation": "CPython",
+    "machine": "x86_64",
+    "plan_path": "docs/plans/2026-10-09-correction-protocol.md",
+    "plan_sha256": "abbf3f52d1ef4eb148536b3cc0fc5bb13a24962a5353f55d739c541486bda486",
+    "python": "3.12.3",
+    "source_commit": "64439d80bdd7897aa94f8aa819ab23c17fcaffba",
+    "source_tree": "381dcf3138fda77f41191497f833c7ac27ff6ae9"
+  },
+  "script_sha256": "ab1c463b898bb5301e4c1b6fe206c59e3648f9ab0f088f19ae8ae2407af699b0",
+  "post_run_worktree_state": [
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "exit_code": 0,
+      "stdout": "64439d80bdd7897aa94f8aa819ab23c17fcaffba\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD^{tree}"
+      ],
+      "exit_code": 0,
+      "stdout": "381dcf3138fda77f41191497f833c7ac27ff6ae9\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "status",
+        "--porcelain"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "post_run_checked_source_files": {
+    "scripts/check_policy.py": true,
+    "scripts/check_quality.py": true,
+    "src/sultai/__init__.py": true,
+    "src/sultai/contracts.py": true,
+    "src/sultai/correction.py": true,
+    "src/sultai/formation.py": true,
+    "src/sultai/formation_controls.py": true,
+    "src/sultai/hybrid.py": true,
+    "src/sultai/lifecycle.py": true,
+    "src/sultai/repair.py": true,
+    "src/sultai/report_types.py": true,
+    "src/sultai/smoke.py": true,
+    "src/sultai/trajectory.py": true,
+    "src/sultai/trust.py": true,
+    "tests/report_fixture.py": true,
+    "tests/test_contracts.py": true,
+    "tests/test_correction_cli.py": true,
+    "tests/test_formation.py": true,
+    "tests/test_formation_controls.py": true,
+    "tests/test_healthy_provenance.py": true,
+    "tests/test_hybrid_cli.py": true,
+    "tests/test_lifecycle.py": true,
+    "tests/test_repair.py": true,
+    "tests/test_trajectory.py": true,
+    "tests/test_trust.py": true
+  },
+  "attempts": {
+    "confirmation": 1,
+    "replay": 0
+  },
+  "replay_started": false,
+  "status": "confirmation_saved_valid_negative_with_unresolved_execution_envelope; stopped_before_replay"
+}

@@ -1,0 +1,123 @@
+{
+  "task": "01a125af-1631-79f1-b7bb-c3cdc20ec13f",
+  "status": "independently_reviewed_blocked_no_attempt",
+  "attempts": {
+    "confirmation": 0,
+    "replay": 0
+  },
+  "files": {
+    "CHECKPOINT.md": {
+      "bytes": 1410,
+      "sha256": "a484f0c114f11111bccc0772842e4c9b816888334c62b1f2f4f0bcd1b5718359"
+    },
+    "command-00.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "command-00.stdout": {
+      "bytes": 20,
+      "sha256": "b610becc96e8cbf96d856162cc555282d2947d1a6ca91cebdc88d8d877d68fd4"
+    },
+    "command-01.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "command-01.stdout": {
+      "bytes": 18,
+      "sha256": "2a39a221b55a8857d8059f6916403152c2ae1234e3fa22c372755f451e066b68"
+    },
+    "command-02.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "command-02.stdout": {
+      "bytes": 336,
+      "sha256": "a3b64288a651d40a18a243c43c871f7ae2886baa58b7e3c64a1061bfd651245f"
+    },
+    "command-03.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "command-03.stdout": {
+      "bytes": 14,
+      "sha256": "5b3e43dc38ca01e3f5a7854ba50d4330864b0c1e0f646650b2c78cf072acc366"
+    },
+    "command-04.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "command-04.stdout": {
+      "bytes": 116,
+      "sha256": "dbea7d0f0e2801c825c68011f41e30a326a607cbe8096bbdd1b51672253306ef"
+    },
+    "command-05.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "command-05.stdout": {
+      "bytes": 41,
+      "sha256": "313a2eb4fcd53e385153747fbd613ee12d9284333c35b47f0f23c4f5fe174d5a"
+    },
+    "command-06.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "command-06.stdout": {
+      "bytes": 41,
+      "sha256": "313a2eb4fcd53e385153747fbd613ee12d9284333c35b47f0f23c4f5fe174d5a"
+    },
+    "command-07.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "command-07.stdout": {
+      "bytes": 41,
+      "sha256": "6b8d9be39e61d94a5eec4e2cc699cd1d16fa4d45a7f120c110d521f9acd33b72"
+    },
+    "command-08.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "command-08.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "command-09.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "command-09.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "command-10.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "command-10.stdout": {
+      "bytes": 170,
+      "sha256": "c19e63c382d4e893ccfe2196bc9da47978b54e193f88c7c592a64ab67cce7cad"
+    },
+    "command-11.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "command-11.stdout": {
+      "bytes": 190,
+      "sha256": "5924398d18955680bef9991850138dd8325813a91a7eadad0418cb644e164ded"
+    },
+    "coordination.json": {
+      "bytes": 1298,
+      "sha256": "58bd4a990b89ffcdcb06fda409bedc65e48e168970c54648ccf6d0e80e7ded5a"
+    },
+    "independent-astra-review.md": {
+      "bytes": 1909,
+      "sha256": "d987f58697d8f4166452248da853064538f96cd402d7a4e59cc386e8e30180f1"
+    },
+    "preflight.json": {
+      "bytes": 6777,
+      "sha256": "2b0a94a5d8c1243dfd83429d514e3347877d9acf2f2f91888f43fb0e5d867b63"
+    }
+  },
+  "durability": "Local repository files only; uncommitted, no remote push or off-host backup claimed"
+}

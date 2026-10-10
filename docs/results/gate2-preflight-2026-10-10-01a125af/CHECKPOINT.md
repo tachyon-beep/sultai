@@ -1,0 +1,7 @@
+# Gate 2 replacement executor preflight
+
+Host/cwd/task and exact GNU time recorder verified in the actual execution namespace. GNU time reports version UNKNOWN; no recorder substitution or protocol amendment. Prior role-release receipt verified, including all ten copied files against original bytes. Frozen four artifacts and 25 checked files match. Saved 108-test / 17-check evidence is retained; no unchanged tests were rerun. User configuration dirt is preserved.
+
+No confirmation/replay invocation, worktree creation, package install or tracker mutation occurred. Attempts remain 0/0. The historical claim is still assigned to sultai-nyx-confirmation with an active lease; source chat is unknown. ELSPETH released its own workers/lanes but explicitly withheld host clearance. This shell sees only three processes. Live remote verification failed on DNS, and the local bridge could not reach Emmy's source thread. Emmy/John was asked for ownership and bounded CPU clearance through the supported question UI.
+
+Gate 2 remains pending. STOP / NOT READY is unchanged. Resume only after the concrete remaining prerequisites in preflight.json are resolved, then renew frozen-source/path checks and follow the unchanged one-confirmation / one-exact-replay handover. No broader gate or budget reset is authorized. This packet is preserved locally in the repository; no commit, push or off-host backup is claimed.

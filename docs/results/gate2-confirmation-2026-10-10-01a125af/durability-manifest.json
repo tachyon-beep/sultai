@@ -1,0 +1,24 @@
+{
+  "source": "/tmp/sultai-confirmation-evidence.ZI3J18",
+  "destination": "/home/john/sultai/docs/results/gate2-confirmation-2026-10-10-01a125af",
+  "files": {
+    "development.json": "0fab1abb37b5d6a15c4082f154978e6c8b86f62503e6ed71cc6232f5dc9de97e",
+    "confirmation.json": "569a362b6dc987850801eab437b846a8129cf9a6e6d33ead096269b8610b0339",
+    "confirmation.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "confirmation.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "confirmation-time.txt": "f14a6a5b0d8300a9f6dea0ce8cfdc16c4285f40ed3d522b68a4bd3c8c4f52cb8",
+    "authorization.md": "b4c8fafb875f5277ab2c20a71aa085772f0935ed4b4686a2b95481ffa7d9cea0",
+    "confirmation.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "live-github.json": "f7f188f83bf66c5c6dc2ebbc731e0c6206e45829af69ead86a9031debb2c645f",
+    "confirmation-finish.txt": "ac093768cc82cf165853ae262fca6c7b483140465c04d79e975519039db2fa07",
+    "confirmation-start.txt": "f516d5f8324b4df9f969abccd250f055895b6dbc3611fb8cfa3499e894c75458",
+    "execution-envelope-discrepancy.json": "f06b35a46470e35be46b11db02294c4834de1be15dfdde8978de4981c641ea4c"
+  },
+  "copy_verified": true,
+  "attempts": {
+    "confirmation": 1,
+    "replay": 0
+  },
+  "status": "stopped_outer_exit_discrepancy",
+  "durability": "Local repository copy only; no commit/push/off-host backup claimed"
+}

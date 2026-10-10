@@ -1,5 +1,24 @@
 # Resume Sultai after the bounded correction
 
+## Nyx Gate 2 checkpoint — 2026-10-10
+
+**Gate 2 COMPLETE WITH RETAINED EXECUTION QUALIFICATION; scientific STOP /
+NOT READY unchanged.** John authorized claim takeover and CPU clearance.
+Supported live GitHub verification passed. One frozen confirmation recorded
+raw/GNU exits 0 but outer tool exit 1, so execution stopped. Astra accepted
+the qualified evidence; John explicitly dispositioned this attempt and
+authorized the one remaining exact replay. Replay raw/GNU/outer exits are 0.
+Reports are byte-identical, SHA-256
+`569a362b6dc987850801eab437b846a8129cf9a6e6d33ead096269b8610b0339`;
+exact handover provenance checks pass. Runs took 18.82 / 18.53 seconds and
+79,132 / 78,288 KiB peak RSS. Attempts **1/1**, exhausted; no rerun/reset.
+Independent Astra final review accepted bounded closure while retaining the
+unexplained confirmation outer exit. See the
+[final certificate](certificates/2026-10-10-gate2-nyx-final.md) and
+[morning handover](results/gate2-confirmation-2026-10-10-01a125af/MORNING-HANDOVER.md).
+No later gate, broader training, Page or schedule action is cleared.
+Historical development evidence below remains unchanged.
+
 Parent task: `01a10aef-253f-7248-9619-7bb7271430ed`. John assigned exclusive
 Sultai correction ownership to this cloud session. The original orientation
 was read-only; implementation, draft PR and normal merge were subsequently

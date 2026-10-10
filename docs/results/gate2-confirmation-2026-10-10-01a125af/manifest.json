@@ -1,0 +1,71 @@
+{
+  "task": "01a125af-1631-79f1-b7bb-c3cdc20ec13f",
+  "status": "independently_reviewed_qualified_confirmation; replay_stopped_pending_parent_disposition",
+  "attempts": {
+    "confirmation": 1,
+    "replay": 0
+  },
+  "files": {
+    "authorization.md": {
+      "bytes": 1376,
+      "sha256": "b4c8fafb875f5277ab2c20a71aa085772f0935ed4b4686a2b95481ffa7d9cea0"
+    },
+    "confirmation-finish.txt": {
+      "bytes": 21,
+      "sha256": "ac093768cc82cf165853ae262fca6c7b483140465c04d79e975519039db2fa07"
+    },
+    "confirmation-provenance-check.json": {
+      "bytes": 1072,
+      "sha256": "3a5513c4d8e27b9be7ab855ff37f6d8e003e7722f9e6582cc5502f9acb4a447a"
+    },
+    "confirmation-run.json": {
+      "bytes": 3227,
+      "sha256": "795ffc020d85907f94afe942878463b29651980c4643b8ea36d19224ece2a636"
+    },
+    "confirmation-start.txt": {
+      "bytes": 21,
+      "sha256": "f516d5f8324b4df9f969abccd250f055895b6dbc3611fb8cfa3499e894c75458"
+    },
+    "confirmation-time.txt": {
+      "bytes": 835,
+      "sha256": "f14a6a5b0d8300a9f6dea0ce8cfdc16c4285f40ed3d522b68a4bd3c8c4f52cb8"
+    },
+    "confirmation.exit": {
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "confirmation.json": {
+      "bytes": 2062797,
+      "sha256": "569a362b6dc987850801eab437b846a8129cf9a6e6d33ead096269b8610b0339"
+    },
+    "confirmation.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "confirmation.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "development.json": {
+      "bytes": 1729804,
+      "sha256": "0fab1abb37b5d6a15c4082f154978e6c8b86f62503e6ed71cc6232f5dc9de97e"
+    },
+    "durability-manifest.json": {
+      "bytes": 1440,
+      "sha256": "6358f9299c0ada5b4431476258a71c09f33171fa3ae5acf2128f10470e93d24c"
+    },
+    "execution-envelope-discrepancy.json": {
+      "bytes": 900,
+      "sha256": "f06b35a46470e35be46b11db02294c4834de1be15dfdde8978de4981c641ea4c"
+    },
+    "independent-astra-review.md": {
+      "bytes": 2475,
+      "sha256": "593c1da967fbb531b0142431efda863d624c09bdf97b7fdd9ae1e0fd2967b2cc"
+    },
+    "live-github.json": {
+      "bytes": 6029,
+      "sha256": "f7f188f83bf66c5c6dc2ebbc731e0c6206e45829af69ead86a9031debb2c645f"
+    }
+  },
+  "scientific_status": "STOP / NOT READY"
+}
