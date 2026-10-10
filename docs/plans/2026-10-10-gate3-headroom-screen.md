@@ -15,7 +15,7 @@ by round two (§13 D-N, D-O) — done 2026-10-11; (2) this document is committed
 as the versioned draft with its SHA-256 recorded, **before the pilot's go**; (3) the 5,000
 dev-index artifact and the split-check output, already written under
 `docs/results/gate3-split-2026-10-11/`, are committed; (4) the gate-script widening (§11) lands as its own reviewed
-commit; (5) the pilot fills only the values §9 permits, in the order §9
+commit — done 2026-10-11, evidence `docs/results/gate3-gate-widening-2026-10-11/quality.json`; (5) the pilot fills only the values §9 permits, in the order §9
 requires; (6) the filled document is committed with its SHA-256 before any
 confirmatory run, as the 2026-10-09 correction protocol was.
 
@@ -507,9 +507,11 @@ candidate's fit is **not** a stop: the candidate is marked, cannot be selected
 and is counted; an anchor whose every candidate in an arm is non-finite is
 retained, flagged and reported.
 
-## 10. Stage 2 — confirmatory screen (requires freeze and John's go)
+## 10. Stage 2 — confirmatory screen (requires freeze; John's conditional go recorded as D-P)
 
-Runs once on confirmatory anchors, one attempt, with an exact replay of one
+John's go of 2026-10-11 is conditional on the pilot completing cleanly as
+defined in §13 D-P; any deviance is a hold and returns to John. Runs once on
+confirmatory anchors, one attempt, with an exact replay of one
 anchor per family afterwards. Publication is the complete report regardless
 of verdict. Stops as in §9 plus the budget ceiling. Restart is a new attempt
 with linked provenance, a new preregistration version and fresh anchors from
@@ -527,7 +529,12 @@ the next seed block; no budget reset.
   with a measured cold-run time on a torch-importing probe. The widening is
   committed and reviewed as its own change before any screen code lands. The
   stdlib instrument's own gate results are unchanged by the widening and that
-  is asserted by re-running it.
+  is asserted by re-running it. **Done 2026-10-11**: `SOURCE_ROOTS` in
+  `scripts/check_policy.py` is the single declared list, both gates scan it
+  recursively, `src/sultai_screen/__init__.py` is a docstring-only placeholder,
+  three new negative controls mutate the placeholder (type, lint, planted
+  `Any`), the per-check ceiling is 300 s, and the twelve instrument module
+  hashes equal the frozen 2026-10-09 evidence.
 - Optional dependency group `screen = ["torch==2.9.1+cu128", "numpy==2.3.5"]`
   with the PyTorch cu128 index recorded [measured versions on Nyx].
 - Modules: `data.py` (sealed five-file loader, audit hook, split derivation
@@ -579,6 +586,7 @@ receives a further independent read is John's call.
 | D-M | Role of P8 | null calibrator, secondary report kept | decided 2026-10-11 |
 | D-N | U, maximum fraction of plateau-uncertified P6 anchors for a "no headroom" reading | 25% | decided 2026-10-11 (John: take the proposals) |
 | D-O | η-set-cheap, the few-step arms' learning-rate set | {3, 1, 0.3, 0.1, 0.03} | decided 2026-10-11 (John: take the proposals) |
+| D-P | Confirmatory go | **Conditional go, 2026-10-11**: confirmed subject to the pilot completing cleanly; hold on any deviance. "Cleanly" means every §9 stop rule unfired, every pilot item 1–7 delivered, the width found in {4, 2, 8}, clause-3 fraction ≥ ρ on every development anchor, and n\* within the §8 ceiling. Any deviance returns to John before freeze | §10 |
 
 ## 14. What this document does not change
 
