@@ -1,0 +1,32 @@
+{
+  "implementation_commit": "bbf9811854f23e40b2700dab9e457852c09ba7da",
+  "implementation_source_sha256": "a9445331c6b92018fbe73316fe4b7eb3851fc157a4798185da51ce2fff17b595",
+  "preregistration_sha256": "7668d20ad55c3a62384975a7cf1f3989dbe69bf701ce02bc9c68ac2601d0d42a",
+  "quality_passed": true,
+  "runtime_tests_passed": true,
+  "independent_panel_accepted": true,
+  "evidence": [
+    {
+      "path": "docs/results/gate3-linked-retry-repair-2026-10-11/quality.json",
+      "sha256": "e39f12a5c29b4552e0692beaba4bb25aceef246d179da7152cba95960f1393e5"
+    },
+    {
+      "path": "docs/results/gate3-linked-retry-repair-2026-10-11/runtime.json",
+      "sha256": "d061c216283e9133f02f34a7905e4204f58eabe6226b40ef835cd1e79519d12b"
+    },
+    {
+      "path": "docs/reviews/gate3-headroom/linked-retry-acceptance.md",
+      "sha256": "f6852bde00a3860cf22d23bef68bb2908774d9198ae3a95c32a530b5e2fb9522"
+    },
+    {
+      "path": "docs/certificates/2026-10-11-gate3-linked-retry-disposition.md",
+      "sha256": "40b33cfa1c8b6902fa4d0cb4aa46e67a55eb9f628d8148ac9183d4e3ba93b7a9"
+    }
+  ],
+  "linked_retry_approved": true,
+  "prior_charge_gpu_process_seconds": 2.370860553928651,
+  "pilot_gpu_hour_ceiling": 3,
+  "confirmation_cleared": false,
+  "pr_url": "https://github.com/tachyon-beep/sultai/pull/3",
+  "recorded_utc": "2026-10-11T10:03:57.635278+00:00"
+}

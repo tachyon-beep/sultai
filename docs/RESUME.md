@@ -24,8 +24,11 @@ separate distribution/runtime/CUDA provenance checks before custody, regression
 controls, exact-patch independent review and an updated bound certificate,
 then one linked development pilot retry. The original failure receipts and
 2.370860553928651-second charge remain within the same 10,800-second total cap.
-The candidate passes 20 quality checks and 140 CPU tests; independent acceptance
-and fresh resource/custody admission are still required before retry launch.
+Repair commit `bbf9811854f23e40b2700dab9e457852c09ba7da` passes 20 quality
+checks and 140 CPU tests and is accepted by both independent specialists.
+The [linked admission certificate](certificates/2026-10-11-gate3-linked-retry-admission.json)
+binds the exact source, evidence and operator disposition. Fresh resource/custody
+admission is still required before retry launch.
 No retry has started at this checkpoint. The historical Gate 2 verdict below
 is unchanged. Confirmation remains blocked pending a clean pilot and reviewed,
 committed filled protocol. Never reset either durable pilot attempt receipt.
