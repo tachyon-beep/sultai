@@ -7,8 +7,12 @@ validation, independent specialist review, PR and gated development pilot.
 Owner `codex-sultai-gate3` holds `sultai-ef0da96d8a`; branch
 `codex/gate3-screen`. See [implementation and launch gates](plans/2026-10-11-gate3-implementation.md)
 and the unchanged [v4 source protocol](plans/2026-10-10-gate3-headroom-screen.md).
-Current screen code is a candidate pending independent acceptance; no pilot or
-confirmatory execution is claimed here. The historical Gate 2 verdict below
+Implementation source `4936d28c90e9ab3a4e7358c772ae0b7acbaffa54` is accepted
+by independent scientific and PyTorch/operations specialists. All 20 quality
+checks and 137 CPU tests pass. [Draft PR #3](https://github.com/tachyon-beep/sultai/pull/3)
+and the [bound admission certificate](certificates/2026-10-11-gate3-pilot-admission.json)
+record readiness for fresh resource/custody checks. No pilot or confirmatory
+execution is claimed by this prelaunch checkpoint. The historical Gate 2 verdict below
 is unchanged. Confirmation remains conditional on a clean pilot and reviewed,
 committed filled protocol. Never reset the durable pilot attempt receipt.
 

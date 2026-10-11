@@ -18,5 +18,5 @@ Full quality/runtime evidence after these fixes is in
 The first targeted recheck accepted the original fixes but found a direct
 fixed-rate classification edge. Its preserved report and adopted retain-unavailable
 disposition are in `implementation-recheck-aeba343.md`. A narrow independent
-closure check of that final edge is required before
-any pilot admission certificate. Initial reports remain preserved unchanged.
+closure check accepted source `4936d28c90e9ab3a4e7358c772ae0b7acbaffa54`;
+see `implementation-final-acceptance.md`. The certificate binds that source. Initial reports remain preserved unchanged.
