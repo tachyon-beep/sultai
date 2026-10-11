@@ -11,6 +11,8 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = ["mypy==1.19.1", "ruff==0.15.4"]
+screen = ["torch==2.9.1+cu128", "numpy==2.3.5"]
+# Screen wheel source: https://download.pytorch.org/whl/cu128 (no automatic installation).
 
 [project.scripts]
 sultai-smoke = "sultai.smoke:main"

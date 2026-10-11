@@ -1,5 +1,17 @@
 # Resume Sultai after the bounded correction
 
+## Active Gate 3 implementation — 2026-10-11
+
+John subsequently authorized the separate bounded headroom-screen implementation,
+validation, independent specialist review, PR and gated development pilot.
+Owner `codex-sultai-gate3` holds `sultai-ef0da96d8a`; branch
+`codex/gate3-screen`. See [implementation and launch gates](plans/2026-10-11-gate3-implementation.md)
+and the unchanged [v4 source protocol](plans/2026-10-10-gate3-headroom-screen.md).
+Current screen code is a candidate pending independent acceptance; no pilot or
+confirmatory execution is claimed here. The historical Gate 2 verdict below
+is unchanged. Confirmation remains conditional on a clean pilot and reviewed,
+committed filled protocol. Never reset the durable pilot attempt receipt.
+
 ## Nyx Gate 2 checkpoint — 2026-10-10
 
 **Gate 2 COMPLETE WITH RETAINED EXECUTION QUALIFICATION; scientific STOP /
