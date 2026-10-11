@@ -24,14 +24,20 @@ separate distribution/runtime/CUDA provenance checks before custody, regression
 controls, exact-patch independent review and an updated bound certificate,
 then one linked development pilot retry. The original failure receipts and
 2.370860553928651-second charge remain within the same 10,800-second total cap.
-Repair commit `bbf9811854f23e40b2700dab9e457852c09ba7da` passes 20 quality
-checks and 140 CPU tests and is accepted by both independent specialists.
-The [linked admission certificate](certificates/2026-10-11-gate3-linked-retry-admission.json)
-binds the exact source, evidence and operator disposition. Fresh resource/custody
-admission is still required before retry launch.
-No retry has started at this checkpoint. The historical Gate 2 verdict below
-is unchanged. Confirmation remains blocked pending a clean pilot and reviewed,
-committed filled protocol. Never reset either durable pilot attempt receipt.
+Repair commit `bbf9811854f23e40b2700dab9e457852c09ba7da` passed 20 quality
+checks and 140 CPU tests and was accepted by both independent specialists.
+The linked retry launched from bound certificate commit `9b97fb1` and then
+**STOPPED: execution-invalid, resampled no-op evaluation twin not bitwise**.
+All twelve development training hosts and host/fit cross-card/co-tenancy replay
+checks passed before this first materiality failure. No repair-effect result
+was reached. Cumulative charge is **1469.3526015179232 process-seconds**, including
+the original failure, under the same 10800-second total cap. Both GPUs were
+verified idle afterward; original and linked custody remain intact. See the
+[new hold and diagnostic disposition](certificates/2026-10-11-gate3-linked-retry-hold.md)
+and [byte-preserved retry evidence](results/gate3-pilot-2026-10-11-01a125af-retry1/manifest.json).
+No further retry, source repair, GPU diagnostic or confirmation is cleared.
+John must disposition the new deviation under frozen §9 / D-P. The historical
+Gate 2 verdict is unchanged. Never reset either durable pilot attempt receipt.
 
 ## Nyx Gate 2 checkpoint — 2026-10-10
 

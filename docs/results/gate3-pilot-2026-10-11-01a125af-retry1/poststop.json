@@ -1,0 +1,41 @@
+{
+  "handover": {
+    "observed_utc": "2026-10-11T10:16:20.276176+00:00",
+    "terminal": {
+      "fleet-c1": {
+        "finished_unix": 1791690441.947244,
+        "terminal_sha256": "4b1511dedf23fac2df0fe97b6a901d46c2b45e8b7ce763aa7262d4d78162ebd3",
+        "units": 768
+      },
+      "fleet-c1s": {
+        "finished_unix": 1791701204.7154083,
+        "terminal_sha256": "c9a70933719c0456bcb7179971d41b667c5e64c729b5c32d805a63e1b332d257",
+        "units": 768
+      }
+    },
+    "gpu_query": "0, GPU-6198007d-505f-920d-088c-957818fc0988, 0, 15\n1, GPU-d5b931ca-445e-0e51-004f-ead3b68d6ece, 0, 15\n",
+    "compute_apps": "",
+    "owner_release": "Explicit Simic owner release relayed by Emmy before handover; no training killed."
+  },
+  "active_screen_processes": [],
+  "original_receipts": [
+    {
+      "path": ".weft/gate3-pilot-attempt.json",
+      "expected": "49034bf3f26d3061fc4d57318ae156d54297d113b529898c4c925dc8c61d1821",
+      "actual": "49034bf3f26d3061fc4d57318ae156d54297d113b529898c4c925dc8c61d1821"
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af/pilot-result.json",
+      "expected": "3960d87a7d563ec1bdcaeed46f86c79ed0f1154a513a51ffa2d05088aafbba84",
+      "actual": "3960d87a7d563ec1bdcaeed46f86c79ed0f1154a513a51ffa2d05088aafbba84"
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af/ledger-000.json",
+      "expected": "3e6fb2a452a7110263dfa53c316662a10f16fec6d965a8daee91975752288e85",
+      "actual": "3e6fb2a452a7110263dfa53c316662a10f16fec6d965a8daee91975752288e85"
+    }
+  ],
+  "linked_retry_custody_sha256": "d3726c4293655faf7c5630a12a235368a47bde6d8eccafa2d96780ddcdf01888",
+  "observed_unix": 1791713780.3326974,
+  "new_attempt_authorized": false
+}
