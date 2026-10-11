@@ -15,5 +15,8 @@ no frozen scientific numbers, arm definitions or compute ceilings change.
 
 Full quality/runtime evidence after these fixes is in
 `docs/results/gate3-implementation-2026-10-11/review-fixes/`.
-A targeted independent recheck of the committed fix candidate is required before
+The first targeted recheck accepted the original fixes but found a direct
+fixed-rate classification edge. Its preserved report and adopted retain-unavailable
+disposition are in `implementation-recheck-aeba343.md`. A narrow independent
+closure check of that final edge is required before
 any pilot admission certificate. Initial reports remain preserved unchanged.

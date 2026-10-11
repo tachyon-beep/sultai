@@ -34,7 +34,9 @@ remain subject to strict typing, policy, lint and format gates with mutations.
   one failed schedule retains the other schedule's finite winner and marks
   plateau comparison unavailable. All-bank failure preserves every candidate
   report/cost. Raw cheap development nonfiniteness is retained without changing
-  selection; it becomes fatal only for global-rate or per-anchor selected fits.
+  selection; it becomes fatal only for evaluated global-rate or per-anchor
+  selected fits. A fixed-rate P5 fit unavailable at P6-selected η remains
+  explicitly unavailable without changing η or pretending it was evaluated.
 - CIFAR training batches and metadata are read once each, hashed before pickle
   decoding from the same verified bytes. No archive/test file is opened.
   The audit hook rejects test-batch paths. Dev-index bytes, complete permutation

@@ -645,6 +645,7 @@ class ScreenTests(unittest.TestCase):
                     elif job.action == "cheap":
                         candidate = {"candidate": {"selection_loss": 1.0}, "development_loss": 1.0 + job.seed - 3000}
                         value = {family: {str(rate): candidate for rate in CHEAP_RATES} for family in ("P5", "P6")}
+                        value["seed"] = job.seed
                     else:
                         raise AssertionError(job.action)
                     publish(output / "result.json", {"software_valid": True, "payload": value, "wall_seconds": 0.01})
@@ -791,6 +792,32 @@ class ScreenTests(unittest.TestCase):
             with self.assertRaisesRegex(PilotHold, "stage raw pilot output"):
                 pilot(root / "docs/results/gate3-pilot-fixture", root, Path("/missing/certificate"))
             claim.assert_not_called()
+
+    def test_global_p6_rate_retains_unavailable_p5_fit_without_fallback(self) -> None:
+        from sultai_screen.contracts import CHEAP_RATES
+        from sultai_screen.pilot import cheap_rate_decision
+
+        records = []
+        for seed in range(3000, 3006):
+            record = {"seed": seed}
+            for family in ("P5", "P6"):
+                bank = {}
+                for rate in CHEAP_RATES:
+                    failed = family == "P5" and rate == 3.0
+                    bank[str(rate)] = {
+                        "candidate": {"selection_loss": None if failed else 0.0 if rate == 3.0 else 1.0},
+                        "development_evaluated": not failed,
+                        "development_loss": None if failed else 1.0,
+                    }
+                record[family] = bank
+            records.append(record)
+        decision = cheap_rate_decision(tuple(records))
+        self.assertEqual(decision["eta_B"], 3.0)
+        self.assertTrue(all(r["P5"]["status"] == "fit-unavailable" for r in decision["fixed_rate_results"]))
+        self.assertTrue(all(r["P6"]["status"] == "evaluated" for r in decision["fixed_rate_results"]))
+        records[0]["P6"]["3.0"]["development_loss"] = None
+        with self.assertRaisesRegex(PilotHold, "nonfinite development evaluation"):
+            cheap_rate_decision(tuple(records))
 
 
 if __name__ == "__main__":

@@ -421,6 +421,35 @@ def selected_development(candidate: Record) -> float:
     return number(value)
 
 
+def cheap_rate_decision(cheap: tuple[Record, ...]) -> Record:
+    if len(cheap) != 6:
+        raise PilotHold("six development anchors required for global cheap rate")
+    mean_selection: Record = {}
+    for rate in CHEAP_RATES:
+        selected = [mapping(mapping(record["P6"])[str(rate)]) for record in cheap]
+        values = [mapping(c["candidate"])["selection_loss"] for c in selected]
+        mean_selection[str(rate)] = (
+            statistics.mean(number(v) for v in values) if all(v is not None for v in values) else None
+        )
+    finite_rates = [rate for rate in CHEAP_RATES if mean_selection[str(rate)] is not None]
+    if not finite_rates:
+        raise InstrumentHold("no cheap rate is finite on all development anchors")
+    eta = min(finite_rates, key=lambda rate: number(mean_selection[str(rate)]))
+    fixed: list[Json] = []
+    for record in cheap:
+        status: Record = {"seed": integer(record["seed"])}
+        for family in ("P5", "P6"):
+            candidate = mapping(mapping(record[family])[str(eta)])
+            if mapping(candidate["candidate"])["selection_loss"] is None:
+                if candidate["development_evaluated"] is not False or candidate["development_loss"] is not None:
+                    raise PilotHold("failed fit carries inconsistent development evidence")
+                status[family] = {"status": "fit-unavailable", "development_loss": None}
+            else:
+                status[family] = {"status": "evaluated", "development_loss": selected_development(candidate)}
+        fixed.append(status)
+    return {"eta_B": eta, "mean_selection_loss": mean_selection, "fixed_rate_results": fixed}
+
+
 def pilot(root: Path, data: Path, certificate: Path) -> int:
     check_output_root(root)
     if root.exists():
@@ -547,21 +576,9 @@ def pilot(root: Path, data: Path, certificate: Path) -> int:
         for index, seed in enumerate(BOTTLENECK_SEEDS):
             supervisor.run((Job(f"cheap-{seed}", "cheap", seed, width, index % 2, root / f"bottle{width}-{seed}"),))
         cheap = tuple(payload(root, f"cheap-{seed}") for seed in BOTTLENECK_SEEDS)
-        mean_selection: Record = {}
-        for rate in CHEAP_RATES:
-            selected = [mapping(mapping(record["P6"])[str(rate)]) for record in cheap]
-            values = [mapping(c["candidate"])["selection_loss"] for c in selected]
-            mean_selection[str(rate)] = (
-                statistics.mean(number(v) for v in values) if all(v is not None for v in values) else None
-            )
-        finite_rates = [rate for rate in CHEAP_RATES if mean_selection[str(rate)] is not None]
-        if not finite_rates:
-            raise InstrumentHold("no cheap rate is finite on all development anchors")
-        eta = min(finite_rates, key=lambda rate: number(mean_selection[str(rate)]))
-        for record in cheap:
-            for family in ("P5", "P6"):
-                selected_development(mapping(mapping(record[family])[str(eta)]))
-        publish(root / "05-cheap-rate.json", {"eta_B": eta, "mean_selection_loss": mean_selection})
+        rate_decision = cheap_rate_decision(cheap)
+        eta = number(rate_decision["eta_B"])
+        publish(root / "05-cheap-rate.json", rate_decision)
         stage = "spread-sizing"
         h = []
         paired_h = []
