@@ -682,6 +682,116 @@ class ScreenTests(unittest.TestCase):
                 self.assertFalse((root / "materiality-3000").exists())
                 self.assertEqual(read_record(root / "pilot-result.json")["verdict"], "instrument-failed")
 
+    def test_oracle_retains_finite_schedule_and_all_failed_evidence(self) -> None:
+        from sultai_screen.fit import Candidate, oracle
+        from sultai_screen.screen import worker
+
+        host = Host()
+        freeze(host)
+        z = torch.ones(4, 16, 8, 8)
+        data = Features(z, z, torch.arange(4))
+        cache = Cached(data, data, data)
+        for available in (200, 800, None):
+
+            def candidate(host, conditioning, selection, *, seed, rate, steps, minibatch, available=available):
+                return Candidate(
+                    zero_adapter(z.device),
+                    rate,
+                    seed,
+                    steps,
+                    1.0 if steps == available else None,
+                    tuple(1.0 for _ in range(steps)) if steps == available else (),
+                    0.125,
+                    256 * steps,
+                    272 * steps,
+                )
+
+            with patch("sultai_screen.fit.fit_sgd", side_effect=candidate):
+                if available is not None:
+                    result = oracle(host, data, data, 3000)
+                    self.assertEqual(result.best.steps, available)
+                    self.assertFalse(result.plateau)
+                    self.assertIsNone(result.selection_se)
+                    self.assertEqual(len(result.candidates), 24)
+                    self.assertIn("unavailable", result.plateau_evidence)
+                else:
+                    with self.assertRaises(OracleUnavailable) as caught:
+                        oracle(host, data, data, 3000)
+                    error = caught.exception
+                    self.assertEqual(len(error.candidates), 24)
+                    self.assertEqual(sum(c["wall_seconds"] for c in error.candidates), 3.0)
+                    with (
+                        tempfile.TemporaryDirectory() as temporary,
+                        patch("sultai_screen.screen.install_seal", return_value=Seal()),
+                        patch("sultai_screen.screen.configure", return_value=torch.device("cpu")),
+                        patch("sultai_screen.screen.provenance", return_value={}),
+                        patch("sultai_screen.screen.torch.cuda.reset_peak_memory_stats"),
+                        patch("sultai_screen.screen.load_dataset", return_value=None),
+                        patch("sultai_screen.screen._training", return_value=host),
+                        patch("sultai_screen.screen.cached", return_value=cache),
+                        patch("sultai_screen.screen.bottleneck_worker", side_effect=error),
+                    ):
+                        output = Path(temporary) / "worker"
+                        with self.assertRaises(OracleUnavailable):
+                            worker("bottleneck", output, Path(temporary), 3000, 4, Path(temporary), None)
+                        failure = read_record(output / "failure.json")
+                        self.assertTrue(failure["software_valid"])
+                        self.assertFalse(failure["instrument_valid"])
+                        self.assertEqual(len(failure["unavailable_candidates"]), 24)
+                        self.assertEqual(sum(c["wall_seconds"] for c in failure["unavailable_candidates"]), 3.0)
+
+    def test_raw_cheap_nonfinite_dev_never_changes_selection(self) -> None:
+        from sultai_screen.fit import Candidate
+        from sultai_screen.pilot import selected_development
+        from sultai_screen.screen import cheap_worker
+
+        host = Host()
+        freeze(host)
+        z = torch.ones(4, 16, 8, 8)
+        data = Features(z, z, torch.arange(4))
+        cache = Cached(data, data, data)
+        candidates = tuple(
+            Candidate(zero_adapter(z.device), rate, 3000, 4, selection, (), 0.1, 16, 1088)
+            for rate, selection in ((3.0, 2.0), (0.1, 1.0))
+        )
+        with (
+            patch("sultai_screen.screen.cheap_bank", return_value=candidates),
+            patch(
+                "sultai_screen.screen.losses",
+                side_effect=[
+                    torch.full((4,), float("nan")),
+                    torch.ones(4),
+                    torch.full((4,), float("nan")),
+                    torch.ones(4),
+                ],
+            ),
+        ):
+            result = cheap_worker(host, cache, 3000)
+        for family in ("P5", "P6"):
+            self.assertFalse(result[family]["3.0"]["development_finite"])
+            self.assertIsNone(result[family]["3.0"]["development_loss"])
+            self.assertEqual(choose(candidates).rate, 0.1)
+            self.assertEqual(selected_development(result[family]["0.1"]), 1.0)
+            with self.assertRaisesRegex(PilotHold, "selected cheap"):
+                selected_development(result[family]["3.0"])
+        # Lower selection loss makes the bad-development candidate win; no fallback
+        # based on development finiteness is permitted.
+        bad = Candidate(candidates[0].adapter, 3.0, 3000, 4, 0.0, (), 0.1, 16, 1088)
+        self.assertEqual(choose((bad, candidates[1])).rate, 3.0)
+        with self.assertRaises(PilotHold):
+            selected_development(result["P6"][str(choose((bad, candidates[1])).rate)])
+
+    def test_raw_output_staging_precedes_attempt_admission(self) -> None:
+        from sultai_screen.pilot import check_output_root, pilot
+
+        root = Path(__file__).resolve().parents[1]
+        check_output_root(root / "runs/gate3-pilot-fixture")
+        check_output_root(Path("/tmp/gate3-pilot-fixture"))
+        with patch("sultai_screen.pilot.claim_attempt") as claim:
+            with self.assertRaisesRegex(PilotHold, "stage raw pilot output"):
+                pilot(root / "docs/results/gate3-pilot-fixture", root, Path("/missing/certificate"))
+            claim.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()

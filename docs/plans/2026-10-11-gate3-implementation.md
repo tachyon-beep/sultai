@@ -30,7 +30,11 @@ remain subject to strict typing, policy, lint and format gates with mutations.
 - Frozen execution asserts every BN mode, parameter gradient state and a hash
   of every named parameter/buffer. Zero adapters and resampled no-op twins must
   agree bitwise. Candidate numerical failures remain visible and unselectable;
-  no-op and selected-candidate nonfinite evaluations stop execution.
+  no-op and selected-candidate nonfinite evaluations stop execution. A bank with
+  one failed schedule retains the other schedule's finite winner and marks
+  plateau comparison unavailable. All-bank failure preserves every candidate
+  report/cost. Raw cheap development nonfiniteness is retained without changing
+  selection; it becomes fatal only for global-rate or per-anchor selected fits.
 - CIFAR training batches and metadata are read once each, hashed before pickle
   decoding from the same verified bytes. No archive/test file is opened.
   The audit hook rejects test-batch paths. Dev-index bytes, complete permutation
@@ -47,7 +51,8 @@ Each launched child is charged its elapsed time through batch cleanup, including
 CPU loading and idle time. Co-tenants are each charged separately, which
 conservatively overcounts occupied-card time. A batch deadline divides remaining
 budget by child count and reserves ten seconds per process for cleanup. Up to
-three children/card are admitted; every child has its own session. The supervisor
+three children/card are admitted; host and B3 fit replay both include that
+co-tenancy on both physical cards; every child has its own session. The supervisor
 polls all children, signals only owned sessions, signals all before waiting, then
 escalates remaining children to SIGKILL. Exclusive, fsynced process/ledger/result
 receipts preserve failure as well as success. SIGINT/SIGTERM trigger owned-child
@@ -57,7 +62,9 @@ retained custody forbids an automatic replacement attempt.
 `.weft/gate3-pilot-attempt.json` is published exclusively before launching any
 child and binds PID, output path and identity. Changing the output path cannot
 reset the attempt. Never delete that receipt to obtain another attempt. Failed
-admission before this receipt launches nothing. Outputs must be new paths.
+admission before this receipt launches nothing. Outputs must be new paths under ignored `runs/` or `/tmp`. Runtime placement
+is validated before custody is consumed; the protocol's `docs/results/gate3-pilot-<date>-<id>/` is the later sanitized publication
+destination, not raw working-tree staging.
 
 Source identity hashes every tracked file under source/scripts/tests plus
 `pyproject.toml`, rejects any dirty/untracked state and refuses an empty declared

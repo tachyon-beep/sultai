@@ -40,6 +40,10 @@ class FeasibilityHold(PilotHold):
 class OracleUnavailable(RuntimeError):
     """All candidates failed numerically; retain this anchor and report the arm."""
 
+    def __init__(self, message: str, *, candidates: tuple[Record, ...] | None = None) -> None:
+        super().__init__(message)
+        self.candidates = candidates
+
 
 def derive(seed: int, *labels: str) -> int:
     if seed < 0 or seed >= 2**64:

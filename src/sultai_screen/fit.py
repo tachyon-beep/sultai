@@ -215,9 +215,14 @@ def fit_sgd(
     failures=(OracleUnavailable,),
 )
 def choose(candidates: tuple[Candidate, ...]) -> Candidate:
+    if not candidates:
+        raise ContractViolation("owned candidate bank must be nonempty")
     finite = [c for c in candidates if c.selection is not None]
     if not finite:
-        raise OracleUnavailable("all candidates nonfinite; anchor retained, arm unavailable")
+        raise OracleUnavailable(
+            "all candidates nonfinite; anchor retained, arm unavailable",
+            candidates=tuple(c.report() for c in candidates),
+        )
     return min(finite, key=lambda c: math.inf if c.selection is None else c.selection)
 
 
@@ -238,8 +243,9 @@ class Oracle:
     best: Candidate
     candidates: tuple[Candidate, ...]
     plateau: bool
-    selection_se: float
-    loss_tail_se: float
+    selection_se: float | None
+    loss_tail_se: float | None
+    plateau_evidence: str
 
     def report(self) -> Record:
         return {
@@ -248,6 +254,7 @@ class Oracle:
             "plateau_certified": self.plateau,
             "selection_paired_bootstrap_se": self.selection_se,
             "training_tail_se": self.loss_tail_se,
+            "plateau_evidence": self.plateau_evidence,
         }
 
 
@@ -260,8 +267,14 @@ def oracle(host: Host, conditioning: Features, selection: Features, seed: int, *
         for s in range(seeds)
         for rate in ORACLE_RATES
     )
-    best1 = choose(tuple(c for c in candidates if c.steps == 200))
-    best4 = choose(tuple(c for c in candidates if c.steps == 800))
+    best = choose(candidates)
+    finite1 = tuple(c for c in candidates if c.steps == 200 and c.selection is not None)
+    finite4 = tuple(c for c in candidates if c.steps == 800 and c.selection is not None)
+    if not finite1 or not finite4:
+        return Oracle(
+            best, candidates, False, None, None, "schedule comparator unavailable; finite overall winner retained"
+        )
+    best1, best4 = choose(finite1), choose(finite4)
     difference = losses(host, selection, best1.adapter) - losses(host, selection, best4.adapter)
     se = paired_se(difference, seed)
     tail = torch.tensor(best4.training_losses[720:800], dtype=torch.float64)
@@ -270,7 +283,7 @@ def oracle(host: Host, conditioning: Features, selection: Features, seed: int, *
     if best1.selection is None or best4.selection is None:
         raise ContractViolation("selected candidates must be finite")
     plateau = best1.selection - best4.selection < 2 * se and change < 2 * tail_se
-    return Oracle(choose(candidates), candidates, plateau, se, tail_se)
+    return Oracle(best, candidates, plateau, se, tail_se, "both finite schedule comparators available")
 
 
 def derive_oracle(seed: int, index: int) -> int:

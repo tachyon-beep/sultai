@@ -27,6 +27,7 @@ from .contracts import (
     encode,
     file_sha,
     integer,
+    json_value,
     mapping,
     number,
     publish,
@@ -34,7 +35,7 @@ from .contracts import (
     text,
 )
 from .data import Dataset, install_seal, load_dataset
-from .fit import cheap_bank, fit_sgd, identity_check, mean_loss, oracle, ridge
+from .fit import cheap_bank, fit_sgd, identity_check, losses, mean_loss, oracle, ridge
 from .former_bridge import derive_former, former_fits
 from .host import Cached, Features, Host, cached, configure, flags, freeze, load_host, make_host, state_hash, train_host
 from .impair import make_impairment
@@ -303,11 +304,16 @@ def cheap_worker(host: Host, cache: Cached, seed: int) -> Record:
         bank: Record = {}
         for candidate in candidates:
             # All candidates, including failed ones, remain visible and charged.
+            raw_loss: float | None = None
+            if candidate.selection is not None:
+                values = losses(host, features.development, candidate.adapter, check_finite=False)
+                if bool(torch.isfinite(values).all()):
+                    raw_loss = float(values.double().mean())
             bank[str(candidate.rate)] = {
                 "candidate": candidate.report(),
-                "development_loss": mean_loss(host, features.development, candidate.adapter)
-                if candidate.selection is not None
-                else None,
+                "development_loss": raw_loss,
+                "development_finite": raw_loss is not None,
+                "development_evaluated": candidate.selection is not None,
             }
         result[family] = bank
     return result
@@ -385,6 +391,9 @@ def worker(
                 "identity": identity,
                 "error_type": type(error).__name__,
                 "error": str(error),
+                "unavailable_candidates": json_value(list(error.candidates))
+                if isinstance(error, OracleUnavailable) and error.candidates is not None
+                else None,
                 "data_opens": seal.report(),
                 "wall_seconds": time.monotonic() - started,
             },

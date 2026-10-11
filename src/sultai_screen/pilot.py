@@ -341,8 +341,8 @@ def sizing_receipt(h_values: tuple[float, ...], per_bottleneck_seconds: float, f
 
 
 def check_timing(records: tuple[Record, ...]) -> Record:
-    if len(records) != 3:
-        raise PilotHold("three timing/replay receipts required")
+    if len(records) < 3:
+        raise PilotHold("at least three timing/replay receipts required")
     timing = records[0]
     for actual in records:
         if actual["fit_finite"] is not True:
@@ -404,7 +404,25 @@ def claim_attempt(path: Path, root: Path, identity: Record) -> None:
     publish(path, {"pid": os.getpid(), "output": str(root), "identity": identity, "started_unix": time.time()})
 
 
+def check_output_root(root: Path) -> None:
+    if not root.is_absolute() or not (
+        root.resolve().is_relative_to((REPO / "runs").resolve())
+        or root.resolve().is_relative_to(Path("/tmp").resolve())
+    ):
+        raise PilotHold(
+            "stage raw pilot output in ignored runs/ or /tmp; publish sanitized docs/results evidence afterward"
+        )
+
+
+def selected_development(candidate: Record) -> float:
+    value = candidate["development_loss"]
+    if value is None:
+        raise PilotHold("nonfinite development evaluation of a selected cheap candidate")
+    return number(value)
+
+
 def pilot(root: Path, data: Path, certificate: Path) -> int:
+    check_output_root(root)
     if root.exists():
         raise PilotHold("one attempt requires a new output root; no automatic resume")
     approved = read_record(certificate)
@@ -451,7 +469,15 @@ def pilot(root: Path, data: Path, certificate: Path) -> int:
                 verify_replay(original, payload(root, job.name))
         for name, gpu in (("timing-0-a", 0), ("timing-0-b", 0), ("timing-1", 1)):
             supervisor.run((Job(name, "timing", 3000, 0, gpu, root / "intact-3000"),))
-        timing_records = tuple(payload(root, name) for name in ("timing-0-a", "timing-0-b", "timing-1"))
+        fit_cotenancy = tuple(
+            Job(f"cotenancy-fit-{gpu}-{i}", "timing", 3000, 0, gpu, root / "intact-3000")
+            for gpu in (0, 1)
+            for i in range(3)
+        )
+        supervisor.run(fit_cotenancy)
+        timing_records = tuple(payload(root, name) for name in ("timing-0-a", "timing-0-b", "timing-1")) + tuple(
+            payload(root, job.name) for job in fit_cotenancy
+        )
         timing = check_timing(timing_records)
         publish(
             root / "01-timing-replay-decision.json",
@@ -532,6 +558,9 @@ def pilot(root: Path, data: Path, certificate: Path) -> int:
         if not finite_rates:
             raise InstrumentHold("no cheap rate is finite on all development anchors")
         eta = min(finite_rates, key=lambda rate: number(mean_selection[str(rate)]))
+        for record in cheap:
+            for family in ("P5", "P6"):
+                selected_development(mapping(mapping(record[family])[str(eta)]))
         publish(root / "05-cheap-rate.json", {"eta_B": eta, "mean_selection_loss": mean_selection})
         stage = "spread-sizing"
         h = []
@@ -544,9 +573,7 @@ def pilot(root: Path, data: Path, certificate: Path) -> int:
                 if not finite:
                     raise InstrumentHold("all cheap candidates failed on an anchor")
                 best = min(finite, key=lambda c: number(mapping(c["candidate"])["selection_loss"]))
-                family_values[family] = number(best["development_loss"]) - number(
-                    mapping(bottle[family])["oracle_loss"]
-                )
+                family_values[family] = selected_development(best) - number(mapping(bottle[family])["oracle_loss"])
             h.append(family_values["P6"])
             paired_h.append(family_values["P6"] - family_values["P5"])
         sd = statistics.stdev(h)
