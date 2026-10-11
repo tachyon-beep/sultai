@@ -45,7 +45,7 @@ from sultai_screen.pilot import (
     stop_report,
     verify_replay,
 )
-from sultai_screen.screen import _site, materiality_worker, source_identity
+from sultai_screen.screen import _site, environment_identity, materiality_worker, source_identity
 
 
 class ScreenTests(unittest.TestCase):
@@ -414,11 +414,15 @@ class ScreenTests(unittest.TestCase):
             patch("sultai_screen.pilot.subprocess.Popen", side_effect=start_child),
         ):
             root = Path(temporary)
-            supervisor = Supervisor(root, root)
+            supervisor = Supervisor(root, root, 2.370860553928651)
             supervisor.run(tuple(Job(f"parallel-{i}", "train", 3000, 0, i % 2) for i in range(6)))
             ledger = read_record(root / "ledger-000.json")
             self.assertEqual(len(ledger["entries"]), 6)
-            self.assertGreaterEqual(supervisor.charged, 6 * 0.08)
+            self.assertGreaterEqual(supervisor.charged, 2.370860553928651 + 6 * 0.08)
+            self.assertEqual(ledger["opening_charge_gpu_process_seconds"], 2.370860553928651)
+            self.assertAlmostEqual(
+                supervisor.charged, 2.370860553928651 + sum(e["charged_gpu_process_seconds"] for e in ledger["entries"])
+            )
             self.assertTrue(all(entry["returncode"] == 0 for entry in ledger["entries"]))
             with self.assertRaises(PilotHold):
                 supervisor.run(tuple(Job(f"excess-{i}", "train", 3000, 0, 0) for i in range(4)))
@@ -445,6 +449,113 @@ class ScreenTests(unittest.TestCase):
             with self.assertRaisesRegex(PilotHold, "exhausted"):
                 supervisor.run((Job("never-started", "train", 3000, 0, 0),))
             self.assertFalse((root / "never-started.process.json").exists())
+
+    def test_environment_distribution_runtime_and_build_controls(self) -> None:
+        expected = {
+            "torch_wheel": "2.9.1",
+            "torch": "2.9.1+cu128",
+            "cuda": "12.8",
+            "numpy_wheel": "2.3.5",
+            "numpy": "2.3.5",
+        }
+        for bad in (None, *expected):
+            values = dict(expected)
+            if bad is not None:
+                values[bad] = "wrong"
+            with (
+                patch(
+                    "sultai_screen.screen.importlib.metadata.version",
+                    side_effect=lambda name, values=values: values[name + "_wheel"],
+                ),
+                patch("sultai_screen.screen.torch.__version__", values["torch"]),
+                patch("sultai_screen.screen.torch.version.cuda", values["cuda"]),
+                patch("sultai_screen.screen.np.__version__", values["numpy"]),
+                patch("sultai_screen.screen.torch.cuda.init") as cuda_init,
+            ):
+                if bad is None:
+                    self.assertEqual(environment_identity(), expected)
+                else:
+                    with self.assertRaisesRegex(PilotHold, bad):
+                        environment_identity()
+                cuda_init.assert_not_called()
+
+    def test_environment_precedes_custody_and_child_launch(self) -> None:
+        from sultai_screen.pilot import pilot
+
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            certificate = base / "certificate.json"
+            publish(certificate, {})
+            with (
+                patch("sultai_screen.pilot.check_certificate", return_value={"commit": "fixture"}),
+                patch("sultai_screen.pilot.environment_identity", side_effect=PilotHold("environment mismatch")),
+                patch("sultai_screen.pilot.claim_attempt") as claim,
+                patch("sultai_screen.pilot.check_handover") as handover,
+                patch("sultai_screen.pilot.Supervisor") as supervisor,
+            ):
+                for retry in (False, True):
+                    with self.assertRaisesRegex(PilotHold, "environment mismatch"):
+                        pilot(base / "new-output", base, certificate, retry=retry)
+                claim.assert_not_called()
+                handover.assert_not_called()
+                supervisor.assert_not_called()
+                self.assertFalse((base / "new-output").exists())
+
+    def test_linked_retry_binds_originals_and_cannot_reset_charge(self) -> None:
+        import sultai_screen.pilot as module
+
+        repo = Path(__file__).resolve().parents[1]
+        approved = {
+            "linked_retry_approved": True,
+            "prior_charge_gpu_process_seconds": module.PRIOR_CHARGE,
+            "evidence": [{"path": module.DISPOSITION}],
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            for relative, _ in module.PRIOR_RECEIPTS:
+                source = (
+                    repo
+                    / "docs/results/gate3-pilot-2026-10-11-01a125af"
+                    / ("attempt-custody.json" if relative.startswith(".weft/") else Path(relative).name)
+                )
+                target = base / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(source.read_bytes())
+            originals = {relative: (base / relative).read_bytes() for relative, _ in module.PRIOR_RECEIPTS}
+            with patch("sultai_screen.pilot.REPO", base):
+                linkage = module.linked_retry(approved)
+                self.assertEqual(linkage["opening_charge_gpu_process_seconds"], 2.370860553928651)
+                receipt = base / module.RETRY_RECEIPT
+                module.claim_attempt(receipt, base / "retry-one", linkage)
+                with self.assertRaises(FileExistsError):
+                    module.claim_attempt(receipt, base / "retry-two", linkage)
+                for key, bad in (
+                    ("linked_retry_approved", False),
+                    ("prior_charge_gpu_process_seconds", 0.0),
+                    ("evidence", []),
+                ):
+                    with self.assertRaises(PilotHold):
+                        module.linked_retry(dict(approved, **{key: bad}))
+                for relative, _ in module.PRIOR_RECEIPTS:
+                    path = base / relative
+                    self.assertEqual(path.read_bytes(), originals[relative])
+                    path.write_bytes(originals[relative] + b" ")
+                    with self.assertRaisesRegex(PilotHold, "missing or changed"):
+                        module.linked_retry(approved)
+                    path.unlink()
+                    with self.assertRaisesRegex(PilotHold, "missing or changed"):
+                        module.linked_retry(approved)
+                    path.write_bytes(originals[relative])
+                with patch("sultai_screen.pilot.PILOT_SECONDS", module.PRIOR_CHARGE + 10):
+                    supervisor = Supervisor(base, base, module.PRIOR_CHARGE)
+                    with patch("sultai_screen.pilot.subprocess.Popen") as child:
+                        with self.assertRaisesRegex(PilotHold, "exhausted"):
+                            supervisor.run((Job("blocked", "train", 3000, 0, 0),))
+                        child.assert_not_called()
+                        self.assertEqual(supervisor.charged, module.PRIOR_CHARGE)
+                for invalid in (-1.0, float("nan"), float("inf"), 10800.0):
+                    with self.assertRaises(PilotHold):
+                        Supervisor(base, base, invalid)
 
     def test_attempt_custody_cannot_be_reset_by_new_output(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

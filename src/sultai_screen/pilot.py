@@ -39,7 +39,7 @@ from .contracts import (
     text,
 )
 from .costs import project_cost
-from .screen import BOTTLENECK_SEEDS, INTACT_SEEDS, REPO, source_identity
+from .screen import BOTTLENECK_SEEDS, INTACT_SEEDS, REPO, environment_identity, source_identity
 
 GPU_UUIDS = ("GPU-6198007d-505f-920d-088c-957818fc0988", "GPU-d5b931ca-445e-0e51-004f-ead3b68d6ece")
 
@@ -126,10 +126,13 @@ def verify_replay(expected: Record, actual: Record) -> None:
 
 
 class Supervisor:
-    def __init__(self, root: Path, data: Path) -> None:
+    def __init__(self, root: Path, data: Path, opening_charge: float = 0.0) -> None:
         self.root = root
         self.data = data
-        self.charged = 0.0
+        if not 0 <= opening_charge < PILOT_SECONDS:
+            raise PilotHold("opening charge must fit within the unchanged aggregate ceiling")
+        self.opening_charge = opening_charge
+        self.charged = opening_charge
         self.ledger: list[Json] = []
         self.serial = 0
 
@@ -260,6 +263,7 @@ class Supervisor:
                 {
                     "charged_gpu_process_seconds": self.charged,
                     "ceiling_gpu_process_seconds": PILOT_SECONDS,
+                    "opening_charge_gpu_process_seconds": self.opening_charge,
                     "entries": list(self.ledger),
                 },
             )
@@ -404,6 +408,53 @@ def claim_attempt(path: Path, root: Path, identity: Record) -> None:
     publish(path, {"pid": os.getpid(), "output": str(root), "identity": identity, "started_unix": time.time()})
 
 
+# This disposition permits exactly one successor of the byte-preserved first failure.
+# These are fixed receipts, not caller-selected prior charges or restart checkpoints.
+PRIOR_ROOT = "runs/gate3-pilot-2026-10-11-01a125af"
+PRIOR_CHARGE = 2.370860553928651
+PRIOR_RECEIPTS = (
+    (".weft/gate3-pilot-attempt.json", "49034bf3f26d3061fc4d57318ae156d54297d113b529898c4c925dc8c61d1821"),
+    (f"{PRIOR_ROOT}/pilot-result.json", "3960d87a7d563ec1bdcaeed46f86c79ed0f1154a513a51ffa2d05088aafbba84"),
+    (f"{PRIOR_ROOT}/ledger-000.json", "3e6fb2a452a7110263dfa53c316662a10f16fec6d965a8daee91975752288e85"),
+)
+RETRY_RECEIPT = ".weft/gate3-pilot-linked-retry-1.json"
+DISPOSITION = "docs/certificates/2026-10-11-gate3-linked-retry-disposition.md"
+
+
+def linked_retry(approved: Record) -> Record:
+    """T2: missing/changed terminal custody or explicit disposition raises PilotHold."""
+    if approved["linked_retry_approved"] is not True or approved["prior_charge_gpu_process_seconds"] != PRIOR_CHARGE:
+        raise PilotHold("one linked retry and exact carried charge require explicit disposition")
+    evidence = [mapping(entry) for entry in sequence(approved["evidence"])]
+    if not any(entry["path"] == DISPOSITION for entry in evidence):
+        raise PilotHold("bound operator disposition evidence required")
+    hashes: Record = {}
+    for relative, expected in PRIOR_RECEIPTS:
+        path = REPO / relative
+        if not path.is_file() or file_sha(path) != expected:
+            raise PilotHold(f"original failure receipt missing or changed: {relative}")
+        hashes[relative] = expected
+    ledger = read_record(REPO / PRIOR_ROOT / "ledger-000.json")
+    result = read_record(REPO / PRIOR_ROOT / "pilot-result.json")
+    entries = [mapping(entry) for entry in sequence(ledger["entries"])]
+    if (
+        ledger["charged_gpu_process_seconds"] != PRIOR_CHARGE
+        or sum(number(entry["charged_gpu_process_seconds"]) for entry in entries) != PRIOR_CHARGE
+        or not entries
+        or any(integer(entry["returncode"]) != 1 for entry in entries)
+        or result["charged_gpu_process_seconds"] != PRIOR_CHARGE
+        or result["verdict"] != "execution-invalid"
+        or result["pilot_clean"] is not False
+    ):
+        raise PilotHold("original terminal failure and exact charged ledger required")
+    return {
+        "prior_receipts": hashes,
+        "opening_charge_gpu_process_seconds": PRIOR_CHARGE,
+        "retry_number": 1,
+        "further_retry_authorized": False,
+    }
+
+
 def check_output_root(root: Path) -> None:
     if not root.is_absolute() or not (
         root.resolve().is_relative_to((REPO / "runs").resolve())
@@ -450,23 +501,28 @@ def cheap_rate_decision(cheap: tuple[Record, ...]) -> Record:
     return {"eta_B": eta, "mean_selection_loss": mean_selection, "fixed_rate_results": fixed}
 
 
-def pilot(root: Path, data: Path, certificate: Path) -> int:
+def pilot(root: Path, data: Path, certificate: Path, *, retry: bool = False) -> int:
     check_output_root(root)
     if root.exists():
         raise PilotHold("one attempt requires a new output root; no automatic resume")
     approved = read_record(certificate)
     identity = check_certificate(approved)
     source_commit = text(identity["commit"])
+    environment = environment_identity()
+    linkage = linked_retry(approved) if retry else None
     handover = check_handover()
     # Durable one-attempt custody across output paths and supervisor restarts.
     # Never remove/reset this receipt to make a second invocation appear fresh.
-    attempt = REPO / ".weft/gate3-pilot-attempt.json"
-    claim_attempt(attempt, root, identity)
+    attempt = REPO / (RETRY_RECEIPT if retry else ".weft/gate3-pilot-attempt.json")
+    custody = dict(identity, environment=environment, linkage=linkage, certificate_sha256=file_sha(certificate))
+    claim_attempt(attempt, root, custody)
     root.mkdir(parents=True, exist_ok=False)
     publish(
         root / "admission.json",
         {
             "handover": handover,
+            "environment": environment,
+            "linkage": linkage,
             "implementation_commit": source_commit,
             "certificate_sha256": file_sha(certificate),
             "preregistration_sha256": PREREG_SHA,
@@ -475,7 +531,7 @@ def pilot(root: Path, data: Path, certificate: Path) -> int:
             "confirmatory_cotenancy_processes_per_card": 3,
         },
     )
-    supervisor = Supervisor(root, data)
+    supervisor = Supervisor(root, data, PRIOR_CHARGE) if retry else Supervisor(root, data)
     stage = "timing-replay"
     try:
         # The six intact and six bottleneck hosts share seed labels only for a descriptive
@@ -671,8 +727,13 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--data-root", type=Path, required=True)
     parser.add_argument("--review-certificate", type=Path, required=True)
+    parser.add_argument(
+        "--linked-retry", action="store_true", help="one explicitly reviewed linked successor, same total cap"
+    )
     args = parser.parse_args()
-    return pilot(args.output.resolve(), args.data_root.resolve(), args.review_certificate.resolve())
+    return pilot(
+        args.output.resolve(), args.data_root.resolve(), args.review_certificate.resolve(), retry=args.linked_retry
+    )
 
 
 def _terminate(signum: int, _frame: FrameType | None) -> None:

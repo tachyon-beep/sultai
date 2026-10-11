@@ -18,10 +18,17 @@ or training. **HOLD: execution-invalid; no retry or confirmation.**
 The ledger charged 2.370860553928651 process-seconds; both GPUs were verified
 idle afterward. See the [execution hold and concrete disposition](certificates/2026-10-11-gate3-pilot-hold.md)
 and [byte-preserved evidence](results/gate3-pilot-2026-10-11-01a125af/manifest.json).
-The original attempt custody remains intact; John must disposition any repair
-and linked new attempt under the same total budget. The historical Gate 2 verdict below
-is unchanged. Confirmation remains conditional on a clean pilot and reviewed,
-committed filled protocol. Never reset the durable pilot attempt receipt.
+The original attempt custody remains intact. John subsequently approved the
+[bounded linked retry disposition](certificates/2026-10-11-gate3-linked-retry-disposition.md):
+separate distribution/runtime/CUDA provenance checks before custody, regression
+controls, exact-patch independent review and an updated bound certificate,
+then one linked development pilot retry. The original failure receipts and
+2.370860553928651-second charge remain within the same 10,800-second total cap.
+The candidate passes 20 quality checks and 140 CPU tests; independent acceptance
+and fresh resource/custody admission are still required before retry launch.
+No retry has started at this checkpoint. The historical Gate 2 verdict below
+is unchanged. Confirmation remains blocked pending a clean pilot and reviewed,
+committed filled protocol. Never reset either durable pilot attempt receipt.
 
 ## Nyx Gate 2 checkpoint — 2026-10-10
 

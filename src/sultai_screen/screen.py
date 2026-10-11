@@ -10,6 +10,7 @@ import subprocess
 import time
 from pathlib import Path
 
+import numpy as np
 import torch
 from torch import Tensor
 
@@ -71,20 +72,32 @@ def source_identity(*, expected_prereg: str = PREREG_SHA) -> Record:
     }
 
 
+def environment_identity() -> Record:
+    """Admission checks distinct distribution, runtime and CUDA fields without GPU initialization."""
+    actual: Record = {
+        "torch_wheel": importlib.metadata.version("torch"),
+        "torch": str(torch.__version__),
+        "cuda": torch.version.cuda,
+        "numpy_wheel": importlib.metadata.version("numpy"),
+        "numpy": np.__version__,
+    }
+    expected: Record = {
+        "torch_wheel": "2.9.1",
+        "torch": "2.9.1+cu128",
+        "cuda": "12.8",
+        "numpy_wheel": "2.3.5",
+        "numpy": "2.3.5",
+    }
+    for key, value in expected.items():
+        if actual[key] != value:
+            raise PilotHold(f"pinned environment mismatch: {key}: expected {value}, observed {actual[key]}")
+    return actual
+
+
 def provenance(*, expected_prereg: str = PREREG_SHA) -> Record:
     result = source_identity(expected_prereg=expected_prereg)
-    if importlib.metadata.version("torch") != "2.9.1+cu128" or importlib.metadata.version("numpy") != "2.3.5":
-        raise PilotHold("installed screen wheels differ from the pinned environment")
-    result.update(
-        {
-            "torch": str(torch.__version__),
-            "cuda": torch.version.cuda,
-            "torch_wheel": importlib.metadata.version("torch"),
-            "numpy_wheel": importlib.metadata.version("numpy"),
-            "determinism": flags(),
-            "physical_gpu": os.environ["CUDA_VISIBLE_DEVICES"],
-        }
-    )
+    result.update(environment_identity())
+    result.update({"determinism": flags(), "physical_gpu": os.environ["CUDA_VISIBLE_DEVICES"]})
     return result
 
 
