@@ -12,7 +12,14 @@ by independent scientific and PyTorch/operations specialists. All 20 quality
 checks and 137 CPU tests pass. [Draft PR #3](https://github.com/tachyon-beep/sultai/pull/3)
 and the [bound admission certificate](certificates/2026-10-11-gate3-pilot-admission.json)
 record readiness for fresh resource/custody checks. No pilot or confirmatory
-execution is claimed by this prelaunch checkpoint. The historical Gate 2 verdict below
+execution was claimed by that prelaunch checkpoint. The admitted pilot then
+stopped on a distribution/runtime version-field mismatch before data loading
+or training. **HOLD: execution-invalid; no retry or confirmation.**
+The ledger charged 2.370860553928651 process-seconds; both GPUs were verified
+idle afterward. See the [execution hold and concrete disposition](certificates/2026-10-11-gate3-pilot-hold.md)
+and [byte-preserved evidence](results/gate3-pilot-2026-10-11-01a125af/manifest.json).
+The original attempt custody remains intact; John must disposition any repair
+and linked new attempt under the same total budget. The historical Gate 2 verdict below
 is unchanged. Confirmation remains conditional on a clean pilot and reviewed,
 committed filled protocol. Never reset the durable pilot attempt receipt.
 

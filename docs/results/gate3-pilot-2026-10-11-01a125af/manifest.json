@@ -1,0 +1,54 @@
+{
+  "copied_files": {
+    "admission.json": {
+      "sha256": "08e9f089d7497b8f410bfd44f376a780fa163defc85019015e1a7aba91c1230c",
+      "original_path": "/home/john/sultai/runs/gate3-pilot-2026-10-11-01a125af/admission.json",
+      "byte_identical": true
+    },
+    "pilot-result.json": {
+      "sha256": "3960d87a7d563ec1bdcaeed46f86c79ed0f1154a513a51ffa2d05088aafbba84",
+      "original_path": "/home/john/sultai/runs/gate3-pilot-2026-10-11-01a125af/pilot-result.json",
+      "byte_identical": true
+    },
+    "ledger-000.json": {
+      "sha256": "3e6fb2a452a7110263dfa53c316662a10f16fec6d965a8daee91975752288e85",
+      "original_path": "/home/john/sultai/runs/gate3-pilot-2026-10-11-01a125af/ledger-000.json",
+      "byte_identical": true
+    },
+    "intact-3000.process.json": {
+      "sha256": "3d79fcd4131d278bf220f6039cd03ff38384610ba5af57bffa0302ba687edca6",
+      "original_path": "/home/john/sultai/runs/gate3-pilot-2026-10-11-01a125af/intact-3000.process.json",
+      "byte_identical": true
+    },
+    "bottle4-3000.process.json": {
+      "sha256": "126a78d4beae250c50aaa036dc303b26dc233b29243972a10328d0018013d95b",
+      "original_path": "/home/john/sultai/runs/gate3-pilot-2026-10-11-01a125af/bottle4-3000.process.json",
+      "byte_identical": true
+    },
+    "attempt-custody.json": {
+      "sha256": "49034bf3f26d3061fc4d57318ae156d54297d113b529898c4c925dc8c61d1821",
+      "original_path": "/home/john/sultai/.weft/gate3-pilot-attempt.json",
+      "byte_identical": true
+    },
+    "preflight.json": {
+      "sha256": "63d5f00b513c52c396bcb3cfc1abe1b1381b19ed99d10bf4f7b04103769c679f",
+      "original_path": "/tmp/sultai-gate3-preflight-20261011.json",
+      "byte_identical": true
+    },
+    "poststop.json": {
+      "sha256": "688943e5c1354c51a1565f7b22b6220663f0165149ad764b58aa7be989695898",
+      "original_path": "/tmp/sultai-gate3-poststop-20261011.json",
+      "byte_identical": true
+    },
+    "supervisor-time.txt": {
+      "sha256": "a52447402ca5f27aeb37a1612743b28460334f6447cbd108da7f22c9457fde36",
+      "original_path": "/tmp/sultai-gate3-supervisor-time-20261011.txt",
+      "byte_identical": true
+    }
+  },
+  "derived_files": {
+    "execution-summary.json": "daa8a999493964e0a161c5f24783cf6385d0ff0e7e6a1bac4d0ea3374d68f73e"
+  },
+  "private_raw_logs_and_weights_in_git": false,
+  "same_host_custody_only_for_original_runtime_logs": true
+}

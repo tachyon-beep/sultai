@@ -1,0 +1,49 @@
+{
+  "status": "HOLD: execution-invalid before data loading or training",
+  "started_source_commit": "2e128065eb512596fd70b006ef0435d8d6ce8090",
+  "reviewed_implementation_commit": "4936d28c90e9ab3a4e7358c772ae0b7acbaffa54",
+  "source_sha256": "74f1c403562d13fa37c724ab6ca358642dbaf025c265a82598303c60f4c086a8",
+  "supervisor_outer_exit": 2,
+  "gnu_time_exit": 2,
+  "supervisor_wall_seconds": 2.4,
+  "peak_rss_kib": 664400,
+  "charged_gpu_process_seconds": 2.370860553928651,
+  "charged_gpu_process_hours": 0.000658572376091292,
+  "unchanged_total_ceiling_gpu_process_seconds": 10800,
+  "remaining_within_original_ceiling_seconds": 10797.629139446071,
+  "children": [
+    {
+      "charged_gpu_process_seconds": 1.1862986729247496,
+      "gpu": 0,
+      "job": "intact-3000",
+      "pid": 3797463,
+      "returncode": 1,
+      "failure_stage": "provenance before load_dataset/train_host",
+      "stderr_sha256": "72a0792cfcdbe5adf296528e8b5fef93e2f7be2f4351c2321fbfdc426749b7e0",
+      "stderr_bytes": 976,
+      "last_exception_line": "sultai_screen.contracts.PilotHold: installed screen wheels differ from the pinned environment",
+      "failure_receipt_present": false
+    },
+    {
+      "charged_gpu_process_seconds": 1.1845618810039014,
+      "gpu": 1,
+      "job": "bottle4-3000",
+      "pid": 3797464,
+      "returncode": 1,
+      "failure_stage": "provenance before load_dataset/train_host",
+      "stderr_sha256": "72a0792cfcdbe5adf296528e8b5fef93e2f7be2f4351c2321fbfdc426749b7e0",
+      "stderr_bytes": 976,
+      "last_exception_line": "sultai_screen.contracts.PilotHold: installed screen wheels differ from the pinned environment",
+      "failure_receipt_present": false
+    }
+  ],
+  "data_loading_reached": false,
+  "host_training_reached": false,
+  "scientific_outputs": null,
+  "reason": "Guard compared torch distribution metadata 2.9.1 against runtime-build pin 2.9.1+cu128; runtime build is 2.9.1+cu128 and CUDA build is 12.8.",
+  "poststop_compute_apps": [],
+  "retry_performed": false,
+  "custody_retained": true,
+  "confirmation_cleared": false,
+  "recorded_utc": "2026-10-11T09:27:03.207345+00:00"
+}
