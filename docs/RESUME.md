@@ -35,8 +35,10 @@ the original failure, under the same 10800-second total cap. Both GPUs were
 verified idle afterward; original and linked custody remain intact. See the
 [new hold and diagnostic disposition](certificates/2026-10-11-gate3-linked-retry-hold.md)
 and [byte-preserved retry evidence](results/gate3-pilot-2026-10-11-01a125af-retry1/manifest.json).
-No further retry, source repair, GPU diagnostic or confirmation is cleared.
-John must disposition the new deviation under frozen §9 / D-P. The historical
+John subsequently approved the separate [one-worker, 120-second diagnostic](certificates/2026-10-12-gate3-twin-diagnostic-authorization.md) on 2026-10-12.
+Implementation, CPU validation and independent review are in progress; no diagnostic
+has launched at this checkpoint. Pilot source repair, another pilot and
+confirmation remain blocked under frozen §9 / D-P. The historical
 Gate 2 verdict is unchanged. Never reset either durable pilot attempt receipt.
 
 ## Nyx Gate 2 checkpoint — 2026-10-10
