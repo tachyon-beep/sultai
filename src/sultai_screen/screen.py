@@ -20,6 +20,9 @@ from .alignment import align, moments, transport
 from .contracts import (
     AMENDMENT_PATH,
     AMENDMENT_SHA,
+    AMENDMENT_V41_PATH,
+    AMENDMENT_V41_SHA,
+    P3_LADDER,
     PREREG_SHA,
     RHO,
     InstrumentHold,
@@ -47,6 +50,8 @@ from .impair import make_impairment
 REPO = Path(__file__).resolve().parents[2]
 PROTOCOL = REPO / "docs/plans/2026-10-10-gate3-headroom-screen.md"
 AMENDMENT = REPO / AMENDMENT_PATH
+AMENDMENT_V41 = REPO / AMENDMENT_V41_PATH
+MATERIALITY_LADDERS: dict[str, tuple[float, ...]] = {"P1": (0.1, 0.3, 0.03), "P2": (0.1, 0.03), "P3": P3_LADDER}
 DEV_ARTIFACT = REPO / "docs/results/gate3-split-2026-10-11/dev-indices-int32-le.bin"
 INTACT_SEEDS = tuple(range(3000, 3006))
 BOTTLENECK_SEEDS = INTACT_SEEDS
@@ -57,6 +62,8 @@ def source_identity() -> Record:
         raise PilotHold("committed preregistration identity mismatch")
     if file_sha(AMENDMENT) != AMENDMENT_SHA:
         raise PilotHold("committed protocol amendment identity mismatch")
+    if file_sha(AMENDMENT_V41) != AMENDMENT_V41_SHA:
+        raise PilotHold("superseded amendment v4.1 bytes changed; the v4.2 chain is broken")
     commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPO, text=True).strip()
     dirty = subprocess.check_output(["git", "status", "--porcelain"], cwd=REPO, text=True)
     if dirty:
@@ -226,7 +233,7 @@ def materiality_worker(host: Host, cache: Cached, seed: int) -> Record:
     original = mean_loss(host, cache.development, None)
     result: Record = {"seed": seed, "intact_loss": original, "rungs": {}}
     rungs: Record = {}
-    for family, magnitudes in (("P1", (0.1, 0.3, 0.03)), ("P2", (0.1, 0.03)), ("P3", (0.25, 0.5, 1.0))):
+    for family, magnitudes in MATERIALITY_LADDERS.items():
         gains: Record = {}
         for magnitude in magnitudes:
             operator = make_impairment(family, magnitude, seed, cache.conditioning.read)

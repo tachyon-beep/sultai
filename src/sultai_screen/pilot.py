@@ -18,6 +18,7 @@ from sultai.trust import FitUnavailable
 
 from .contracts import (
     CHEAP_RATES,
+    P3_LADDER,
     PILOT_SECONDS,
     RHO,
     FeasibilityHold,
@@ -289,7 +290,7 @@ def magnitude_decision(records: tuple[Record, ...]) -> Record:
     for family, ladders in (
         ("P1", ((0.1, 0.3), (0.03, 0.1))),
         ("P2", ((0.1,), (0.03,))),
-        ("P3", ((0.25,), (0.5,), (1.0,))),
+        ("P3", tuple((kappa,) for kappa in P3_LADDER)),
     ):
         found: tuple[float, ...] | None = None
         for magnitudes in ladders:
@@ -517,6 +518,56 @@ def linked_pilot_two(approved: Record) -> Record:
     }
 
 
+# v4.2 §5: linked pilot 3 (attempt 4) succeeds attempt 3's instrument hold; every prior custody receipt and
+# terminal charge record is bound by hash and the cumulative charge is carried.
+PILOT_2_ROOT = "runs/gate3-pilot-2026-10-13-linked-2"
+CUMULATIVE_CHARGE_3 = 2934.3435500559863
+PRIOR_RECEIPTS_3 = (
+    *PRIOR_RECEIPTS_2,
+    (PILOT_2_RECEIPT, "acabf167162363af96695bd3f6924f3952e2045267d9013059a55dfc62e1db34"),
+    (f"{PILOT_2_ROOT}/pilot-result.json", "dd8659a0ffe34c9dfa55c8a4cf9871d3c5f1b1c2b4a726c24712ace538e0fff7"),
+    (f"{PILOT_2_ROOT}/ledger-020.json", "0e1c184b4c26630198f42e7dd7fea033a059a5e9ae4d457ada6f48805df77799"),
+)
+PILOT_3_RECEIPT = ".weft/gate3-pilot-linked-pilot-3.json"
+DISPOSITION_3 = "docs/certificates/2026-10-13-gate3-linked-pilot-3-disposition.md"
+
+
+def linked_pilot_three(approved: Record) -> Record:
+    """T2: missing/changed prior custody or terminal records, or no explicit disposition, raises PilotHold."""
+    if (
+        approved["linked_pilot_3_approved"] is not True
+        or approved["prior_charge_gpu_process_seconds"] != CUMULATIVE_CHARGE_3
+    ):
+        raise PilotHold("linked pilot 3 and the exact cumulative charge require John's explicit disposition")
+    evidence = [mapping(entry) for entry in sequence(approved["evidence"])]
+    if not any(entry["path"] == DISPOSITION_3 for entry in evidence) or not (REPO / DISPOSITION_3).is_file():
+        raise PilotHold("bound operator disposition document for linked pilot 3 required")
+    hashes: Record = {}
+    for relative, expected in PRIOR_RECEIPTS_3:
+        path = REPO / relative
+        if not path.is_file() or file_sha(path) != expected:
+            raise PilotHold(f"prior attempt receipt missing or changed: {relative}")
+        hashes[relative] = expected
+    result = read_record(REPO / PILOT_2_ROOT / "pilot-result.json")
+    ledger = read_record(REPO / PILOT_2_ROOT / "ledger-020.json")
+    if (
+        result["charged_gpu_process_seconds"] != CUMULATIVE_CHARGE_3
+        or result["verdict"] != "instrument-failed"
+        or result["software_valid"] is not True
+        or result["pilot_clean"] is not False
+        or ledger["charged_gpu_process_seconds"] != CUMULATIVE_CHARGE_3
+        or ledger["opening_charge_gpu_process_seconds"] != CUMULATIVE_CHARGE
+        or ledger["ceiling_gpu_process_seconds"] != PILOT_SECONDS
+    ):
+        raise PilotHold("terminal records of attempt 3 must carry the exact cumulative charge and instrument hold")
+    return {
+        "prior_receipts": hashes,
+        "opening_charge_gpu_process_seconds": CUMULATIVE_CHARGE_3,
+        "attempt_number": 4,
+        "further_attempt_authorized": False,
+    }
+
+
 def check_output_root(root: Path) -> None:
     if not root.is_absolute() or not (
         root.resolve().is_relative_to((REPO / "runs").resolve())
@@ -563,9 +614,11 @@ def cheap_rate_decision(cheap: tuple[Record, ...]) -> Record:
     return {"eta_B": eta, "mean_selection_loss": mean_selection, "fixed_rate_results": fixed}
 
 
-def pilot(root: Path, data: Path, certificate: Path, *, retry: bool = False, second: bool = False) -> int:
-    if retry and second:
-        raise PilotHold("one linkage per attempt: linked retry 1 and linked pilot 2 are distinct attempts")
+def pilot(
+    root: Path, data: Path, certificate: Path, *, retry: bool = False, second: bool = False, third: bool = False
+) -> int:
+    if sum((retry, second, third)) > 1:
+        raise PilotHold("one linkage per attempt: linked retry 1, linked pilot 2 and linked pilot 3 are distinct")
     check_output_root(root)
     if root.exists():
         raise PilotHold("one attempt requires a new output root; no automatic resume")
@@ -573,11 +626,27 @@ def pilot(root: Path, data: Path, certificate: Path, *, retry: bool = False, sec
     identity = check_certificate(approved)
     source_commit = text(identity["commit"])
     environment = environment_identity()
-    linkage = linked_retry(approved) if retry else linked_pilot_two(approved) if second else None
+    linkage = (
+        linked_retry(approved)
+        if retry
+        else linked_pilot_two(approved)
+        if second
+        else linked_pilot_three(approved)
+        if third
+        else None
+    )
     handover = check_handover()
     # Durable one-attempt custody across output paths and supervisor restarts.
     # Never remove/reset this receipt to make a second invocation appear fresh.
-    attempt = REPO / (RETRY_RECEIPT if retry else PILOT_2_RECEIPT if second else ".weft/gate3-pilot-attempt.json")
+    attempt = REPO / (
+        RETRY_RECEIPT
+        if retry
+        else PILOT_2_RECEIPT
+        if second
+        else PILOT_3_RECEIPT
+        if third
+        else ".weft/gate3-pilot-attempt.json"
+    )
     custody = dict(identity, environment=environment, linkage=linkage, certificate_sha256=file_sha(certificate))
     claim_attempt(attempt, root, custody)
     root.mkdir(parents=True, exist_ok=False)
@@ -595,8 +664,9 @@ def pilot(root: Path, data: Path, certificate: Path, *, retry: bool = False, sec
             "confirmatory_cotenancy_processes_per_card": 3,
         },
     )
-    if retry or second:
-        supervisor = Supervisor(root, data, PRIOR_CHARGE if retry else CUMULATIVE_CHARGE)
+    if retry or second or third:
+        opening = PRIOR_CHARGE if retry else CUMULATIVE_CHARGE if second else CUMULATIVE_CHARGE_3
+        supervisor = Supervisor(root, data, opening)
     else:
         supervisor = Supervisor(root, data)
     stage = "timing-replay"
@@ -802,6 +872,11 @@ def main() -> int:
         action="store_true",
         help="v4.1 §6 linked pilot 2: fresh hosts, cumulative charge carried, same total cap",
     )
+    parser.add_argument(
+        "--linked-pilot-3",
+        action="store_true",
+        help="v4.2 §5 linked pilot 3: fresh hosts, cumulative charge carried, same total cap",
+    )
     args = parser.parse_args()
     return pilot(
         args.output.resolve(),
@@ -809,6 +884,7 @@ def main() -> int:
         args.review_certificate.resolve(),
         retry=args.linked_retry,
         second=args.linked_pilot_2,
+        third=args.linked_pilot_3,
     )
 
 

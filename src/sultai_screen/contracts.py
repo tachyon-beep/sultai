@@ -16,9 +16,13 @@ Record: TypeAlias = dict[str, Json]
 PREREG_SHA = "7668d20ad55c3a62384975a7cf1f3989dbe69bf701ce02bc9c68ac2601d0d42a"
 DEV_SHA = "27173d10eb5edba1d0fd331e7f85ea633753cfae11400c4e7ef81810c94eeeba"
 PERM_SHA = "df1d87871f9afe3b15d7c5a434c31c5f68ff99564b4512410cc64fb1d042a24e"
-AMENDMENT_PATH = "docs/plans/2026-10-13-gate3-headroom-screen-v4.1-amendment.md"
-AMENDMENT_SHA = "dd30e1d171c696f3a51dba291475b2cc09ff0626442ccc411cdbfcfd58c32b4d"
-PROTOCOL_VERSION = "gate3-v4.1"
+AMENDMENT_V41_PATH = "docs/plans/2026-10-13-gate3-headroom-screen-v4.1-amendment.md"
+AMENDMENT_V41_SHA = "dd30e1d171c696f3a51dba291475b2cc09ff0626442ccc411cdbfcfd58c32b4d"
+AMENDMENT_PATH = "docs/plans/2026-10-13-gate3-headroom-screen-v4.2-amendment.md"
+AMENDMENT_SHA = "0933ad4e4f52a2e25fbbbd2234749854524dcce6690c4980f863b53e10598421"
+PROTOCOL_VERSION = "gate3-v4.2"
+# v4.2 §3: P3 materiality ladder; the rule (first rung clearing 0.05 nats on every anchor) is unchanged.
+P3_LADDER = (0.25, 0.5, 1.0, 2.0, 4.0)
 # v4.1 §1: one active identity composed from the unchanged v4 bytes and the separately hashed amendment.
 PROTOCOL_SHA = hashlib.sha256(f"{PROTOCOL_VERSION}\n{PREREG_SHA}\n{AMENDMENT_SHA}\n".encode()).hexdigest()
 X = 0.02

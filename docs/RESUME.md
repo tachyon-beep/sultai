@@ -51,6 +51,19 @@ in `docs/certificates/2026-10-13-gate3-linked-pilot-2-hold.md` (recommended:
 amendment v4.2 appending κ ∈ {2.0, 4.0} to the P3 ladder, one fresh linked
 attempt 4). No further attempt, confirmation or merge is authorised.
 
+**John chose option 1 on 2026-10-13 ("Go with 1").** Amendment v4.2
+(`docs/plans/2026-10-13-gate3-headroom-screen-v4.2-amendment.md`, identity
+`gate3-v4.2` chained over the unchanged v4 and v4.1 bytes) appends
+κ ∈ {2.0, 4.0} to the P3 ladder with the rule unchanged, allocates fresh
+confirmatory ranges (intact 4200–4263, bottleneck 5400–5599) and binds
+linked pilot 3 (attempt 4) to all four custody receipts and the attempt-3
+terminal records with opening charge 2934.3435500559863 s. Disposition
+record `docs/certificates/2026-10-13-gate3-linked-pilot-3-disposition.md`.
+Evidence `docs/results/gate3-v42-p3-ladder-2026-10-13/`. Launch of attempt 4
+requires the independent exact-source reviews, the bound certificate and
+fresh host checks; status of that attempt is recorded below this line when
+it exists.
+
 **No GPU execution, pilot, confirmation or merge is cleared by this package.**
 The earlier holds, custody receipts and charges below are unchanged.
 

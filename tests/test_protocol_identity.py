@@ -14,6 +14,7 @@ from sultai_screen import pilot as pilot_module
 from sultai_screen.contracts import (
     AMENDMENT_PATH,
     AMENDMENT_SHA,
+    AMENDMENT_V41_PATH,
     PREREG_SHA,
     PROTOCOL_SHA,
     PROTOCOL_VERSION,
@@ -37,6 +38,7 @@ def protocol_fixture(root: Path) -> tuple[Path, Path]:
     amendment = root / "amendment.md"
     protocol.write_bytes((REPO / "docs/plans/2026-10-10-gate3-headroom-screen.md").read_bytes())
     amendment.write_bytes((REPO / AMENDMENT_PATH).read_bytes())
+    (root / "amendment-v41.md").write_bytes((REPO / AMENDMENT_V41_PATH).read_bytes())
     for package in ("sultai", "sultai_screen"):
         (root / "src" / package).mkdir(parents=True)
         (root / "src" / package / "__init__.py").write_text('"""fixture"""\n')
@@ -54,7 +56,7 @@ class ProtocolIdentityTests(unittest.TestCase):
         self.assertEqual(file_sha(REPO / AMENDMENT_PATH), AMENDMENT_SHA)
         composed = hashlib.sha256(f"{PROTOCOL_VERSION}\n{PREREG_SHA}\n{AMENDMENT_SHA}\n".encode()).hexdigest()
         self.assertEqual(PROTOCOL_SHA, composed)
-        self.assertEqual(PROTOCOL_VERSION, "gate3-v4.1")
+        self.assertEqual(PROTOCOL_VERSION, "gate3-v4.2")
         self.assertEqual(
             protocol_identity(),
             {
@@ -76,6 +78,7 @@ class ProtocolIdentityTests(unittest.TestCase):
                 patch("sultai_screen.screen.REPO", root),
                 patch("sultai_screen.screen.PROTOCOL", protocol),
                 patch("sultai_screen.screen.AMENDMENT", amendment),
+                patch("sultai_screen.screen.AMENDMENT_V41", root / "amendment-v41.md"),
             ):
                 identity = source_identity()
                 for key, value in protocol_identity().items():
@@ -97,6 +100,7 @@ class ProtocolIdentityTests(unittest.TestCase):
                 patch("sultai_screen.screen.REPO", root),
                 patch("sultai_screen.screen.PROTOCOL", protocol),
                 patch("sultai_screen.screen.AMENDMENT", amendment),
+                patch("sultai_screen.screen.AMENDMENT_V41", root / "amendment-v41.md"),
                 patch("sultai_screen.pilot.REPO", root),
             ):
                 identity = source_identity()
