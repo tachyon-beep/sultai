@@ -51,6 +51,14 @@ The [fixed-size evaluation proposal](plans/2026-10-12-gate3-fixed-evaluation-pro
 needs a separate source/protocol disposition; no repair, new pilot, diagnostic
 repeat or confirmation is cleared. Both GPUs were verified idle after execution. The historical
 Gate 2 verdict is unchanged. Never reset either durable pilot attempt receipt.
+John then requested both independent specialists to review both the repair and
+protocol questions. Their [combined design-review record](reviews/gate3-headroom/fixed-evaluation-design-review-2026-10-12.md)
+conditionally recommends shared fixed-128 frozen evaluation, explicit selection
+coverage, versioned protocol identity and meaningful CPU controls. The record
+specifies the proposed algorithm and later GPU acceptance matrix. Repair/CPU
+implementation remains unapproved; GPU execution, pilot and confirmation remain
+uncleared. Checkpoint inheritance and any seed/version exception require an
+explicit later disposition. No new experiment or production change occurred.
 
 ## Nyx Gate 2 checkpoint — 2026-10-10
 
