@@ -59,6 +59,12 @@ specifies the proposed algorithm and later GPU acceptance matrix. Repair/CPU
 implementation remains unapproved; GPU execution, pilot and confirmation remain
 uncleared. Checkpoint inheritance and any seed/version exception require an
 explicit later disposition. No new experiment or production change occurred.
+John then requested incorporation of all review feedback and a next-step
+walkthrough. The [revised repair plan](plans/2026-10-12-gate3-fixed-evaluation-proposal.md)
+now maps every substantive recommendation to implementation, protocol identity,
+CPU acceptance or a later GPU decision. The initial proposal remains preserved
+at `5751f52`. This is a planning update; implementation and execution status
+remain unchanged.
 
 ## Nyx Gate 2 checkpoint — 2026-10-10
 
