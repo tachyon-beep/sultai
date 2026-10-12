@@ -63,7 +63,7 @@ problem. Either verdict is a published finding.
 host architecture and recipe at s = 1.0 and 10 epochs; the data seal (test
 batch never read) and the 40,000 / 2,000 / 3,000 / 5,000 sub-partition; the
 padded fixed-shape evaluator; the frozen-host hash check; `losses()` on any
-two- or four-tensor adapter of any hidden width; the plateau rule's form;
+two- or four-tensor adapter of any hidden width; the plateau rule's form (its step indices change);
 the per-example paired bootstrap; the harm screen (Hm = 0.01 nats); custody
 receipts, ledgers and GPU-time accounting; the P1 known answer (A1, A2, A3,
 B3 at α = 0.1; B3 ≥ ρ · A3 gain, ρ = 0.8) as instrument validation only.
@@ -73,6 +73,8 @@ tail-width constructor parameter that leaves the s = 1.0 layer order and RNG
 consumption bitwise identical; saving optimiser state and a resume path with
 a decayed-rate schedule; the oracle grid's rate set, checkpointed single-run
 schedule, hidden-width parameter, warm start and affine option; the
+plateau comparator at 800 versus 3,200 steps with the last two 40-step
+windows; an epoch count other than 10 for the extended 20-epoch point; the
 re-tuning fit paths (declared parameter subset trained, complement hashed;
 arms that touch `front` re-run the site from images every step); BatchNorm
 recalibration and logit calibration; a static-module host; physical
@@ -164,7 +166,9 @@ selected rate is reported with an **edge-of-grid flag**. Plateau is
 certified by the v4 Table B rule applied to the 800- versus 3,200-step
 checkpoints and the last two 40-step training windows. Attempt 4 certified
 2 of 30 oracle grids at 800 steps (anchor 3003, both families, width 4)
-[measured]; the pilot may extend the schedule axis, raise only.
+[measured]; the pilot may extend the schedule axis, raise only. R-all,
+run to 800 steps only, is never plateau-certified and enters no
+certification fraction.
 
 **Warm starts.** M-wide→h refit uses the sliced tensors as the start and the
 full module grid. M-small-B is M-small at twice the schedule
@@ -219,10 +223,11 @@ examples (v4 §7), for loss and for accuracy:
 
 - **D1 = G(M-sq) − G(M-aff)**, the nonlinear module against the foldable
   affine module, equal count, same data, same grid.
-- **A1 = acc(M-sq) − acc(N0)**, the accuracy co-read.
+- **ΔAcc = acc(M-sq) − acc(N0)**, the accuracy co-read.
 - D1′ = G(M-sq) − max(G(R-272s), G(R-aff)), against every named re-tune.
-- **D3 = G(M-sq \| T-cool)**, the module's gain on the finished host;
-  and the finishing gain G(T-cool) itself.
+- **D3 = L(T-cool host, after its own N0 rule) − L(M-sq \| T-cool)**, the
+  module's gain over the finished host, not over the anchor's N0; and the
+  finishing gain G(T-cool) itself, relative to the anchor's N0.
 - D4 = G(M-sq-fresh) − G(M-sq), the fresh-data effect.
 - D5 = L(host + M-sq) − L(S-static + refit), negative when insertion beats
   design-in; also without the refit. Paired by data stream, not by host, so
@@ -263,10 +268,10 @@ anchor's at step 0.
   nats; inherited from the Gate 3 margin and, against a per-example paired
   SE near 0.004 nats, a detectability floor rather than a capacity
   threshold, because 272 parameters of width buy of order 1e-4 nats on the
-  frontier], **and** the lower bound of the median A1 > 0, **and** M-aff is
+  frontier], **and** the lower bound of the median ΔAcc > 0, **and** M-aff is
   plateau-certified on ≥ 75 percent of anchors [proposed];
-- **calibration, not capacity** if the D1 condition holds but the A1 bound
-  is ≤ 0;
+- **calibration, not capacity** if the D1 condition holds but the ΔAcc
+  bound is ≤ 0;
 - **re-tuning equivalent** if the upper bound of the median D1 < X and
   M-sq is certified on ≥ 75 percent of anchors;
 - otherwise indeterminate, reported with the certification fractions.
@@ -277,9 +282,10 @@ the lower bound of the median D3 ≥ X and "harvests undertraining" if the
 upper bound of the median D3 < X; "beats every named re-tune" if the lower
 bound of D1′ > 0; "fresh-data effect" if the lower bound of D4 > 0;
 **static** is descriptive at the pilot and reads "design-in beats
-insertion" only at confirmatory n if the upper bound of the median D5 >
-M_s [proposed M_s = 0.02; underpowered against seed-to-seed spread, said
-so]; the frontier fraction is descriptive.
+insertion" only at confirmatory n, and only if S-static is in the
+confirmatory set (J7), if the lower bound of the median D5 > M_s [proposed
+M_s = 0.02; underpowered against seed-to-seed spread, said so]; the
+frontier fraction is descriptive.
 
 **V2 add and remove**, co-primary, reference host:
 
@@ -323,7 +329,10 @@ front booked at 3 × (unmeasured; the pilot measures it first).
 | Cuts, folds, leave-one-out, calibrations, evaluations | 6 × 30 s | 180 s |
 | **Core pilot total** | | **about 8,800 s** |
 
-Extended set, in priority order: R-all about 900 s; M-exp 360 s; lottery
+Extended set, in priority order: R-all about 900 s (one seed, five rates,
+4,000 steps, at the scientific review's 3 to 5 × per-step estimate for a
+full forward and backward, plus recalibration and evaluations; booked high
+on purpose); M-exp 360 s; lottery
 360 s; F(0.75) 210 s; 20-epoch cooled F(1.0) 570 s; the 0.5-host Q1 pair
 720 s; about 3,100 s in all. **Overrun rule**: extended arms run in that
 order only while the measured charge projects to finish under the ceiling;
@@ -331,13 +340,16 @@ core arms are never dropped; if the core alone projects over the ceiling
 the pilot stops before V1 is opened and John chooses.
 
 **Ceiling** [John, J6]: option A, a fresh 3 GPU-hour pilot ceiling
-(10,800 s), core set with whatever extended arms fit; option B, 4 GPU-hours
-(14,400 s) admitting the whole extended set. The 4,593 s left in the Gate 3
+(10,800 s, the existing `PILOT_SECONDS`), core set with whatever extended
+arms fit; option B, 4 GPU-hours (14,400 s) admitting the whole extended set
+[code change]. The 4,593 s left in the Gate 3
 cap belong to a closed study and are not carried by default.
 
 **Confirmatory** (§10): about 965 s per anchor for the confirmatory arm set;
 n = 32 costs about 8.6 GPU-hours; n = 43 about 11.5. Proposed ceiling 12
-GPU-hours [John, J7], no automatic extension.
+GPU-hours [John, J7; code change from the 16-hour constant], no automatic
+extension. Adding S-static to the confirmatory set costs about 110 s more
+per anchor.
 
 ## 9. Stage 1, pilot (requires this document frozen with its SHA-256 pinned, every new-code review preserved, the certificate, and John's go)
 
@@ -379,7 +391,7 @@ is a new version with a new hash, a disposition and a fresh seed block.
 
 | Lineage | Seeds [proposed] |
 |---|---|
-| Frontier hosts, pilot | s = 0.5: 6000–6005; s = 1.5: 6012–6017; s = 0.75 (extended): 6006–6011 |
+| Frontier hosts, pilot | s = 0.5: 6000–6005; s = 1.5: 6012–6017; s = 0.75 (extended): 6006–6011; 20-epoch cooled s = 1.0 (extended): 6018–6023 |
 | S-static, pilot | the anchor's own seed (no new seeds) |
 | Confirmatory reference anchors | 7500 onward, contiguous, ≤ 7599 |
 | Restart after a failed confirmatory attempt | 7700 onward, ≤ 7799 |

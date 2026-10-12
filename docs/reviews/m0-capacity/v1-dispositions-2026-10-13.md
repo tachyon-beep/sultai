@@ -67,7 +67,7 @@ revised draft. Author `sultai-claude-nyx`, 2026-10-13.
 | R11 | T-more resume without optimiser state | **Adopted**: M0 training saves optimiser state; T-cool resumes exactly (v2 §2, §5) |
 | R12 | 0.5 host "corresponds to" the starved host | **Adopted** (v2 §3) |
 | R13 | Reviews directory did not exist | **Adopted**: created with this record |
-| R14 | Add rate 1.0 | **Adopted**: module rates {1, 0.3, 0.1}; the 0.01 rate dropped (v2 §4) |
+| R14 | Add rate 1.0 | **Adopted**: module rates {1, 0.3, 0.1}; 1.0 added and 0.03 dropped relative to v1 (Gate 3's 0.01 had already gone in v1) (v2 §4) |
 
 ## Net effect on the question
 
@@ -76,3 +76,7 @@ or finishing: fitting on data the host already saw, defining the no-op as
 the recalibrated host and fitting every arm on it, and comparing the
 nonlinear module against the foldable affine module of equal count. The
 rest is bookkeeping, budget and statistics.
+
+## Targeted re-review of v2 (20dee97)
+
+A fresh reader checked every disposition row against v2, the cross-references, the ledger arithmetic, the seed registry and the steering edits. No disposition row was misimplemented; every ledger line reproduced within 30 percent; the registry covers every seed in `src/` and `docs/plans`. Ten findings, all adopted in the commit that follows: D3's baseline restated as the T-cool host's own loss (its "harvests undertraining" label could never have fired under the blanket N0 rule); the static reading's bound corrected to the lower one-sided bound and made conditional on S-static being in the confirmatory set (J7); the accuracy co-read renamed ΔAcc to free the P1 arm name A1; seeds 6018–6023 allocated to the extended 20-epoch cooled point; R-all stated as never plateau-certified; code-change labels on the J6 option-B and J7 ceilings; the plateau comparator and the non-10 epoch path added to the new-code list; the R14 wording above; and the R-all booking's derivation stated. Verdict after the edits: ready to freeze pending John's decisions J0–J10.
