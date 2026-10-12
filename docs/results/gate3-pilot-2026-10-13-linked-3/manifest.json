@@ -1,0 +1,1257 @@
+{
+  "run": "runs/gate3-pilot-2026-10-13-linked-3",
+  "published_sha256": {
+    "01-timing-replay-decision.json": "8e5bc162d21ac8a5b359549797f1ca70679c98396fc57a79fc127578748c39e5",
+    "02-magnitudes.json": "6e1ac7b3679308d797e6f647fb17854ced2404388ee7468251a7ad070a38e0e8",
+    "03-posthoc-known-answer.json": "bd361ebde508e074f2d38d7cc633120120da8fd6951d1896895026dd6233b161",
+    "admission.json": "b78b43b4dd50274cbcee6b24380549c3c13afef9a81fe9ade174b59b524872ae",
+    "bottle2-3000/result.json": "8ddcd28d42763c0c1b0f09b364ec2232cf0ff1c58dd49204240bb7fa6ab16a56",
+    "bottle2-3000.process.json": "34090cb6bd9fae68be32fe4360472de2d24a56670c3014e4efaa6b8f9d39471c",
+    "bottle2-3001/result.json": "6a591d2eed39793c9506c7f67dba1fcb548f79842574b4e52fe7f9dce03602ba",
+    "bottle2-3001.process.json": "588c3ce5d131bbdb8e33a6b32afd64c90d3b91cceffa8400903a37461cab9526",
+    "bottle2-3002/result.json": "a21e368778f77a9d5ca5c1394da091d8f0e5566ab7b088ce83e36d93a0bf331a",
+    "bottle2-3002.process.json": "cbf45118ab64632fb2fed27acf0d1d0f717861b999871ec3eea0091c1b95bb3c",
+    "bottle2-3003/result.json": "a1ed12db4ca165489939e96de6d6fd86b76d0de14ef2e5cd472c2611ee77a17b",
+    "bottle2-3003.process.json": "45634f710acebdcd7791e5c67660ce1055f7bafc177b3a718dc28360d4c07db6",
+    "bottle2-3004/result.json": "bb1777fa21a2474e61e2611619244ab9e3cc8dce154e62ff495a805b2911059c",
+    "bottle2-3004.process.json": "e30653cc09d3105c534daf448720432f70cf29470947d34eee4c10e4d7b742f0",
+    "bottle2-3005/result.json": "3006f78ad4a975e4f8b37f10e58fd8a2e0c92cae948c7f12bfae4bb7d9b869a8",
+    "bottle2-3005.process.json": "555430285bcc6c5a062a5e76cb88d6fa4faf6f81562f3064c541615686b9b0c8",
+    "bottle4-3000/result.json": "15d1411c7b58cb55b3ca79e2a6b30166b8424b1ba023a5ab49d6692ee20b95af",
+    "bottle4-3000.process.json": "3843b8737a0e21132e99670bcf93ab6fb71c2f9d97a1f6e82fd45f0d791d2d76",
+    "bottle4-3001/result.json": "b2fb23821045591ba5db5d5e224bc817c85eb76282b542de0acab269f5ab50f0",
+    "bottle4-3001.process.json": "74122842d6da68bfcec7c01e98d574077656a85a47f5d621eaa123a0272d9304",
+    "bottle4-3002/result.json": "fed0fdce5b335427c9603a16e6534527fd633bea4ed19ca63515b85b1a75a7ee",
+    "bottle4-3002.process.json": "9f79c6790943f6d1fb064f887d082a5390130385a63c4846401bc76a753c4483",
+    "bottle4-3003/result.json": "9c158d0d943c3c0bf2ec1b5c7f2edd67285363b98abf04efe6bc2f29cb7215c0",
+    "bottle4-3003.process.json": "44c224ea50812b89c24d235272910dd5c69c9165f0e6d3aceff1659eb56f71eb",
+    "bottle4-3004/result.json": "b3ae5bd6444f2b58cd1e4aa19af52a944845e662883609c2709c4de2a125b995",
+    "bottle4-3004.process.json": "fa7bf2ba3c26a388ff5658aac29f636c436deb2077b6ea2e00ec808a1144a5bf",
+    "bottle4-3005/result.json": "10170ae238ca1f280d89ce176419e7d0a46c90f82851b456c0bcd53bfadfe19f",
+    "bottle4-3005.process.json": "abba92a9bbae5b7999a3f9bb437203ff6fb6adc075a1e326b717de103dd40406",
+    "cotenancy-0-0/result.json": "777d12ada04ff75495fecfd71216e18695529f501af8d4105cab723fdf20fadf",
+    "cotenancy-0-0.process.json": "caf99d8bf10b1fe8625d1cbc689555c81086f978e583cd98bbbc179e5a24e4da",
+    "cotenancy-0-1/result.json": "07a0f576dbcea2dd2e9f3efbb57a4f80baa200e8f65fa4d21e815473eef110d7",
+    "cotenancy-0-1.process.json": "84d312d27ee0bac8ada76a92895f3af11ff326479aeac3049dba959270e4261f",
+    "cotenancy-0-2/result.json": "2b972666b289857e0c2679b5436b1f60088b4b46c985a3da823edb5a5f54c07a",
+    "cotenancy-0-2.process.json": "468fc83d21936479b1a6f57c347fc628b957a1c46d26e7506e7cf8bb550a43f3",
+    "cotenancy-1-0/result.json": "e819f8541bb46599d737a0ebc5ece8b150c31a76677306bb80e910ef4bf389a2",
+    "cotenancy-1-0.process.json": "14c315f3a833b9b45a289c73d72491c771d99a808e880a5960e128561b74ad3b",
+    "cotenancy-1-1/result.json": "88c65416f665eb9c6ac2abb605c803104861f6034b236c9c2259a715b437816c",
+    "cotenancy-1-1.process.json": "dd0790d47ff19fc5a2205daa9ccf5e333a1fbcb5537ca17353dddce236d98e19",
+    "cotenancy-1-2/result.json": "b036daa66b5d8a923cac799098445a6d09e23ecc9ad69caca9b9b23765d8f10b",
+    "cotenancy-1-2.process.json": "8e913442af3514a975b192d604dd46c3d88ad8c053fdd29b8b0287414202799a",
+    "cotenancy-fit-0-0/result.json": "18414a5feb35f42f572dfd5b9cd4be779405f8cd541ff41df1cfd6d1aabcf3a6",
+    "cotenancy-fit-0-0.process.json": "ad1eaf69cee586852360301b85130b772415c0a2279e0b297b0a4ca787c6aab8",
+    "cotenancy-fit-0-1/result.json": "8b93fec045e5ef31a0eb27f9feb37dd3c8dce0eed0da29f3cd89608bf8b73de1",
+    "cotenancy-fit-0-1.process.json": "d5fd22e9de21fa24a1fab0a3aa55573b2dabf51a2c7e08451a2d7e8ef7579de9",
+    "cotenancy-fit-0-2/result.json": "cac88f6f2dbc1afa29b00a558e2ded9565cf9cff3a4c1382042618086239a971",
+    "cotenancy-fit-0-2.process.json": "e857bc0a66aef4ec9cd7ff61146ec94aba545184ebe42b40065bea65a4066894",
+    "cotenancy-fit-1-0/result.json": "719fc7c4b55c7cfece608d2ec1d53a74b405859d3e2e3279322b6e003ae31e8a",
+    "cotenancy-fit-1-0.process.json": "fd902a9a8eda6f1816d33a0d6997d687819166783576eebde1019b09af1ad235",
+    "cotenancy-fit-1-1/result.json": "73245b90cf9aeb16141014c71f20c2400d09baeff2afe329d3711bd561398ed5",
+    "cotenancy-fit-1-1.process.json": "0c110498e38ce451b4f1619f21bdf4c67f5af3ef0fd46ed9cdc6d90bb732fb73",
+    "cotenancy-fit-1-2/result.json": "ca27b912228381be23a5ae6641c964ec5ef51eaa403e131b8990de4ed86051c9",
+    "cotenancy-fit-1-2.process.json": "af018a1bfbb9a59068f8e4a09e3d0b8ed889f86389e3e664fe031e0bda95ab17",
+    "intact-3000/result.json": "3c0a9eaa8a1dbc83226b8f2cf6bbff9b238db74bd84084c2ba45aa62122f2ff0",
+    "intact-3000.process.json": "a64ae734a84ba851d9fe7e4c2ab86767ee88b5d883630b5aeebeda1693de8fce",
+    "intact-3001/result.json": "c51bb66f051954c3a93bc38fe0cbbcf29db90165809a3ed4b7282ba317d4e45c",
+    "intact-3001.process.json": "c8e7f87f619b632b1943f8c8c3ef4e65d03aabbbda566a30ead8b3d26b0a0c43",
+    "intact-3002/result.json": "e34249064bdef0e9fbdb159a9138504aaa7f7a5dc0f5bcf7c925142944863549",
+    "intact-3002.process.json": "1766e35ce8e032e3065b64de370901e4355f6be36a01cf8a720ffc42e46ff632",
+    "intact-3003/result.json": "29cef6b55251a3a3c08fa6bb3247216326067a823a3c0f1cefc94e3983f4607f",
+    "intact-3003.process.json": "6008827b7336f9f1aa791f4349207e366b98adde6da689872f375169806d8e4e",
+    "intact-3004/result.json": "7719b7e0165da7ff4efc0f4f063fcc1d496b497c9fe28e954239af58736a0b03",
+    "intact-3004.process.json": "e94b521d4fabc71cc87bdf26eb36345cb69e04ab4874f23340a2e60ad71ddfff",
+    "intact-3005/result.json": "3a129072d5ae9b8fad3cc8517fb98008e59107a71ce88e15214eca867fb34467",
+    "intact-3005.process.json": "0bd5b353d1aced9f82af1dc6637480c5a7e6eb3ec9912065631ae1ed807f78c0",
+    "ledger-000.json": "475bf583139fbaa022581299e551a975a2f8d3f42d1b098d959fde2b83d44276",
+    "ledger-001.json": "2a212c4eb265f579ae7e92ccb0c15e66e4538f18926dbafcc2fba12edf30a05d",
+    "ledger-002.json": "67b57d74ad9176d47a3ec08dd73660557e8595633f0015a2986b31e889b16e9e",
+    "ledger-003.json": "a9e88f0f4366856793b88c4ccd6dddd0f1d31deccfe19f12ef5d0ba4e841b8a9",
+    "ledger-004.json": "2228bf8564a21a326adcdee7613476d22f5244f76e266eedbd1e1e897db8f54c",
+    "ledger-005.json": "e929777505b3f882af33c1790e540a57aed63c195b0c320df218c37e9bd7ca92",
+    "ledger-006.json": "6eecd5ccd269a421589b9fb5c74c63466fbeae19b6326de83e49c0027e5a3b57",
+    "ledger-007.json": "7e10bf84d8d79e2f013fac333ad8be42afe47e19992a7a9cde99ad3b6a32e5f8",
+    "ledger-008.json": "a255e49931b7593b689a4f2ba10a423defb5af626f0e1a86f84620658f4673bb",
+    "ledger-009.json": "4526dbecb699f61158464954a174cb4b46cd6968dc906c61c6b4854c764f34a6",
+    "ledger-010.json": "ed42c8023538a449a4b3b87444fe94e3110390a5c5b39f1992b238af7e0e746e",
+    "ledger-011.json": "00a1596eb7194851d25319a1aebefe7ceb4ac916e1686b2ba3831a5a8cba38fe",
+    "ledger-012.json": "6ebae2e36b406636036140fca83fc6539dffeb87cbb5cda1d4f9a6580636207c",
+    "ledger-013.json": "7221fd29eb8b51a8eba4e877fb6c0cbe47ead1008840cef588e55f50891ffea1",
+    "ledger-014.json": "90e9ae4ebd073d2b4124ee605c5a54bf48865af191d611730ae48970d381ca09",
+    "ledger-015.json": "8cbf4328a1a3921dfad7a754c7bfb8942597a253b7aeb250bb5d8aa0f9466850",
+    "ledger-016.json": "67f16d0f1a6f32987f91615beccc5967170731ccc456e0928880c1e370fccc8d",
+    "ledger-017.json": "28252b9ad25dae7986a483bcc7271b3d08aeb8e016009ab6697204a95b65cbe1",
+    "ledger-018.json": "b769dbc934eeb35f03ea7d576e5f87119c0765baeaa34a3a3c8e2774cd785cf6",
+    "ledger-019.json": "3cdf0e3aa3c588b979c007afe39da3a50de37e92ef660a4d0de783a735591d89",
+    "ledger-020.json": "ffd41107a7d7c0f1b981ebbe297c069044d8bb326d5a042d4c6a0914fa8d6fdb",
+    "ledger-021.json": "e9b7273be83dd0254ba7bd24e64331f42818f0d76e0ffc425a3bd846ec566bd0",
+    "ledger-022.json": "fa1ae75e3d7431e491db649bb1959e38f809b748abde8b956338be716b8f7f2d",
+    "ledger-023.json": "d9b1792b4539a26f30dce4a4470f0521f4be6c4339062a755fedba08c963c574",
+    "ledger-024.json": "e897e5226ec622f2e0fd1745143ab0e3698a43c222c871dc5c2492ed7eee0035",
+    "ledger-025.json": "166a69dbf182bf4eaf8cda1402f888979138b56cf94915897775bf8e406aa817",
+    "ledger-026.json": "ad88738c9848f336b89fdf13250429acfffabc242404832a4d2bfa52c23e61ab",
+    "ledger-027.json": "dbb4baecd57e4c87b02cde9c18368a35e4ede320bf835730484cf718574874d2",
+    "ledger-028.json": "37db9a8c54db99c243edd2ade1c9495d2c35f8c20313781437747c2eb3b6270b",
+    "ledger-029.json": "fa1505b5c6e0b90a8dffd462af2610470b5222f2999d28f0f8e49f9163c1ded6",
+    "ledger-030.json": "2e2f194ca8b9f2f62098b1eed620019b83fa6afcef4a74fa661ee6e53c58591f",
+    "ledger-031.json": "f48401c734c5b400abeebea9bd985670a9a2b806da834b078eec81e5de14589c",
+    "ledger-032.json": "96de189f48a1b0cb0845eb0bb71f4520c8220715ce07ee98c03a1c4572da8655",
+    "ledger-033.json": "c2ecbbde1866efbfb46852bdf2d4cc581c5eceacc29118d79969249fe6eef3b1",
+    "ledger-034.json": "cbe1f790995ad864f13abb8f75d2afb09903c4da36380f234f9492b35efefb37",
+    "ledger-035.json": "cf68c876d041942cbd91c8b7eb0704ca233c5f0754817ad6c0dd7f27b2e293a7",
+    "ledger-036.json": "371d41e5d7d6112527d165b1742260604a571a64dacf5247984ec71167b2b27a",
+    "ledger-037.json": "b723ccb24d18705ae083f66f802020ddc9780fe0b0740df88e46d7698e628c85",
+    "ledger-038.json": "ad2881ec1eb42e50aef9d04179633f7d3535d13f94d95f441031e21321e41090",
+    "ledger-039.json": "0d8295b09cd9c43cb5da577c5cdf64e10276948eff1edae65c69a70fb5ffbae6",
+    "ledger-040.json": "b52c33fa4bb607f0396288f235115dcee09a2ee09b8d789ca0c67ce80ecc7051",
+    "ledger-041.json": "acfbb9d8f4982a7e45810a8585f94af3d89c4e46a4d02bbfe8f62a9f9d150074",
+    "ledger-042.json": "56f284662e6b577fcec194432b4aa556105389e5d36409f8bf39e04afd84c9ee",
+    "ledger-043.json": "2bf1dcfd0d2ca5326563540ebf5d547838c7829d17bb670dd262e341763d69af",
+    "ledger-044.json": "98b8230cb89443da9c4be86b618f3bcccff5bf71fceb98e868cfa31ba8755744",
+    "materiality-3000/result.json": "6599d4668e045d061188b97c51f544d4a2fc908b4cfc34becf814f97bd0308f1",
+    "materiality-3000.process.json": "72489a6966bff2c7ca35fa05d84baae824f04003ea74f8d9c6c6fe2852e170bc",
+    "materiality-3001/result.json": "e7f82fcbf292577d67772139ceea05da41ce869f302bfb835a33f55a043c74de",
+    "materiality-3001.process.json": "ee0ce17b7c8019ae29fffe5eafd8d26d787e99ede12cf3b91bfedcf4c7eeaa15",
+    "materiality-3002/result.json": "4086ca4a737d0860289e511c6141d9306a32d9cf56fa2d44610d0e85fecbab21",
+    "materiality-3002.process.json": "b79aeb6d87449ebfc0be60f351a096752f139fdfc0189fcf486fbb61aaacb349",
+    "materiality-3003/result.json": "8b7951c4a777627175ce2a0cbb0367e4c24580be9819025d816def9a57ec8243",
+    "materiality-3003.process.json": "a2da1526f1521706e7571bf961dd3a6c7adccde52b9ce9fdfbf5ffdb8c3c8ef0",
+    "materiality-3004/result.json": "aec94f368bd8ade717d763520ffd9a7cd80087bfe57a68f45f7f81235919c97e",
+    "materiality-3004.process.json": "316ec6293d8998ccbb019b6e0886c7553360e76cd23e55157e0d395bf7ec6578",
+    "materiality-3005/result.json": "7226b566a98dcb67be74de30e3ee7bc989b5a2b32a82f7309c914ef345e327d8",
+    "materiality-3005.process.json": "50bae80383c938558c67670a5c43fab72a4c7a137c31826bb5efe4402e7a32ae",
+    "oracle2-3000/result.json": "e7272b749dde0562e977db513520dd13b0f7b7f511bf9cf6af49a74834aeaed4",
+    "oracle2-3000.process.json": "a4d63aa7b4e39bf4bd9108030a382360530836b50bcafc9f95cc6b5c34e2bde9",
+    "oracle2-3001/result.json": "fa2e2b253b1cb186f55ee547682da1ca459d82be6ea76a6f00af3e9bf4351db1",
+    "oracle2-3001.process.json": "63a1702d0384be881c6ed28c0f12fe52780034f8e75b7882c6c8780980f0ba4c",
+    "oracle2-3002/result.json": "e123b9b774a4e1b0a0aa72583c181565356a60ac8f76916b3c1d3dae11ae7def",
+    "oracle2-3002.process.json": "4683f078d9770dbe6b5bc4c664620ee09afff82db6b069cc42a53196f2092ba2",
+    "oracle2-3003/result.json": "7de8af1a2fce377ec4942e3f56f99cb0459a037a2de6c2efabeb3d529fe0bf78",
+    "oracle2-3003.process.json": "2c2abd149d2707c6e733475009546d5d8744a9e7e06b45c33438bc642e5e145b",
+    "oracle2-3004/result.json": "8e03436878f7dfe8f2db0b217536660847b1c2a983204a2fc64ae2a435d15651",
+    "oracle2-3004.process.json": "1f64369d83c0d76682d6fa370ce7a06bb83cd8e9e06a5bf565522b8f9fe08451",
+    "oracle2-3005/result.json": "ef5f6127f516a39c2c414eb949f15b59ecdaa0d88cc50c49d851caed5d25a8c6",
+    "oracle2-3005.process.json": "6b6aa6673c891477c891b204511df790588505527915afec9de1938a8ddadf09",
+    "oracle4-3000/result.json": "630fc414713157092974f7db8703ff62d8c04bf8d7990626cf8cc6f95a18e6a2",
+    "oracle4-3000.process.json": "9d465aa561e1f40b4093bab5437e24b0069a3d5602b72be4a641889b0220fe2e",
+    "oracle4-3001/result.json": "e04af0fada9bdf5dbd10ea76eb7cd65fd21d73cfce768e0401a3661a6f4ccdc7",
+    "oracle4-3001.process.json": "258abd0710e76ae85df664ab7f031d97685035e17ca4e1faba3878f4217855f1",
+    "oracle4-3002/result.json": "8c48a7cae5f0278f433c98af67f69093529bd2b879048d9f3745fe37023a1e6a",
+    "oracle4-3002.process.json": "414df64216724bbabef778fd4a94ca3faa9b7a5f1539f366ce999c7f983b2c5a",
+    "oracle4-3003/result.json": "60261c87cc1df43cc94f1e8a194d64eb44e914be7adea5fe04213210865ca380",
+    "oracle4-3003.process.json": "34038bd2029d522438eb1127c3b987a6aef5ef86c491378840bfba9523c4c82e",
+    "oracle4-3004/result.json": "805377005d7095943b3d1cc4cd72e23e92ae8ac9893f639f84e9382c8fc2aea5",
+    "oracle4-3004.process.json": "49e4e75086d2a017a6604a896126f49a7bda710a7021e61210ac6e5e44f41a51",
+    "oracle4-3005/result.json": "9244455fe4c3ec7613649f4b7da03d56daa9ba091b4af3ee3c5f68592ea40783",
+    "oracle4-3005.process.json": "9f91e7e7f9a23208c4d63e3a5575cc6b8a0e54a6fd29befe0cb768a0344caf5b",
+    "pilot-result.json": "96f86e7055904703048ee38fc91dfe62ab134efbd0a613e40448b2283711c8f7",
+    "posthoc-3000/result.json": "0ba0df871a49900b6c61a02662799ab1b2d359ed6362aed3391830150e4ca9ca",
+    "posthoc-3000.process.json": "b18e6bfff844f283d8a7c4719f1c5b9dd1984f8498674bbbd317ae217427ef2b",
+    "posthoc-3001/result.json": "3dd1260519ee557cf0f30de99674d4e35d025c81b033b492b8068a7bcd27ad0e",
+    "posthoc-3001.process.json": "a754ab18b7b0fe3be166e838ec32477a040490801c107963207c39ff6bfc27bb",
+    "posthoc-3002/result.json": "90b6065547b31db534528bec83ae5a1ea9f24113b6cd5f4dfe68b6fa89c02aad",
+    "posthoc-3002.process.json": "2a810ad6bb04fcfe211f7e9c683899162e4747fad1f9822e43e3f6acf95a4024",
+    "posthoc-3003/result.json": "b472cc42b43ea299512bce9ebc55d5f2b04327d0f02b9307ecb660c85a861884",
+    "posthoc-3003.process.json": "24e9a77105bcb212e3e597ef2bddbcd6706bc0987484a8a46701a7dcd4ccf203",
+    "posthoc-3004/result.json": "90e83215ab38d1ac13b9e9aa6b581084abdfd5b1d0365192c4c03350758d2ece",
+    "posthoc-3004.process.json": "8dc846c638393db15f4397877276a6cee32665358a20214a8322481eae711936",
+    "posthoc-3005/result.json": "e59dca0555a44cf303fa71e3ae679906f57c34dc2dc0fa35e83d409070a20a9f",
+    "posthoc-3005.process.json": "364d4c05e26b6c4d9e4ae223191589619a5047a072a4d1be816a9488ee924814",
+    "replay-card0/result.json": "6f38835609f1b886916697253c1febd9e2518ab5e7ee5fae856027cce293bee1",
+    "replay-card0.process.json": "b06b72e420de7ca55619b2931f29db125e6476958bb8f9f83713984e85f18f7a",
+    "replay-card1-a/result.json": "2f96ec4dcd291f8c01dd5df96ecb3a40ffc3549be846f73c7a3d21c17bd8ba23",
+    "replay-card1-a.process.json": "3dd62e0598d208e13fe7ff235da32965af83f3ca83b9969ef13b05a8c3d29049",
+    "replay-card1-b/result.json": "4c44185bf52edb12fb2d7af363325e8431c510624835464bba8eeb45e8f73f27",
+    "replay-card1-b.process.json": "0a24596a64346a6c289494c7bdcae3d6740a5ab4dc12ef62882a4b13dccaf025",
+    "timing-0-a/result.json": "c12931cbe5ee19df3e2a69a6dc450ce9bf68fee5e062482c3f8fbda74ae1e2e5",
+    "timing-0-a.process.json": "4a714c3121d53781b24546c18b0a11a089f7783b1dd57495e68c92bc78ee7011",
+    "timing-0-b/result.json": "3fe5dbb9159e5d88f67de90a877d532d71696a1719b2e31f3335852268b7e1af",
+    "timing-0-b.process.json": "65c32dae999e0028fd747fe033265601d99892394f8b488e3993efc499966c1a",
+    "timing-1/result.json": "776b4a090878d8fc86d76f2fc9d8db39a28ac9b530319a52e21dec9fe5079ac5",
+    "timing-1.process.json": "494348aa7d0da9adf1267ad31a0338dd4d338b29d88c6b42ea05b331cf9590b6",
+    "attempt-custody.json": "1ac3c80f022c0fccf293d1f0d9d3014e4f48e15b668b7d5b92b4be705651202b",
+    "supervisor-time.txt": "d8d5989a808c48d5b2192d5d2e64dc7a2935b5898eac9ecb6a14092ea0b43afc"
+  },
+  "raw_unpublished": [
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle2-3000/host.pt",
+      "sha256": "40a89d06148da3e4f2f9fd4b403b3b305d7e8d4306d9591041ff0369fb358193",
+      "bytes": 1159563
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle2-3000/loss-stream.bin",
+      "sha256": "6d0b5900cf3fc48ee8a975a09b13bd0a745fbc11f200362e186c6db0ec8aff96",
+      "bytes": 50000
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle2-3000.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle2-3000.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle2-3001/host.pt",
+      "sha256": "2b0adc0a1d895b04dd4849eecd3d039e66f6a5e07f22f88d12bfa581f7f0290e",
+      "bytes": 1159563
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle2-3001/loss-stream.bin",
+      "sha256": "64b20259c3e2da45381e9bc38af9576b1068bb2d50f659ab76d6ab63c29184cf",
+      "bytes": 50000
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle2-3001.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle2-3001.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle2-3002/host.pt",
+      "sha256": "9c059e71a6383373e0df2e6dff1763d66180eba33a4284a1c39bf3497e226c50",
+      "bytes": 1159563
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle2-3002/loss-stream.bin",
+      "sha256": "0f92b6d7999c00d1f5f9c3e358d8f9e91b211e5c53aefff7792716d71d2f7d16",
+      "bytes": 50000
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle2-3002.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle2-3002.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle2-3003/host.pt",
+      "sha256": "b106841d12d14a41b84c0995177d7329798a14db9729011ec39cb3e12f2972d3",
+      "bytes": 1159563
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle2-3003/loss-stream.bin",
+      "sha256": "bf8dddfd2bc241d3cbeb13640100860c1f24ddf814261e983562e3f6f53f7552",
+      "bytes": 50000
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle2-3003.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle2-3003.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle2-3004/host.pt",
+      "sha256": "517e0ac9fd00de9199307355be345f6c395fa7b3ed7e2505ebea6d8dcecaa349",
+      "bytes": 1159563
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle2-3004/loss-stream.bin",
+      "sha256": "77f3d8128c3285d381b6c20907906fb5b25016899aed69af5e8191fd55039650",
+      "bytes": 50000
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle2-3004.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle2-3004.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle2-3005/host.pt",
+      "sha256": "84261c517b388e757a985c88705db692709052f71cb16ca9d5959eff214a7235",
+      "bytes": 1159563
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle2-3005/loss-stream.bin",
+      "sha256": "a1499b8b96b07dbfae7a22e4a0fe9616392528b4a24803c93b61b49271e85a14",
+      "bytes": 50000
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle2-3005.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle2-3005.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle4-3000/host.pt",
+      "sha256": "9ef226ea239d88a2b493ca5bdccf4db72fe293dd74d14cfb4a470dc914cc1819",
+      "bytes": 1159819
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle4-3000/loss-stream.bin",
+      "sha256": "0643189e4467f7141187a4785e89d00647ff1b825bf36f1f8a08cd229a5a340a",
+      "bytes": 50000
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle4-3000.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle4-3000.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle4-3001/host.pt",
+      "sha256": "cb7de1cf3ba2c2872e50b93bab7986e94c66a8162f858d076b34ced9be6c74ca",
+      "bytes": 1159819
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle4-3001/loss-stream.bin",
+      "sha256": "76705dff0cd391d99a86e2a3b3d083d2217bdfcca2437f843145954bcca34e9f",
+      "bytes": 50000
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle4-3001.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle4-3001.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle4-3002/host.pt",
+      "sha256": "8d7469e8b00f747030c67df007fc3f77a0fae3de9f2b97ca952423fd9f34dddb",
+      "bytes": 1159819
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle4-3002/loss-stream.bin",
+      "sha256": "41cdf07e0c4470df7ec574ccc4fb2e16f33cd78b726da5a10ceee2ab88823b53",
+      "bytes": 50000
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle4-3002.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle4-3002.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle4-3003/host.pt",
+      "sha256": "159408a689fa7d0bdded386ba8e4a16621de4e6ffd53bb749bbf0cec0071c035",
+      "bytes": 1159819
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle4-3003/loss-stream.bin",
+      "sha256": "a03f072f4bd28992721f47e617f22565b2c45f3efee34dc4290438a8a0206e6a",
+      "bytes": 50000
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle4-3003.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle4-3003.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle4-3004/host.pt",
+      "sha256": "29dd67eb1038139db4c5c540c57a25d02aae782ee777d49501b08d622b1cc0aa",
+      "bytes": 1159819
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle4-3004/loss-stream.bin",
+      "sha256": "e5f93f5e5ae63cb3fec489f7c5b5cf28a5b3363362f6fd9fd6f9d71d3747a5d0",
+      "bytes": 50000
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle4-3004.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle4-3004.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle4-3005/host.pt",
+      "sha256": "f7a96336828f40b2d995abd722cea74c37bffe6c626089a10ae135d5ff062f9e",
+      "bytes": 1159819
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle4-3005/loss-stream.bin",
+      "sha256": "92af4f5f004b75415418d44c68dc65a4b4bdce600b3a2549281616fa753bd994",
+      "bytes": 50000
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle4-3005.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/bottle4-3005.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-0-0/host.pt",
+      "sha256": "0ed053b2a2781a904bd640ea5bd9ec6049742e39c5bcddb4c4445466430fd5a8",
+      "bytes": 1155231
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-0-0/loss-stream.bin",
+      "sha256": "3752ec79356426c565844f744c26c8524a49f96d2c4b5456001fa7582e5a1f65",
+      "bytes": 50000
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-0-0.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-0-0.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-0-1/host.pt",
+      "sha256": "0ed053b2a2781a904bd640ea5bd9ec6049742e39c5bcddb4c4445466430fd5a8",
+      "bytes": 1155231
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-0-1/loss-stream.bin",
+      "sha256": "3752ec79356426c565844f744c26c8524a49f96d2c4b5456001fa7582e5a1f65",
+      "bytes": 50000
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-0-1.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-0-1.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-0-2/host.pt",
+      "sha256": "0ed053b2a2781a904bd640ea5bd9ec6049742e39c5bcddb4c4445466430fd5a8",
+      "bytes": 1155231
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-0-2/loss-stream.bin",
+      "sha256": "3752ec79356426c565844f744c26c8524a49f96d2c4b5456001fa7582e5a1f65",
+      "bytes": 50000
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-0-2.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-0-2.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-1-0/host.pt",
+      "sha256": "0ed053b2a2781a904bd640ea5bd9ec6049742e39c5bcddb4c4445466430fd5a8",
+      "bytes": 1155231
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-1-0/loss-stream.bin",
+      "sha256": "3752ec79356426c565844f744c26c8524a49f96d2c4b5456001fa7582e5a1f65",
+      "bytes": 50000
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-1-0.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-1-0.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-1-1/host.pt",
+      "sha256": "0ed053b2a2781a904bd640ea5bd9ec6049742e39c5bcddb4c4445466430fd5a8",
+      "bytes": 1155231
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-1-1/loss-stream.bin",
+      "sha256": "3752ec79356426c565844f744c26c8524a49f96d2c4b5456001fa7582e5a1f65",
+      "bytes": 50000
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-1-1.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-1-1.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-1-2/host.pt",
+      "sha256": "0ed053b2a2781a904bd640ea5bd9ec6049742e39c5bcddb4c4445466430fd5a8",
+      "bytes": 1155231
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-1-2/loss-stream.bin",
+      "sha256": "3752ec79356426c565844f744c26c8524a49f96d2c4b5456001fa7582e5a1f65",
+      "bytes": 50000
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-1-2.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-1-2.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-fit-0-0/timing-adapter.pt",
+      "sha256": "eb3157a97a94bb7ee702b8f7075396f7a90d6bc087cddd84bbd7696f79df4c37",
+      "bytes": 3037
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-fit-0-0.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-fit-0-0.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-fit-0-1/timing-adapter.pt",
+      "sha256": "eb3157a97a94bb7ee702b8f7075396f7a90d6bc087cddd84bbd7696f79df4c37",
+      "bytes": 3037
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-fit-0-1.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-fit-0-1.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-fit-0-2/timing-adapter.pt",
+      "sha256": "eb3157a97a94bb7ee702b8f7075396f7a90d6bc087cddd84bbd7696f79df4c37",
+      "bytes": 3037
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-fit-0-2.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-fit-0-2.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-fit-1-0/timing-adapter.pt",
+      "sha256": "eb3157a97a94bb7ee702b8f7075396f7a90d6bc087cddd84bbd7696f79df4c37",
+      "bytes": 3037
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-fit-1-0.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-fit-1-0.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-fit-1-1/timing-adapter.pt",
+      "sha256": "eb3157a97a94bb7ee702b8f7075396f7a90d6bc087cddd84bbd7696f79df4c37",
+      "bytes": 3037
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-fit-1-1.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-fit-1-1.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-fit-1-2/timing-adapter.pt",
+      "sha256": "eb3157a97a94bb7ee702b8f7075396f7a90d6bc087cddd84bbd7696f79df4c37",
+      "bytes": 3037
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-fit-1-2.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/cotenancy-fit-1-2.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/intact-3000/host.pt",
+      "sha256": "0ed053b2a2781a904bd640ea5bd9ec6049742e39c5bcddb4c4445466430fd5a8",
+      "bytes": 1155231
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/intact-3000/loss-stream.bin",
+      "sha256": "3752ec79356426c565844f744c26c8524a49f96d2c4b5456001fa7582e5a1f65",
+      "bytes": 50000
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/intact-3000.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/intact-3000.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/intact-3001/host.pt",
+      "sha256": "d5051c4fa395fa60ac197dda86f32f0ffb0a97b264873718f86efa84497bef9c",
+      "bytes": 1155231
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/intact-3001/loss-stream.bin",
+      "sha256": "2afefe054ba752ef02657c8ab0d6c70fc8c6d2130d475125a89228b8c651ccf8",
+      "bytes": 50000
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/intact-3001.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/intact-3001.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/intact-3002/host.pt",
+      "sha256": "4746163b514abf8d1473dff8f319d12e0b36a4f4b19074bcce7bd780d0eccd20",
+      "bytes": 1155231
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/intact-3002/loss-stream.bin",
+      "sha256": "e6ef80752926f4303576e6e36efac7f40f4ade45490ad8bd1192052bb00b2b2d",
+      "bytes": 50000
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/intact-3002.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/intact-3002.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/intact-3003/host.pt",
+      "sha256": "6f28ecc90b9159e5add69045b2e10dfbf40e3ff00d5e88689727a2f32d9cd822",
+      "bytes": 1155231
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/intact-3003/loss-stream.bin",
+      "sha256": "12abf22998d637945e42c33eca72544f1c23741e425524f5c8434d82bed07893",
+      "bytes": 50000
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/intact-3003.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/intact-3003.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/intact-3004/host.pt",
+      "sha256": "c481ba6035fd96881bcc7fce53386ed3fcc92344aaaab78849e439c9e35b3c19",
+      "bytes": 1155231
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/intact-3004/loss-stream.bin",
+      "sha256": "be8efb50003ffd49b3d28c20e0dbbd700c20e4002207729046b47d2a1b0511ce",
+      "bytes": 50000
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/intact-3004.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/intact-3004.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/intact-3005/host.pt",
+      "sha256": "cf17249457141be346677e1d04a7c28d29db73b31a1f3df3b6460584dd1460b6",
+      "bytes": 1155231
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/intact-3005/loss-stream.bin",
+      "sha256": "1489f67109d33b3417bc72a365d7d21df19708a6bd177b9c5d86a95fa7f7b317",
+      "bytes": 50000
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/intact-3005.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/intact-3005.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/materiality-3000.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/materiality-3000.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/materiality-3001.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/materiality-3001.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/materiality-3002.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/materiality-3002.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/materiality-3003.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/materiality-3003.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/materiality-3004.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/materiality-3004.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/materiality-3005.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/materiality-3005.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle2-3000/P5-oracle.pt",
+      "sha256": "086d7304e3369417166929e823360823a15c5568df98e10798ff1faf9a7bc599",
+      "bytes": 2997
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle2-3000/P6-oracle.pt",
+      "sha256": "b2d0c497a358fe0bb001f06c72243c0dcd16fd9cf56f8912a48552497447a9e7",
+      "bytes": 2997
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle2-3000.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle2-3000.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle2-3001/P5-oracle.pt",
+      "sha256": "1af36e3774b4ac698a3737270b33943122a2a06301ebee5356bd3fa044b8f094",
+      "bytes": 2997
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle2-3001/P6-oracle.pt",
+      "sha256": "84a6992333d3132540f4a8729eed16212c21732fcdcf6494aca873a2a7d93abf",
+      "bytes": 2997
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle2-3001.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle2-3001.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle2-3002/P5-oracle.pt",
+      "sha256": "b3a89e41f5d09c6c57d7c73ed0f0db864c64f829cce620ebf91df2e1d723cc8c",
+      "bytes": 2997
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle2-3002/P6-oracle.pt",
+      "sha256": "1190b01685e875d9ab682d28b8a1f31f2e899a6031a45e51325d868e637c02e5",
+      "bytes": 2997
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle2-3002.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle2-3002.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle2-3003/P5-oracle.pt",
+      "sha256": "9af7231691d0633d1f9f6eba67ffda36d8727555ab2cb6c7c098043a239bd40d",
+      "bytes": 2997
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle2-3003/P6-oracle.pt",
+      "sha256": "7a71f3269f0602f63867ac60116c671d2260f8f030007e593f881973672f32e7",
+      "bytes": 2997
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle2-3003.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle2-3003.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle2-3004/P5-oracle.pt",
+      "sha256": "e7fc00465e99cb1e0adf8275f247b84426b1ec90a350ff477f38568452e2e40c",
+      "bytes": 2997
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle2-3004/P6-oracle.pt",
+      "sha256": "10614d3bb34c72681c99de3b6a2d78d1bba4d25aec1dd0b8486afc52cc2c2b67",
+      "bytes": 2997
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle2-3004.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle2-3004.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle2-3005/P5-oracle.pt",
+      "sha256": "f760de497fca40a2f4ee46dc59d1a372bce21a9993b7d051bf6dec9d3ab009f0",
+      "bytes": 2997
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle2-3005/P6-oracle.pt",
+      "sha256": "0e789502bc6127f12c264b6b5159a23c1f6bc043e4e626bab1a8be1369e29201",
+      "bytes": 2997
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle2-3005.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle2-3005.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle4-3000/P5-oracle.pt",
+      "sha256": "40577bebd2c4baa08ee9ca04eb3ce61ddd9bb89dead24bd86cca1c7d8e86b321",
+      "bytes": 2997
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle4-3000/P6-oracle.pt",
+      "sha256": "2435d9d333c93e74e0890ec71f333e00f6cdee2ad3824af6a036116080e61700",
+      "bytes": 2997
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle4-3000.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle4-3000.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle4-3001/P5-oracle.pt",
+      "sha256": "0da42b91ebf51814c64b91d1826f2256ef2ffcd2fbb061f947444af25056480a",
+      "bytes": 2997
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle4-3001/P6-oracle.pt",
+      "sha256": "42b0453cb84ab9c19b9f4fa4bf314595af13a2eb4aca5a00fa84726b9c69e40b",
+      "bytes": 2997
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle4-3001.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle4-3001.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle4-3002/P5-oracle.pt",
+      "sha256": "160db7199e3f174461eef555833cdcd1880de1fe408ab127022b0b166e870700",
+      "bytes": 2997
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle4-3002/P6-oracle.pt",
+      "sha256": "0b7e87d9a9c4e413c8569fe29966a7ac54826ac84c1a9e9e57b6a4b7a5182848",
+      "bytes": 2997
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle4-3002.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle4-3002.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle4-3003/P5-oracle.pt",
+      "sha256": "451110911a81d3023ce6586285bac63a4b4410501898f3688e3b6a9fa5143460",
+      "bytes": 2997
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle4-3003/P6-oracle.pt",
+      "sha256": "bdd8e4890c55cf5caa3a42258cb1f315cf922ea6e76e91ea79bfceee5c6d0490",
+      "bytes": 2997
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle4-3003.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle4-3003.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle4-3004/P5-oracle.pt",
+      "sha256": "20bd88371f99683f8f5da35c706119b6f34651af67f8e1e133f84be13353f2a3",
+      "bytes": 2997
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle4-3004/P6-oracle.pt",
+      "sha256": "71b284873a144d1712b228c2d2c7de1211d53a998b82bd23510a5481bf7426b2",
+      "bytes": 2997
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle4-3004.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle4-3004.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle4-3005/P5-oracle.pt",
+      "sha256": "a21d40db85485e5c1d2f219d6ba212e638d1194560e1c866c36d3505516f1e3b",
+      "bytes": 2997
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle4-3005/P6-oracle.pt",
+      "sha256": "87ea7ca3605aa76cb8973bc0a6de3fb9c74745ef47f86d4fcf1048da25e50235",
+      "bytes": 2997
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle4-3005.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/oracle4-3005.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/posthoc-3000/p1-oracle.pt",
+      "sha256": "7af9c53aea0916b6bca5739af6078cdee4e5aa352833f3551ee10498f608b3aa",
+      "bytes": 2997
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/posthoc-3000.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/posthoc-3000.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/posthoc-3001/p1-oracle.pt",
+      "sha256": "1715a4be6c228593dde4006c3534c6c6ec8630a900a09e7cb379db22537ed7bf",
+      "bytes": 2997
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/posthoc-3001.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/posthoc-3001.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/posthoc-3002/p1-oracle.pt",
+      "sha256": "bc2ed1e3c93629d58314d43576669ac9960d6fd347a1bc273fa96e48fb9ce8c7",
+      "bytes": 2997
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/posthoc-3002.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/posthoc-3002.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/posthoc-3003/p1-oracle.pt",
+      "sha256": "720d0b1c0bdb275b5511576b8db7ae03127bb1e3b9c8eebb9dce5015111dac04",
+      "bytes": 2997
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/posthoc-3003.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/posthoc-3003.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/posthoc-3004/p1-oracle.pt",
+      "sha256": "a0380b3f43ef4bd627a8e0182a3120566209a9aa809cc36e705d7586fdc9f899",
+      "bytes": 2997
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/posthoc-3004.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/posthoc-3004.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/posthoc-3005/p1-oracle.pt",
+      "sha256": "ee2ba48765ba909c2612cd209cb9cb6294b04fe50757bdbd39cba260c99dd3af",
+      "bytes": 2997
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/posthoc-3005.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/posthoc-3005.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/replay-card0/host.pt",
+      "sha256": "0ed053b2a2781a904bd640ea5bd9ec6049742e39c5bcddb4c4445466430fd5a8",
+      "bytes": 1155231
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/replay-card0/loss-stream.bin",
+      "sha256": "3752ec79356426c565844f744c26c8524a49f96d2c4b5456001fa7582e5a1f65",
+      "bytes": 50000
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/replay-card0.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/replay-card0.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/replay-card1-a/host.pt",
+      "sha256": "0ed053b2a2781a904bd640ea5bd9ec6049742e39c5bcddb4c4445466430fd5a8",
+      "bytes": 1155231
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/replay-card1-a/loss-stream.bin",
+      "sha256": "3752ec79356426c565844f744c26c8524a49f96d2c4b5456001fa7582e5a1f65",
+      "bytes": 50000
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/replay-card1-a.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/replay-card1-a.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/replay-card1-b/host.pt",
+      "sha256": "0ed053b2a2781a904bd640ea5bd9ec6049742e39c5bcddb4c4445466430fd5a8",
+      "bytes": 1155231
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/replay-card1-b/loss-stream.bin",
+      "sha256": "3752ec79356426c565844f744c26c8524a49f96d2c4b5456001fa7582e5a1f65",
+      "bytes": 50000
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/replay-card1-b.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/replay-card1-b.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/timing-0-a/timing-adapter.pt",
+      "sha256": "eb3157a97a94bb7ee702b8f7075396f7a90d6bc087cddd84bbd7696f79df4c37",
+      "bytes": 3037
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/timing-0-a.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/timing-0-a.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/timing-0-b/timing-adapter.pt",
+      "sha256": "eb3157a97a94bb7ee702b8f7075396f7a90d6bc087cddd84bbd7696f79df4c37",
+      "bytes": 3037
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/timing-0-b.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/timing-0-b.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/timing-1/timing-adapter.pt",
+      "sha256": "eb3157a97a94bb7ee702b8f7075396f7a90d6bc087cddd84bbd7696f79df4c37",
+      "bytes": 3037
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/timing-1.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3/timing-1.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-3.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  ],
+  "launch_commit": "027a258a3b9ab68c6f22b90cb32dc99a14d60ccd",
+  "recorded_utc": "2026-10-12T15:51:30.378235+00:00",
+  "note": "weights, loss streams and raw stdout/stderr stay in ignored runs/; hashes published"
+}

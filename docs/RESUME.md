@@ -64,6 +64,21 @@ requires the independent exact-source reviews, the bound certificate and
 fresh host checks; status of that attempt is recorded below this line when
 it exists.
 
+**Linked pilot 3 (attempt 4) ran on 2026-10-13 under v4.2 and stopped with an
+INSTRUMENT HOLD at the bottleneck known answer** (software valid, execution
+valid). Everything before it passed: twelve hosts, replays, timing admission,
+materiality with the retired P3 rungs replayed exactly and κ = 2.0 chosen,
+and the post-hoc known answer (B3 reaches the affine ceiling on P1 on every
+anchor). At widths 4 and 2 the bypass module (P6) gains only 0.0005 to 0.026
+nats more than the matched post-bottleneck module (P5) on every anchor,
+against the 0.05 bar; width 8 is reserved for degenerate training, which did
+not occur. Per v4 §5 the primary headroom family is undefined and the screen
+stops before freeze with the finding published. Attempt charge 3272.33 s;
+cumulative **6206.67 s** of 10,800; **4593.33 s** remain. Evidence
+`docs/results/gate3-pilot-2026-10-13-linked-3/`; hold and options in
+`docs/certificates/2026-10-13-gate3-linked-pilot-3-hold.md`. No further
+attempt, confirmation or merge is authorised.
+
 **No GPU execution, pilot, confirmation or merge is cleared by this package.**
 The earlier holds, custody receipts and charges below are unchanged.
 
