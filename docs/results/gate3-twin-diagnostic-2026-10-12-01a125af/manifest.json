@@ -1,0 +1,92 @@
+{
+  "copied_receipts": [
+    {
+      "path": "admission.json",
+      "original_path": "runs/gate3-twin-diagnostic-2026-10-12-01a125af/admission.json",
+      "sha256": "089ce9b7d7c7906d0990427f299e945a378f28b7fc2d513e252eb34b7f4293f7",
+      "byte_identical": true
+    },
+    {
+      "path": "charge.json",
+      "original_path": "runs/gate3-twin-diagnostic-2026-10-12-01a125af/charge.json",
+      "sha256": "3660f2fd5d59364429eed82f259f75d5c97fcc41407a30e50c8fd6552f291f33",
+      "byte_identical": true
+    },
+    {
+      "path": "comparison-identical_repeat.json",
+      "original_path": "runs/gate3-twin-diagnostic-2026-10-12-01a125af/comparison-identical_repeat.json",
+      "sha256": "1f235b02016db98793e8c58c42516c39a9d12c50643cdc92c5a32c5d486e80a3",
+      "byte_identical": true
+    },
+    {
+      "path": "comparison-original_global_permutation.json",
+      "original_path": "runs/gate3-twin-diagnostic-2026-10-12-01a125af/comparison-original_global_permutation.json",
+      "sha256": "f4de5e5a6924290bfb8e5fcf44d3ba0cb3e62832eabb2a739cb1331477a1e5cb",
+      "byte_identical": true
+    },
+    {
+      "path": "comparison-padded_global_permutation.json",
+      "original_path": "runs/gate3-twin-diagnostic-2026-10-12-01a125af/comparison-padded_global_permutation.json",
+      "sha256": "1fff2544af6379a163ce119c8e9f790ce642afc3e3ce57fe302b2606f45f80f0",
+      "byte_identical": true
+    },
+    {
+      "path": "comparison-padded_identity.json",
+      "original_path": "runs/gate3-twin-diagnostic-2026-10-12-01a125af/comparison-padded_identity.json",
+      "sha256": "1fff2544af6379a163ce119c8e9f790ce642afc3e3ce57fe302b2606f45f80f0",
+      "byte_identical": true
+    },
+    {
+      "path": "comparison-preserve_batch_size.json",
+      "original_path": "runs/gate3-twin-diagnostic-2026-10-12-01a125af/comparison-preserve_batch_size.json",
+      "sha256": "1f235b02016db98793e8c58c42516c39a9d12c50643cdc92c5a32c5d486e80a3",
+      "byte_identical": true
+    },
+    {
+      "path": "diagnostic-result.json",
+      "original_path": "runs/gate3-twin-diagnostic-2026-10-12-01a125af/diagnostic-result.json",
+      "sha256": "ee45d48111e083ac9e6bd4665e7a21c1f1dcafb4938251d6a4991792f9353a05",
+      "byte_identical": true
+    },
+    {
+      "path": "process.json",
+      "original_path": "runs/gate3-twin-diagnostic-2026-10-12-01a125af/process.json",
+      "sha256": "127ba41782678f8b888c0ff75dea6be283c86c7dd8c8e5616b8eeebca9b52c78",
+      "byte_identical": true
+    },
+    {
+      "path": "worker-result.json",
+      "original_path": "runs/gate3-twin-diagnostic-2026-10-12-01a125af/worker-result.json",
+      "sha256": "6c6e296b8817975db790fb63add50499f1e336fb64550448bae308c711be53ab",
+      "byte_identical": true
+    },
+    {
+      "path": "attempt-custody.json",
+      "original_path": ".weft/gate3-twin-diagnostic-attempt.json",
+      "sha256": "5cf565c14899c7a0fa7635beb37170a1c3d1e2f86a9f9124fcf88b677ff779e4",
+      "byte_identical": true
+    },
+    {
+      "path": "preflight.json",
+      "original_path": "/tmp/sultai-twin-diagnostic-preflight-20261012.json",
+      "sha256": "f73859e3d1e6019360c328f07e64ed6a0a803db0dd28ca20315091ecf55891d6",
+      "byte_identical": true
+    },
+    {
+      "path": "poststop.json",
+      "original_path": "/tmp/sultai-twin-diagnostic-poststop-20261012.json",
+      "sha256": "4d1aa3ec8df0e08d94c31070bdb66fef4c5b30cef9d96e342ed2d92c856f056a",
+      "byte_identical": true
+    },
+    {
+      "path": "supervisor-time.txt",
+      "original_path": "/tmp/sultai-twin-diagnostic-time-20261012.txt",
+      "sha256": "2a5bce1682ebd76df9c84d9bca2123dea5953c404b26dc0bc4401db643db5d65",
+      "byte_identical": true
+    }
+  ],
+  "execution_summary_sha256": "9cbe4be6fb9743ac2015868da635fd1a106ca77cb17ee51fb98b6411708c6880",
+  "prior_failure_manifest": "docs/results/gate3-pilot-2026-10-11-01a125af-retry1/manifest.json",
+  "raw_logs": "retained locally; excluded fromGit; hashes inexecution-summary",
+  "weights_and_binary_loss_streams": "unchanged ignored original storage; not copied"
+}

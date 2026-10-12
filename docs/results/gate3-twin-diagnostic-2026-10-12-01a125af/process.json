@@ -1,0 +1,1 @@
+{"command":["nice","-n","19","/usr/bin/python3","-B","-m","sultai_screen.twin_diagnostic","--worker","--output","/home/john/sultai/runs/gate3-twin-diagnostic-2026-10-12-01a125af"],"gpu":0,"pid":4192845}

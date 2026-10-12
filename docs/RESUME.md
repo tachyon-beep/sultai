@@ -36,12 +36,20 @@ verified idle afterward; original and linked custody remain intact. See the
 [new hold and diagnostic disposition](certificates/2026-10-11-gate3-linked-retry-hold.md)
 and [byte-preserved retry evidence](results/gate3-pilot-2026-10-11-01a125af-retry1/manifest.json).
 John subsequently approved the separate [one-worker, 120-second diagnostic](certificates/2026-10-12-gate3-twin-diagnostic-authorization.md) on 2026-10-12.
-Diagnostic source `9e19e5e9fee3be709b54f810c6b3e4954271416b` passes all 20 quality
-checks and 146 CPU tests and is accepted by both independent specialists. The
-[bound diagnostic certificate](certificates/2026-10-12-gate3-twin-diagnostic-admission.json)
-requires fresh host/custody admission before the one run. No diagnostic has
-launched at this checkpoint. Pilot source repair, another pilot and
-confirmation remain blocked under frozen §9 / D-P. The historical
+Diagnostic source `9e19e5e9fee3be709b54f810c6b3e4954271416b` passed 20 quality
+checks and 146 CPU tests and independent acceptance. The one diagnostic completed
+with raw/supervisor/GNU/outer exits 0: **3.9146629869937897 charged process-seconds**,
+5.06 seconds wall. Cumulative charge is now **1473.267264504917 seconds** under
+the same 10800-second cap. Exactly the 16 examples changing batch size have
+changed logits; six losses differ. Identical-repeat, batch-size-preserving and
+padded-baseline/twin comparisons are bitwise exact. Frozen state and permutation
+round-trip match. See the [measured diagnostic result](certificates/2026-10-12-gate3-twin-diagnostic-result.md)
+and [byte-preserved evidence](results/gate3-twin-diagnostic-2026-10-12-01a125af/manifest.json).
+The diagnostic localizes this observed discrepancy to changed evaluation batch
+size; it does not repair or clear the pilot. All three custody receipts remain.
+The [fixed-size evaluation proposal](plans/2026-10-12-gate3-fixed-evaluation-proposal.md)
+needs a separate source/protocol disposition; no repair, new pilot, diagnostic
+repeat or confirmation is cleared. Both GPUs were verified idle after execution. The historical
 Gate 2 verdict is unchanged. Never reset either durable pilot attempt receipt.
 
 ## Nyx Gate 2 checkpoint — 2026-10-10
