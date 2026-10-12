@@ -9,6 +9,11 @@ its measurements remain in [SMOKE.md](SMOKE.md).
 
 ## Objective and mechanism
 
+John restated the objective on 2026-10-13: new, more efficient capacity,
+measured as accuracy gained per parameter retained; repair is not the goal.
+The measurement rules and progress ladder live in [STEERING.md](STEERING.md)
+(decision D26).
+
 Sultai starts with very little task-model structure and develops a capable
 model through **addition AND deliberate removal**. The goal is comparable
 capability with roughly half the final retained parameters of a credible

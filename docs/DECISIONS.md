@@ -49,6 +49,7 @@ These entries supersede earlier temporal statuses while preserving their history
 | D23 | Lifecycle demonstrates planted same-feature learning and physical deletion, with no weight copying and matched final-size static/removal control. Initial allocated host weights count; no near-empty or half-size claim |
 | D24 | Signed nonlinear probes require cross-host equality A(+epsilon)=B(-epsilon), not opposite finite output changes. Empirical teacher fits are not impossibility proofs; comparative wins do not establish information order |
 | D25 | Admission uses independent selection data; final tests audit outcomes. No finite-sample safety calibration promise; sample/lineage dependence must be handled before any such later claim |
+| D26 | **Objective restated by John, 2026-10-13:** "build new more efficient capacity into the model … increase its accuracy at the most efficient parameter cost possible"; repair is not the objective. Gate 3's repair-specificity screen is closed on its attempt-4 finding ([final disposition](certificates/2026-10-13-gate3-linked-pilot-3-final-disposition.md)). Every later preregistration states its primary endpoint in retained-parameter and loss units against named cheaper routes ([STEERING.md](STEERING.md)); the recut study is the [capacity frontier screen](plans/2026-10-13-capacity-frontier-screen.md). Gate reinterpretation and merge pending John |
 
 See [HYBRID_CONTRACT.md](HYBRID_CONTRACT.md) and the independent design review
 for concrete implementation gates. The full Claude GPU estimates remain

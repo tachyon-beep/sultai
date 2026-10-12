@@ -1,5 +1,35 @@
 # Resume Sultai after the bounded correction
 
+## Programme redirected to efficient capacity — 2026-10-13
+
+John restated the objective after the Gate 3 attempt-4 hold: build new, more
+efficient capacity, measured as accuracy per retained parameter; repair is
+not the goal; Sultai is the add-and-remove alternative to Esper-lite's
+plug-in modules. Delivered on `codex/gate3-screen` (merge to `main` pending
+John):
+
+- [STEERING.md](STEERING.md): the objective verbatim, the drift diagnosis,
+  measurement rules for every later preregistration, the progress ladder
+  M0–M3, and a proposed reinterpretation of correction-protocol gates 3–5.
+- [Capacity frontier screen, draft v1](plans/2026-10-13-capacity-frontier-screen.md)
+  (rung M0): new 272-parameter capacity versus re-tuning an equal count of
+  existing parameters on the same data (V1), and overgrow-then-physically-cut
+  versus built-small at 280 retained parameters (V2); same-recipe width
+  frontier as the scale; static-from-step-zero, continued-training and
+  whole-host re-tune controls; P1 known answer kept as instrument
+  validation; decisions J1–J10 for John; independent reviews preserved under
+  `docs/reviews/m0-capacity/`.
+- [Attempt-4 final disposition](certificates/2026-10-13-gate3-linked-pilot-3-final-disposition.md):
+  the repair screen is closed on its finding; v4.2 confirmatory ranges
+  retired unused; 4,593.33 s of the Gate 3 cap unspent and not carried by
+  default; custody receipts intact. Decision D26 in
+  [DECISIONS.md](DECISIONS.md).
+
+Next: John's decisions J1–J10, then an implementation plan with exact-source
+reviews (new reviewed fit path for parameter-subset re-tuning, static-module
+host, resume-training path, physical truncation), then the pilot go. No GPU
+execution, merge or tracker closure is authorised by this package.
+
 ## Gate 3 v4.1 fixed-evaluation package — 2026-10-13
 
 John authorised this package on 2026-10-12 ("yes, please authorise and
