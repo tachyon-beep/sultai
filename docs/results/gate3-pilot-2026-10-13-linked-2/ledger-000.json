@@ -1,0 +1,1 @@
+{"ceiling_gpu_process_seconds":10800,"charged_gpu_process_seconds":1566.7020309279906,"entries":[{"charged_gpu_process_seconds":46.718120657023974,"gpu":0,"job":"intact-3000","pid":1655321,"returncode":0},{"charged_gpu_process_seconds":46.71664576604962,"gpu":1,"job":"bottle4-3000","pid":1655322,"returncode":0}],"opening_charge_gpu_process_seconds":1473.267264504917}

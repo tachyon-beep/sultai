@@ -1,0 +1,212 @@
+{
+  "verdict": "instrument-failed",
+  "software_valid": true,
+  "instrument_valid": false,
+  "pilot_clean": false,
+  "confirmatory_ready": false,
+  "attempt_number": 3,
+  "launch_commit": "7d358bdb7b30fa428fda03b94a0376e70e198f5b",
+  "implementation_source_commit": "ea3358541728e697d72310d05e19cd5a972acd88",
+  "protocol_version": "gate3-v4.1",
+  "protocol_sha256": "97b177438a83d221b4037f2514a3f91e9d40661533cb6c836779c2033fde1ba0",
+  "raw_exit": 2,
+  "gnu_time_exit": 2,
+  "outer_tool_exit": 0,
+  "wall_seconds": 666.2,
+  "peak_rss_kib": 1565424,
+  "opening_charge_gpu_process_seconds": 1473.267264504917,
+  "attempt_charge_gpu_process_seconds": 1461.0762855510693,
+  "total_charge_gpu_process_seconds": 2934.3435500559863,
+  "total_ceiling_gpu_process_seconds": 10800,
+  "remaining_gpu_process_seconds": 7865.656449944014,
+  "child_receipts": 36,
+  "child_returncodes_nonzero": [],
+  "completed_training_hosts": 12,
+  "host_costs": {
+    "bottle4-3000": {
+      "wall_seconds": 45.361660129972734,
+      "peak_cuda_mib": 253
+    },
+    "bottle4-3001": {
+      "wall_seconds": 44.472888782969676,
+      "peak_cuda_mib": 253
+    },
+    "bottle4-3002": {
+      "wall_seconds": 44.884487699950114,
+      "peak_cuda_mib": 253
+    },
+    "bottle4-3003": {
+      "wall_seconds": 45.124207469052635,
+      "peak_cuda_mib": 253
+    },
+    "bottle4-3004": {
+      "wall_seconds": 45.56138071697205,
+      "peak_cuda_mib": 253
+    },
+    "bottle4-3005": {
+      "wall_seconds": 44.767379795899615,
+      "peak_cuda_mib": 253
+    },
+    "intact-3000": {
+      "wall_seconds": 39.27262513304595,
+      "peak_cuda_mib": 251
+    },
+    "intact-3001": {
+      "wall_seconds": 38.888230068958364,
+      "peak_cuda_mib": 251
+    },
+    "intact-3002": {
+      "wall_seconds": 38.52196497598197,
+      "peak_cuda_mib": 251
+    },
+    "intact-3003": {
+      "wall_seconds": 39.60202882892918,
+      "peak_cuda_mib": 251
+    },
+    "intact-3004": {
+      "wall_seconds": 39.21522272203583,
+      "peak_cuda_mib": 251
+    },
+    "intact-3005": {
+      "wall_seconds": 39.367623583064415,
+      "peak_cuda_mib": 251
+    }
+  },
+  "timing_admission": {
+    "charged_gpu_process_seconds": 2916.961658700835,
+    "fit_bitwise_replay": true,
+    "host_bitwise_replay": true,
+    "oracle_seeds": 3,
+    "seed_reduction": "none"
+  },
+  "twin_assertion_v41": "identity_check passed on all six development anchors inside materiality workers (no execution-invalid stop)",
+  "failure_stage": "materiality",
+  "failure": "P3 exhausted its materiality ladder; no additional rung authorized",
+  "failure_type": "InstrumentHold",
+  "materiality_gains_A1_nats": {
+    "3000": {
+      "intact_loss": 0.7653849533765307,
+      "rungs": {
+        "P1": {
+          "0.03": 0.4458176816113505,
+          "0.1": 0.3518182372217221,
+          "0.3": 0.16190117453258146
+        },
+        "P2": {
+          "0.03": 2.5213098250445247,
+          "0.1": 2.5911951701157534
+        },
+        "P3": {
+          "0.25": 0.029475117818535512,
+          "0.5": 0.08007549709407968,
+          "1.0": 0.25142311950877716
+        }
+      }
+    },
+    "3001": {
+      "intact_loss": 0.7085045152979188,
+      "rungs": {
+        "P1": {
+          "0.03": 0.7700374706261787,
+          "0.1": 0.6870877719740837,
+          "0.3": 0.46092035134056597
+        },
+        "P2": {
+          "0.03": 2.710801436356131,
+          "0.1": 3.469809550510419
+        },
+        "P3": {
+          "0.25": 0.010690103693110409,
+          "0.5": 0.03775060711845091,
+          "1.0": 0.14131199649082604
+        }
+      }
+    },
+    "3002": {
+      "intact_loss": 0.7065195450329266,
+      "rungs": {
+        "P1": {
+          "0.03": 0.6226533125364373,
+          "0.1": 0.4837809146737819,
+          "0.3": 0.20621161293544266
+        },
+        "P2": {
+          "0.03": 2.7233666008659947,
+          "0.1": 2.649967074383989
+        },
+        "P3": {
+          "0.25": -0.0074583216672576835,
+          "0.5": -0.003636936527685042,
+          "1.0": 0.03986809059320073
+        }
+      }
+    },
+    "3003": {
+      "intact_loss": 0.6832893883133425,
+      "rungs": {
+        "P1": {
+          "0.03": 0.5570494512317985,
+          "0.1": 0.4157087793822294,
+          "0.3": 0.144476308889248
+        },
+        "P2": {
+          "0.03": 11.85020836799329,
+          "0.1": 11.978427716554583
+        },
+        "P3": {
+          "0.25": -0.0004182523479684397,
+          "0.5": 0.02062804545150132,
+          "1.0": 0.12992448555487335
+        }
+      }
+    },
+    "3004": {
+      "intact_loss": 0.6014813245756025,
+      "rungs": {
+        "P1": {
+          "0.03": 0.6277566641373312,
+          "0.1": 0.5445571773911184,
+          "0.3": 0.3334276274137149
+        },
+        "P2": {
+          "0.03": 5.455269955929224,
+          "0.1": 5.23245311013703
+        },
+        "P3": {
+          "0.25": -0.006817473083386538,
+          "0.5": 0.01854970459962102,
+          "1.0": 0.1731319831459538
+        }
+      }
+    },
+    "3005": {
+      "intact_loss": 0.6197513962243165,
+      "rungs": {
+        "P1": {
+          "0.03": 0.5261224250505602,
+          "0.1": 0.45228054616659386,
+          "0.3": 0.27603886386392673
+        },
+        "P2": {
+          "0.03": 2.27763030809664,
+          "0.1": 2.2550606740474635
+        },
+        "P3": {
+          "0.25": 0.029032746341646765,
+          "0.5": 0.07085857832578857,
+          "1.0": 0.1979810064624481
+        }
+      }
+    }
+  },
+  "derived_by_publisher": {
+    "note": "the launcher raised before publishing chosen magnitudes; these follow from the published gains under the v4 \u00a75 rule",
+    "P1_alpha_pair": [
+      0.1,
+      0.3
+    ],
+    "P2_s_min": 0.1,
+    "P3": "no rung in {0.25, 0.5, 1.0} reaches 0.05 nats on every anchor; at kappa=1.0 anchor 3002 gains 0.0399, the other five 0.13 to 0.25"
+  },
+  "new_attempt_authorized": false
+}

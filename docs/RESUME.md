@@ -39,6 +39,18 @@ names the Codex owner. Delivered on `codex/gate3-screen`:
 - Costed proposal for the next GPU step, awaiting John's separate go:
   `docs/plans/2026-10-13-gate3-linked-pilot-2-proposal.md`.
 
+**Linked pilot 2 (attempt 3) ran on 2026-10-13 under John's go and stopped
+with an INSTRUMENT HOLD** (software valid, execution valid, no scientific
+result): "P3 exhausted its materiality ladder". All twelve hosts, every
+replay and the repaired global-permutation twin passed on GPU; P1 and P2 are
+material on every anchor; P3 at κ = 1.0 clears 0.05 nats on five anchors and
+reaches 0.040 on anchor 3002. Attempt charge 1461.08 s; cumulative
+**2934.34 s** of 10,800; **7865.66 s** remain. Evidence
+`docs/results/gate3-pilot-2026-10-13-linked-2/`; hold and disposition options
+in `docs/certificates/2026-10-13-gate3-linked-pilot-2-hold.md` (recommended:
+amendment v4.2 appending κ ∈ {2.0, 4.0} to the P3 ladder, one fresh linked
+attempt 4). No further attempt, confirmation or merge is authorised.
+
 **No GPU execution, pilot, confirmation or merge is cleared by this package.**
 The earlier holds, custody receipts and charges below are unchanged.
 
