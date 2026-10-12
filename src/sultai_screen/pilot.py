@@ -407,6 +407,8 @@ def check_certificate(approved: Record) -> Record:
 
 def claim_attempt(path: Path, root: Path, identity: Record) -> None:
     path.parent.mkdir(exist_ok=True)
+    if path.exists():
+        raise PilotHold("attempt custody receipt already exists; no further attempt without John's disposition")
     publish(path, {"pid": os.getpid(), "output": str(root), "identity": identity, "started_unix": time.time()})
 
 
@@ -483,8 +485,8 @@ def linked_pilot_two(approved: Record) -> Record:
     ):
         raise PilotHold("linked pilot 2 and the exact cumulative charge require John's explicit disposition")
     evidence = [mapping(entry) for entry in sequence(approved["evidence"])]
-    if not any(entry["path"] == DISPOSITION_2 for entry in evidence):
-        raise PilotHold("bound operator disposition evidence for linked pilot 2 required")
+    if not any(entry["path"] == DISPOSITION_2 for entry in evidence) or not (REPO / DISPOSITION_2).is_file():
+        raise PilotHold("bound operator disposition document for linked pilot 2 required")
     hashes: Record = {}
     for relative, expected in PRIOR_RECEIPTS_2:
         path = REPO / relative

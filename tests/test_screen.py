@@ -527,7 +527,7 @@ class ScreenTests(unittest.TestCase):
                 self.assertEqual(linkage["opening_charge_gpu_process_seconds"], 2.370860553928651)
                 receipt = base / module.RETRY_RECEIPT
                 module.claim_attempt(receipt, base / "retry-one", linkage)
-                with self.assertRaises(FileExistsError):
+                with self.assertRaisesRegex(PilotHold, "already exists"):
                     module.claim_attempt(receipt, base / "retry-two", linkage)
                 for key, bad in (
                     ("linked_retry_approved", False),
@@ -563,7 +563,7 @@ class ScreenTests(unittest.TestCase):
             path = root / "attempt.json"
             claim_attempt(path, root / "one", {"source": "a"})
             original = path.read_bytes()
-            with self.assertRaises(FileExistsError):
+            with self.assertRaisesRegex(PilotHold, "already exists"):
                 claim_attempt(path, root / "two", {"source": "a"})
             self.assertEqual(path.read_bytes(), original)
 

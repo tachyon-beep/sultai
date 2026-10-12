@@ -34,6 +34,7 @@ test_real_last_row_failure_is_not_hidden_by_padding (test_fixed_evaluation.Fixed
 test_real_losses_match_independent_padded_reference_in_caller_order (test_fixed_evaluation.FixedEvaluationTests.test_real_losses_match_independent_padded_reference_in_caller_order) ... ok
 test_shape_sensitive_classifier_is_bitwise_invariant_under_global_permutation (test_fixed_evaluation.FixedEvaluationTests.test_shape_sensitive_classifier_is_bitwise_invariant_under_global_permutation) ... ok
 test_shape_sensitive_control_differs_from_unpadded_whole_batch_evaluation (test_fixed_evaluation.FixedEvaluationTests.test_shape_sensitive_control_differs_from_unpadded_whole_batch_evaluation) ... ok
+test_unpadded_chunking_reproduces_attempt_two_stop_and_padded_paths_pass (test_fixed_evaluation.FixedEvaluationTests.test_unpadded_chunking_reproduces_attempt_two_stop_and_padded_paths_pass) ... ok
 test_admission_ties_and_healthy_prefer_noop (test_formation.FormationTests.test_admission_ties_and_healthy_prefer_noop) ... ok
 test_conditioning_ablation_deranges_lineages_and_mispair_preserves_marginals (test_formation.FormationTests.test_conditioning_ablation_deranges_lineages_and_mispair_preserves_marginals) ... ok
 test_failed_full_ridge_audit_rejects_gate_independently (test_formation.FormationTests.test_failed_full_ridge_audit_rejects_gate_independently) ... ok
@@ -77,6 +78,7 @@ test_fixed_schedule_stage_metrics_and_budgets (test_lifecycle.LifecycleTests.tes
 test_held_out_targets_cannot_change_formation_or_training (test_lifecycle.LifecycleTests.test_held_out_targets_cannot_change_formation_or_training) ... ok
 test_real_deletion_and_serialized_counts (test_lifecycle.LifecycleTests.test_real_deletion_and_serialized_counts) ... ok
 test_sgd_is_task_gradient_not_teacher_copy (test_lifecycle.LifecycleTests.test_sgd_is_task_gradient_not_teacher_copy) ... ok
+test_existing_linked_pilot_two_custody_is_an_explicit_hold (test_protocol_identity.LinkedPilotTwoTests.test_existing_linked_pilot_two_custody_is_an_explicit_hold) ... ok
 test_linked_pilot_two_binds_all_three_custodies_and_the_cumulative_charge (test_protocol_identity.LinkedPilotTwoTests.test_linked_pilot_two_binds_all_three_custodies_and_the_cumulative_charge) ... ok
 test_pilot_entry_refuses_second_linked_attempt_without_its_disposition (test_protocol_identity.LinkedPilotTwoTests.test_pilot_entry_refuses_second_linked_attempt_without_its_disposition) ... ok
 test_amendment_bytes_and_composed_identity_are_pinned (test_protocol_identity.ProtocolIdentityTests.test_amendment_bytes_and_composed_identity_are_pinned) ... ok
@@ -162,6 +164,6 @@ test_orders_preserve_full_permutation_and_batch_size (test_twin_diagnostic.TwinD
 test_real_cpu_timeout_failure_and_carried_charge (test_twin_diagnostic.TwinDiagnosticTests.test_real_cpu_timeout_failure_and_carried_charge) ... ok
 
 ----------------------------------------------------------------------
-Ran 159 tests in 29.195s
+Ran 161 tests in 31.088s
 
 OK

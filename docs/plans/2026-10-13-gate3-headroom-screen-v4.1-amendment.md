@@ -85,6 +85,11 @@ no-op development evaluation. Selection remains selection-only; a close
 candidate may change winner under the new scores and all evidence is
 recomputed, never inherited.
 
+The bounded twin-diagnostic entry point (`sultai_screen.twin_diagnostic`) is
+retired under v4.1: it pins the attempt-2 source bytes and cannot admit a
+run against this version. It is preserved as the executed historical
+instrument only.
+
 Unchanged paths: host training, the full-batch gradient step (an exact
 mean-gradient accumulation over 128-row chunks of the 2,000 conditioning
 examples, not an evaluation), optimiser updates, training loss streams, ridge
@@ -112,18 +117,25 @@ SD-before-median ordering are unchanged.
 
 Base §7 requires that any change to fit code carry a new preregistration
 version with a new SHA-256, an explicit disposition and a fresh confirmatory
-seed range. This amendment is that version. The disposition is John's
-authorisation of 2026-10-12. The confirmatory ranges of v4 (intact
-4000–4063, bottleneck 5000 onward ≤ 5199) were never executed and are
-**retired unused**. The confirmatory ranges under v4.1 are:
+seed range. This amendment is that version. John's authorisation of
+2026-10-12 is the disposition for the fit-code change and this package. The
+fresh range is not a new choice: base §4 already designates the next thousand
+block (4100–, 5200–) for a restart, and this amendment allocates exactly that
+block. John's recorded confirmation of the allocation is a precondition of
+the confirmatory freeze, not of the development pilot. The confirmatory
+ranges of v4 (intact 4000–4063, bottleneck 5000 onward ≤ 5199) were never
+executed and are **retired unused**. The confirmatory ranges under v4.1 are:
 
 | Lineage | v4.1 confirmatory seeds |
 |---|---|
 | Intact anchors | 4100–4163, 64 anchors |
 | Bottleneck anchors | 5200 onward, contiguous, ≤ 5399 |
 
-Development anchors stay in 3000–3099. The next development pilot trains
-its hosts fresh; no checkpoint from attempts 1 or 2 is inherited.
+A restart after a failed v4.1 confirmatory attempt takes the following
+block (intact 4200–4263, bottleneck 5400 onward ≤ 5599) with linkage, as
+base §4 and §10 require. Development anchors stay in 3000–3099. The next
+development pilot trains its hosts fresh; no checkpoint from attempts 1 or 2
+is inherited.
 
 ## 6. GPU-time accounting and the linked development pilot (base §8 and §9)
 

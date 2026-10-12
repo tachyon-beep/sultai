@@ -24,9 +24,20 @@ names the Codex owner. Delivered on `codex/gate3-screen`:
   It refuses to run without John's disposition document
   `docs/certificates/2026-10-13-gate3-linked-pilot-2-disposition.md`, which
   does not exist yet.
-- Evidence: `docs/results/gate3-fixed-evaluation-2026-10-13/` (20 quality
-  checks on 24 files; 159 CPU tests). Independent exact-source reviews are
-  recorded under `docs/reviews/gate3-headroom/` as they complete.
+- Independent exact-source reviews of the first package commit `56a4512`
+  (scientific: accept with conditions; PyTorch/operations: accept) are
+  preserved with dispositions in
+  `docs/reviews/gate3-headroom/fixed-evaluation-implementation-review-2026-10-13.md`.
+  The follow-up commit adopts every condition: the unpadded-instrument
+  control at N = 5000, the seed-range disposition wording and v4.1 restart
+  blocks in the amendment (rotating the composed identity before any
+  certificate), the on-disk disposition check, an explicit hold when a
+  custody receipt already exists, the retired diagnostic entry point, and
+  tool provenance in the evidence directory.
+- Evidence: `docs/results/gate3-fixed-evaluation-2026-10-13/` (quality.json,
+  runtime.json, runtime.txt, tools.txt) bound to the final package bytes.
+- Costed proposal for the next GPU step, awaiting John's separate go:
+  `docs/plans/2026-10-13-gate3-linked-pilot-2-proposal.md`.
 
 **No GPU execution, pilot, confirmation or merge is cleared by this package.**
 The earlier holds, custody receipts and charges below are unchanged.

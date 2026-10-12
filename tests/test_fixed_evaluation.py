@@ -10,6 +10,7 @@ from sultai.trust import ContractViolation
 from sultai_screen.contracts import PilotHold
 from sultai_screen.fit import EVAL_CHUNK, Adapter, identity_check, losses, mean_loss, zero_adapter
 from sultai_screen.host import Features, Host, freeze
+from sultai_screen.twin_diagnostic import evaluate
 
 SEEN: list[tuple[int, int]] = []
 
@@ -106,6 +107,32 @@ class FixedEvaluationTests(unittest.TestCase):
         with torch.no_grad():
             direct = F.cross_entropy(host.classify(data.base), data.labels, reduction="none")
         self.assertFalse(torch.equal(direct, losses(host, data, None)))
+
+    def test_unpadded_chunking_reproduces_attempt_two_stop_and_padded_paths_pass(self) -> None:
+        # Design-review control: the preserved unpadded instrument shows the old failure on a
+        # shape-sensitive classifier at the real development size (5000 = 39 x 128 + 8); the
+        # padded instrument and the shared evaluator are bitwise under the same permutation,
+        # including the four-tensor wide module through the shared path.
+        host = ShapeSensitiveHost(4)
+        freeze(host)
+        data = features(5000)
+        identity = torch.arange(5000)
+        order = torch.randperm(5000, generator=torch.Generator().manual_seed(2))
+        unpadded = evaluate(host, data, order, padded=False)
+        baseline = evaluate(host, data, identity, padded=False)
+        self.assertFalse(torch.equal(unpadded.loss, baseline.loss))
+        # Exactly the examples whose batch shape changed have changed losses, as in the diagnostic.
+        self.assertEqual(int((unpadded.batch_sizes != 128).sum()), 8)
+        self.assertTrue(torch.equal(unpadded.loss != baseline.loss, unpadded.batch_sizes != baseline.batch_sizes))
+        self.assertTrue(
+            torch.equal(evaluate(host, data, order, padded=True).loss, evaluate(host, data, identity, padded=True).loss)
+        )
+        rng = torch.Generator().manual_seed(3)
+        wide = Adapter(tuple(torch.randn(shape, generator=rng) * 1e-2 for shape in ((64, 16), (64,), (16, 64), (16,))))
+        twin = Features(data.read[order], data.base[order], data.labels[order])
+        inverse = torch.argsort(order)
+        for adapter in (None, wide):
+            self.assertTrue(torch.equal(losses(host, data, adapter), losses(host, twin, adapter)[inverse]))
 
     def test_real_host_is_bitwise_invariant_under_global_permutation(self) -> None:
         host = Host(4)

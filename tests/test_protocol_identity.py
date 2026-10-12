@@ -177,7 +177,12 @@ class LinkedPilotTwoTests(unittest.TestCase):
                 target.write_bytes((REPO / PUBLISHED[relative]).read_bytes())
                 self.assertEqual(file_sha(target), expected)
             originals = {relative: (base / relative).read_bytes() for relative, _ in module.PRIOR_RECEIPTS_2}
+            disposition = base / module.DISPOSITION_2
             with patch("sultai_screen.pilot.REPO", base):
+                with self.assertRaisesRegex(PilotHold, "disposition"):
+                    module.linked_pilot_two(approved)
+                disposition.parent.mkdir(parents=True)
+                disposition.write_text("John's disposition fixture\n")
                 linkage = module.linked_pilot_two(approved)
                 self.assertEqual(linkage["opening_charge_gpu_process_seconds"], 1473.267264504917)
                 self.assertEqual(linkage["attempt_number"], 3)
@@ -185,7 +190,7 @@ class LinkedPilotTwoTests(unittest.TestCase):
                 self.assertEqual(len(linkage["prior_receipts"]), 6)
                 receipt = base / module.PILOT_2_RECEIPT
                 module.claim_attempt(receipt, base / "attempt-three", linkage)
-                with self.assertRaises(FileExistsError):
+                with self.assertRaisesRegex(PilotHold, "already exists"):
                     module.claim_attempt(receipt, base / "attempt-four", linkage)
                 for key, bad in (
                     ("linked_pilot_2_approved", False),
@@ -205,6 +210,30 @@ class LinkedPilotTwoTests(unittest.TestCase):
                     path.write_bytes(originals[relative])
                 supervisor = Supervisor(base, base, module.CUMULATIVE_CHARGE)
                 self.assertEqual(supervisor.charged, module.CUMULATIVE_CHARGE)
+
+    def test_existing_linked_pilot_two_custody_is_an_explicit_hold(self) -> None:
+        from sultai_screen.pilot import pilot
+
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            certificate = base / "certificate.json"
+            certificate.write_text("{}\n")
+            receipt = base / pilot_module.PILOT_2_RECEIPT
+            receipt.parent.mkdir()
+            receipt.write_text("{}\n")
+            with (
+                patch("sultai_screen.pilot.REPO", base),
+                patch("sultai_screen.pilot.check_certificate", return_value={"commit": "fixture"}),
+                patch("sultai_screen.pilot.environment_identity", return_value={}),
+                patch("sultai_screen.pilot.linked_pilot_two", return_value={}),
+                patch("sultai_screen.pilot.check_handover", return_value={}),
+                patch("sultai_screen.pilot.Supervisor") as supervisor,
+            ):
+                with self.assertRaisesRegex(PilotHold, "custody receipt already exists"):
+                    pilot(base / "new-output", base, certificate, second=True)
+                supervisor.assert_not_called()
+                self.assertEqual(receipt.read_text(), "{}\n")
+                self.assertFalse((base / "new-output").exists())
 
     def test_pilot_entry_refuses_second_linked_attempt_without_its_disposition(self) -> None:
         from sultai_screen.pilot import pilot

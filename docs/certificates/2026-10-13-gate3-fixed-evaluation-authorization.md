@@ -21,8 +21,9 @@ This transcribes the authorisation; it is not a cryptographic signature.
 **Not authorised by this record**: any GPU execution, a new pilot attempt,
 checkpoint inheritance, confirmatory execution, or merge to `main`. The
 linked pilot 2 allocation and its disposition document are a separate
-decision, as is the confirmatory seed-range allocation recorded in the
-amendment for John's confirmation at the confirmatory freeze.
+decision. The confirmatory seed ranges in amendment §5 follow the restart
+rule of base §4 (next thousand block); John's recorded confirmation of that
+allocation is a precondition of the confirmatory freeze, not of the pilot.
 
 Implementation choice recorded for John: the padded fixed-128 shared
 evaluator recommended by both independent reviewers was implemented, not the

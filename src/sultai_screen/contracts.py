@@ -17,7 +17,7 @@ PREREG_SHA = "7668d20ad55c3a62384975a7cf1f3989dbe69bf701ce02bc9c68ac2601d0d42a"
 DEV_SHA = "27173d10eb5edba1d0fd331e7f85ea633753cfae11400c4e7ef81810c94eeeba"
 PERM_SHA = "df1d87871f9afe3b15d7c5a434c31c5f68ff99564b4512410cc64fb1d042a24e"
 AMENDMENT_PATH = "docs/plans/2026-10-13-gate3-headroom-screen-v4.1-amendment.md"
-AMENDMENT_SHA = "7b9fde69d8eebbe357302a120a2d6cc9d2ca7e4a016287f035ea2fcaffec77fa"
+AMENDMENT_SHA = "dd30e1d171c696f3a51dba291475b2cc09ff0626442ccc411cdbfcfd58c32b4d"
 PROTOCOL_VERSION = "gate3-v4.1"
 # v4.1 §1: one active identity composed from the unchanged v4 bytes and the separately hashed amendment.
 PROTOCOL_SHA = hashlib.sha256(f"{PROTOCOL_VERSION}\n{PREREG_SHA}\n{AMENDMENT_SHA}\n".encode()).hexdigest()

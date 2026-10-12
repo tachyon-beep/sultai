@@ -153,7 +153,7 @@ class TwinDiagnosticTests(unittest.TestCase):
                         child.assert_not_called()
                     self.assertEqual(supervise(root / "one", cert), 0)
                     original = (root / CUSTODY).read_bytes()
-                    with self.assertRaises(FileExistsError):
+                    with self.assertRaisesRegex(PilotHold, "already exists"):
                         supervise(root / "two", cert)
                     self.assertEqual((root / CUSTODY).read_bytes(), original)
                     self.assertEqual(child.call_count, 1)
