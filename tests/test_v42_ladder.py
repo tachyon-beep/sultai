@@ -1,5 +1,6 @@
 """CPU controls for amendment v4.2: the extended P3 ladder, the chained identity and linked pilot 3 custody."""
 
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -14,6 +15,8 @@ from sultai_screen.contracts import (
     AMENDMENT_V41_PATH,
     AMENDMENT_V41_SHA,
     P3_LADDER,
+    P3_RETIRED,
+    P3_RETIRED_GAINS,
     PROTOCOL_VERSION,
     InstrumentHold,
     PilotHold,
@@ -29,29 +32,69 @@ from test_protocol_identity import PUBLISHED
 REPO = Path(__file__).resolve().parents[1]
 
 
-def record(p3: dict[str, float]) -> dict[str, dict[str, dict[str, float]]]:
-    return {"rungs": {"P1": {"0.1": 0.3, "0.3": 0.2, "0.03": 0.5}, "P2": {"0.1": 2.0, "0.03": 2.0}, "P3": p3}}
+def record(seed: int, p3_new: dict[str, float], retired: tuple[float, ...] | None = None) -> dict[str, object]:
+    """A materiality payload: retired P3 rungs default to attempt 3's published gains for this seed."""
+    values = P3_RETIRED_GAINS[str(seed)] if retired is None else retired
+    p3 = {str(k): v for k, v in zip(P3_RETIRED, values, strict=True)} | p3_new
+    return {
+        "seed": seed,
+        "rungs": {"P1": {"0.1": 0.3, "0.3": 0.2, "0.03": 0.5}, "P2": {"0.1": 2.0, "0.03": 2.0}, "P3": p3},
+    }
 
 
 class P3LadderTests(unittest.TestCase):
     def test_v42_ladder_and_chained_identity_are_pinned(self) -> None:
-        self.assertEqual(P3_LADDER, (0.25, 0.5, 1.0, 2.0, 4.0))
+        self.assertEqual(P3_RETIRED, (0.25, 0.5, 1.0))
+        self.assertEqual(P3_LADDER, (*P3_RETIRED, 2.0, 4.0))
         self.assertEqual(MATERIALITY_LADDERS["P3"], P3_LADDER)
         self.assertEqual(PROTOCOL_VERSION, "gate3-v4.2")
         self.assertEqual(file_sha(REPO / AMENDMENT_V41_PATH), AMENDMENT_V41_SHA)
         self.assertIn(AMENDMENT_V41_SHA, (REPO / AMENDMENT_PATH).read_text())
         self.assertEqual(file_sha(REPO / AMENDMENT_PATH), AMENDMENT_SHA)
 
-    def test_first_rung_clearing_every_anchor_is_chosen_and_exhaustion_holds(self) -> None:
-        strong = record({"0.25": 0.03, "0.5": 0.08, "1.0": 0.25, "2.0": 0.6, "4.0": 1.2})
-        # Anchor 3002's measured shape: top v4 rung just below the bar, next rung clears it.
-        weak = record({"0.25": -0.008, "0.5": -0.004, "1.0": 0.04, "2.0": 0.12, "4.0": 0.5})
-        chosen = magnitude_decision((strong, strong, strong, strong, strong, weak))
+    def test_retired_gains_are_attempt_three_published_values(self) -> None:
+        for seed in range(3000, 3006):
+            published = json.loads(
+                (REPO / f"docs/results/gate3-pilot-2026-10-13-linked-2/materiality-{seed}/result.json").read_text()
+            )["payload"]["rungs"]["P3"]
+            self.assertEqual(P3_RETIRED_GAINS[str(seed)], tuple(published[str(k)] for k in P3_RETIRED))
+            self.assertLess(P3_RETIRED_GAINS[str(seed)][-1], 0.05 if seed == 3002 else 1.0)
+        self.assertTrue(any(P3_RETIRED_GAINS[str(seed)][-1] < 0.05 for seed in range(3000, 3006)))
+
+    def test_first_new_rung_clearing_every_anchor_is_chosen_and_exhaustion_holds(self) -> None:
+        clears_at_two = tuple(
+            record(seed, {"2.0": 0.12 + 0.01 * i, "4.0": 0.5}) for i, seed in enumerate(range(3000, 3006))
+        )
+        chosen = magnitude_decision(clears_at_two)
         self.assertEqual(chosen["kappa"], 2.0)
         self.assertEqual((chosen["alpha_low"], chosen["alpha_high"], chosen["s_min"]), (0.1, 0.3, 0.1))
-        exhausted = record({"0.25": 0.0, "0.5": 0.0, "1.0": 0.04, "2.0": 0.049, "4.0": 0.0})
+        clears_at_four = (*clears_at_two[:5], record(3005, {"2.0": 0.049, "4.0": 0.5}))
+        self.assertEqual(magnitude_decision(clears_at_four)["kappa"], 4.0)
+        exhausted = (*clears_at_two[:5], record(3005, {"2.0": 0.049, "4.0": 0.0499}))
         with self.assertRaisesRegex(InstrumentHold, "P3 exhausted"):
-            magnitude_decision((strong, strong, strong, strong, strong, exhausted))
+            magnitude_decision(exhausted)
+
+    def test_retired_rungs_must_replay_attempt_three_exactly_and_are_never_chosen(self) -> None:
+        good = tuple(record(seed, {"2.0": 0.3, "4.0": 0.6}) for seed in range(3000, 3006))
+        # A retired rung that now clears the bar on every anchor would be a choice under the old
+        # rule; under v4.2 any difference from attempt 3, clearing or not, is a replay hold.
+        drifted_clear = (*good[:2], record(3002, {"2.0": 0.3, "4.0": 0.6}, retired=(0.06, 0.07, 0.08)), *good[3:])
+        with self.assertRaisesRegex(PilotHold, "retired P3 rung"):
+            magnitude_decision(drifted_clear)
+        last = P3_RETIRED_GAINS["3004"]
+        drifted_tiny = (
+            *good[:4],
+            record(3004, {"2.0": 0.3, "4.0": 0.6}, retired=(last[0], last[1], last[2] + 1e-9)),
+            good[5],
+        )
+        with self.assertRaisesRegex(PilotHold, "retired P3 rung"):
+            magnitude_decision(drifted_tiny)
+        unknown_seed = (*good[:5], record(3099, {"2.0": 0.3, "4.0": 0.6}, retired=(0.0, 0.0, 0.0)))
+        with self.assertRaises(KeyError):
+            magnitude_decision(unknown_seed)
+        duplicate_seed = (*good[:5], good[0])
+        with self.assertRaisesRegex(PilotHold, "development anchors"):
+            magnitude_decision(duplicate_seed)
 
     def test_new_rungs_keep_the_exact_inverse_within_endpoint_tolerance(self) -> None:
         host = Host(4)

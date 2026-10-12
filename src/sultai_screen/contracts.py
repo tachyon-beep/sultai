@@ -19,10 +19,25 @@ PERM_SHA = "df1d87871f9afe3b15d7c5a434c31c5f68ff99564b4512410cc64fb1d042a24e"
 AMENDMENT_V41_PATH = "docs/plans/2026-10-13-gate3-headroom-screen-v4.1-amendment.md"
 AMENDMENT_V41_SHA = "dd30e1d171c696f3a51dba291475b2cc09ff0626442ccc411cdbfcfd58c32b4d"
 AMENDMENT_PATH = "docs/plans/2026-10-13-gate3-headroom-screen-v4.2-amendment.md"
-AMENDMENT_SHA = "0933ad4e4f52a2e25fbbbd2234749854524dcce6690c4980f863b53e10598421"
+AMENDMENT_SHA = "43149802b41f9882c3d76acb7695153fbdd672b2bd640881e967f41c0f6ede9f"
 PROTOCOL_VERSION = "gate3-v4.2"
-# v4.2 §3: P3 materiality ladder; the rule (first rung clearing 0.05 nats on every anchor) is unchanged.
-P3_LADDER = (0.25, 0.5, 1.0, 2.0, 4.0)
+# v4.2 §3: P3 materiality ladder. The three rungs that failed in attempt 3 are retired: they are
+# evaluated for the curve, must replay attempt 3's published gains exactly on the freshly trained
+# hosts, and can never be chosen. The magnitude is the first eligible rung clearing 0.05 nats on
+# every development anchor.
+P3_RETIRED = (0.25, 0.5, 1.0)
+P3_ELIGIBLE = (2.0, 4.0)
+P3_LADDER = (*P3_RETIRED, *P3_ELIGIBLE)
+# Attempt 3 A1 gains (nats) at the retired rungs, per development anchor, exact JSON floats from
+# docs/results/gate3-pilot-2026-10-13-linked-2/materiality-<seed>/result.json.
+P3_RETIRED_GAINS: dict[str, tuple[float, float, float]] = {
+    "3000": (0.029475117818535512, 0.08007549709407968, 0.25142311950877716),
+    "3001": (0.010690103693110409, 0.03775060711845091, 0.14131199649082604),
+    "3002": (-0.0074583216672576835, -0.003636936527685042, 0.03986809059320073),
+    "3003": (-0.0004182523479684397, 0.02062804545150132, 0.12992448555487335),
+    "3004": (-0.006817473083386538, 0.01854970459962102, 0.1731319831459538),
+    "3005": (0.029032746341646765, 0.07085857832578857, 0.1979810064624481),
+}
 # v4.1 §1: one active identity composed from the unchanged v4 bytes and the separately hashed amendment.
 PROTOCOL_SHA = hashlib.sha256(f"{PROTOCOL_VERSION}\n{PREREG_SHA}\n{AMENDMENT_SHA}\n".encode()).hexdigest()
 X = 0.02
@@ -55,7 +70,7 @@ class OracleUnavailable(RuntimeError):
 
 
 def protocol_identity() -> Record:
-    """The four fields every receipt, report and certificate must carry under v4.1 §1."""
+    """The four fields every receipt, report and certificate must carry (v4.1 §1, retained by v4.2 §1)."""
     return {
         "protocol_version": PROTOCOL_VERSION,
         "protocol_sha256": PROTOCOL_SHA,

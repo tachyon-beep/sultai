@@ -17,6 +17,8 @@ from sultai.repair import Example, fit
 from sultai.trust import ContractViolation, InputDataError
 from sultai_screen.alignment import hungarian, transport
 from sultai_screen.contracts import (
+    P3_RETIRED,
+    P3_RETIRED_GAINS,
     FeasibilityHold,
     InstrumentHold,
     OracleUnavailable,
@@ -372,20 +374,25 @@ class ScreenTests(unittest.TestCase):
         self.assertNotIn("FileNotFoundError", completed.stderr)
 
     def test_magnitude_ladder_exhaustion_never_uses_failed_rung(self) -> None:
-        good = {
-            "rungs": {
-                "P1": {"0.1": 0.04, "0.3": 0.06, "0.03": 0.07},
-                "P2": {"0.1": 0.06, "0.03": 0.09},
-                "P3": {"0.25": 0.06, "0.5": 0.1, "1.0": 0.2},
+        def good(seed: int) -> dict[str, object]:
+            retired = {str(k): v for k, v in zip(P3_RETIRED, P3_RETIRED_GAINS[str(seed)], strict=True)}
+            return {
+                "seed": seed,
+                "rungs": {
+                    "P1": {"0.1": 0.04, "0.3": 0.06, "0.03": 0.07},
+                    "P2": {"0.1": 0.06, "0.03": 0.09},
+                    "P3": retired | {"2.0": 0.2, "4.0": 0.4},
+                },
             }
-        }
+
+        records = tuple(good(seed) for seed in range(3000, 3006))
         self.assertEqual(
-            magnitude_decision(tuple(good for _ in range(6))),
-            {"alpha_low": 0.1, "alpha_high": 0.3, "s_min": 0.1, "kappa": 0.25},
+            magnitude_decision(records),
+            {"alpha_low": 0.1, "alpha_high": 0.3, "s_min": 0.1, "kappa": 2.0},
         )
-        bad = {"rungs": dict(good["rungs"], P1={"0.1": 0.0, "0.3": 0.0, "0.03": 0.0})}
+        bad = dict(good(3005), rungs=dict(good(3005)["rungs"], P1={"0.1": 0.0, "0.3": 0.0, "0.03": 0.0}))
         with self.assertRaises(InstrumentHold):
-            magnitude_decision((good, good, good, good, good, bad))
+            magnitude_decision((*records[:5], bad))
 
     def test_supervisor_real_concurrency_cleanup_and_budget(self) -> None:
         real_popen = subprocess.Popen
@@ -735,11 +742,19 @@ class ScreenTests(unittest.TestCase):
                         }
                     elif job.action == "materiality":
                         value = {
+                            "seed": job.seed,
                             "rungs": {
                                 "P1": {"0.1": 0.1, "0.3": 0.1, "0.03": 0.1},
                                 "P2": {"0.1": 0.1, "0.03": 0.1},
-                                "P3": {"0.25": 0.1, "0.5": 0.1, "1.0": 0.1},
-                            }
+                                "P3": {
+                                    **{
+                                        str(kappa): gain
+                                        for kappa, gain in zip(P3_RETIRED, P3_RETIRED_GAINS[str(job.seed)], strict=True)
+                                    },
+                                    "2.0": 0.1,
+                                    "4.0": 0.1,
+                                },
+                            },
                         }
                     elif job.action == "posthoc":
                         case = {

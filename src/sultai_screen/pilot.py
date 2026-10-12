@@ -18,7 +18,9 @@ from sultai.trust import FitUnavailable
 
 from .contracts import (
     CHEAP_RATES,
-    P3_LADDER,
+    P3_ELIGIBLE,
+    P3_RETIRED,
+    P3_RETIRED_GAINS,
     PILOT_SECONDS,
     RHO,
     FeasibilityHold,
@@ -284,13 +286,20 @@ class Supervisor:
 
 
 def magnitude_decision(records: tuple[Record, ...]) -> Record:
-    if len(records) != 6:
-        raise PilotHold("all six development anchors required")
+    if len(records) != 6 or len({integer(r["seed"]) for r in records}) != 6:
+        raise PilotHold("all six distinct development anchors required")
+    # v4.2 §3: retired P3 rungs are replayed, never chosen. Fresh hosts from the same seeds under the
+    # determinism contract must reproduce attempt 3's gains exactly; any difference is a hold.
+    for record in records:
+        seed = str(integer(record["seed"]))
+        measured = tuple(number(mapping(mapping(record["rungs"])["P3"])[str(kappa)]) for kappa in P3_RETIRED)
+        if measured != P3_RETIRED_GAINS[seed]:
+            raise PilotHold(f"retired P3 rung replay mismatch with attempt 3 on anchor {seed}: {measured}")
     chosen: Record = {}
     for family, ladders in (
         ("P1", ((0.1, 0.3), (0.03, 0.1))),
         ("P2", ((0.1,), (0.03,))),
-        ("P3", tuple((kappa,) for kappa in P3_LADDER)),
+        ("P3", tuple((kappa,) for kappa in P3_ELIGIBLE)),
     ):
         found: tuple[float, ...] | None = None
         for magnitudes in ladders:

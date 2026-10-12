@@ -15,6 +15,7 @@ from sultai_screen.contracts import (
     AMENDMENT_PATH,
     AMENDMENT_SHA,
     AMENDMENT_V41_PATH,
+    AMENDMENT_V41_SHA,
     PREREG_SHA,
     PROTOCOL_SHA,
     PROTOCOL_VERSION,
@@ -117,6 +118,16 @@ class ProtocolIdentityTests(unittest.TestCase):
                     ],
                 }
                 self.assertEqual(check_certificate(certificate), identity)
+                predecessor = dict(
+                    certificate,
+                    protocol_version="gate3-v4.1",
+                    amendment_sha256=AMENDMENT_V41_SHA,
+                    protocol_sha256=hashlib.sha256(
+                        f"gate3-v4.1\n{PREREG_SHA}\n{AMENDMENT_V41_SHA}\n".encode()
+                    ).hexdigest(),
+                )
+                with self.assertRaisesRegex(PilotHold, "protocol identity"):
+                    check_certificate(predecessor)
                 for key in ("protocol_version", "protocol_sha256", "amendment_sha256"):
                     old_only = dict(certificate)
                     del old_only[key]

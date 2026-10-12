@@ -48,12 +48,16 @@ P5, P6 and P8 were never opened; no scientific quantity was read.
 ## 3. P3 ladder (overrides the P3 line of the v4 §5 ladder rule)
 
 The P3 ladder is **κ ∈ {0.25, 0.5, 1.0, 2.0, 4.0}**, in that order. The
-rule is unchanged: the magnitude is the first rung at which A1 gain is at
-least 0.05 nats on every development anchor; the three rungs that failed in
-attempt 3 remain on the record as failed and cannot be chosen by a later
-measurement that happens to pass them. The materiality worker evaluates all
-five rungs on every anchor so the whole curve is published. P1 and P2
-ladders, the rule's threshold and every other magnitude are unchanged. The
+three rungs that failed in attempt 3 are **retired**: the materiality worker
+still evaluates them on every anchor so the whole curve is published, but
+the launcher requires their A1 gains on the freshly trained hosts to equal
+attempt 3's published values **exactly** (the hosts are retrained from the
+same seeds under the determinism contract, so the gains are a replay), and
+any difference, clearing the bar or not, is a hold. The magnitude is then
+the first **eligible** rung, κ ∈ {2.0, 4.0}, at which A1 gain is at least
+0.05 nats on every development anchor; if neither clears, the ladder is
+exhausted and the pilot stops with an instrument finding. The threshold,
+the P1 and P2 ladders and every other magnitude are unchanged. The
 prediction from attempt 3's curvature that κ = 2.0 clears the bar on anchor
 3002 is a prediction, not evidence.
 
