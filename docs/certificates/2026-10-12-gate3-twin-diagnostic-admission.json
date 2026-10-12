@@ -1,0 +1,33 @@
+{
+  "implementation_commit": "9e19e5e9fee3be709b54f810c6b3e4954271416b",
+  "implementation_source_sha256": "c0e99d856b54c599b854492ea3b5fd20a57c4c77aa477d5d23aafad6068c0f36",
+  "preregistration_sha256": "7668d20ad55c3a62384975a7cf1f3989dbe69bf701ce02bc9c68ac2601d0d42a",
+  "quality_passed": true,
+  "runtime_tests_passed": true,
+  "independent_panel_accepted": true,
+  "evidence": [
+    {
+      "path": "docs/results/gate3-twin-diagnostic-implementation-2026-10-12/quality.json",
+      "sha256": "3cd3d186a3474325b6360043c13637b151998f72d126d641afdd8e0f1965e88d"
+    },
+    {
+      "path": "docs/results/gate3-twin-diagnostic-implementation-2026-10-12/runtime.json",
+      "sha256": "0e50342d1fa840d0e14a7d98caea8826928e88d79bdeb9a5660df14cc1a7d8f2"
+    },
+    {
+      "path": "docs/reviews/gate3-headroom/twin-diagnostic-acceptance-2026-10-12.md",
+      "sha256": "fd69cd7b52d3d848e1fbd866c156a67560aa960a449099b10f1653639d08f899"
+    },
+    {
+      "path": "docs/certificates/2026-10-12-gate3-twin-diagnostic-authorization.md",
+      "sha256": "1c018fbe4ef9c0736f6a5ef63bc4767794c0e359bb6824d3e18856faf006046f"
+    }
+  ],
+  "diagnostic_approved": true,
+  "diagnostic_max_seconds": 120,
+  "opening_charge_gpu_process_seconds": 1469.3526015179232,
+  "total_ceiling_gpu_process_seconds": 10800,
+  "pilot_restart_cleared": false,
+  "confirmation_cleared": false,
+  "recorded_utc": "2026-10-12T08:28:27.571071+00:00"
+}

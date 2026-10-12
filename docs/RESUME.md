@@ -36,8 +36,11 @@ verified idle afterward; original and linked custody remain intact. See the
 [new hold and diagnostic disposition](certificates/2026-10-11-gate3-linked-retry-hold.md)
 and [byte-preserved retry evidence](results/gate3-pilot-2026-10-11-01a125af-retry1/manifest.json).
 John subsequently approved the separate [one-worker, 120-second diagnostic](certificates/2026-10-12-gate3-twin-diagnostic-authorization.md) on 2026-10-12.
-Implementation, CPU validation and independent review are in progress; no diagnostic
-has launched at this checkpoint. Pilot source repair, another pilot and
+Diagnostic source `9e19e5e9fee3be709b54f810c6b3e4954271416b` passes all 20 quality
+checks and 146 CPU tests and is accepted by both independent specialists. The
+[bound diagnostic certificate](certificates/2026-10-12-gate3-twin-diagnostic-admission.json)
+requires fresh host/custody admission before the one run. No diagnostic has
+launched at this checkpoint. Pilot source repair, another pilot and
 confirmation remain blocked under frozen §9 / D-P. The historical
 Gate 2 verdict is unchanged. Never reset either durable pilot attempt receipt.
 
