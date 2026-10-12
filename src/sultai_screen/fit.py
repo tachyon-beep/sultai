@@ -37,19 +37,37 @@ class Adapter:
         return Adapter(tuple(w.detach().clone() for w in self.weights), self.nonlinear)
 
 
+EVAL_CHUNK = 128
+
+
 def zero_adapter(device: torch.device, *, dtype: torch.dtype = torch.float32) -> Adapter:
     return Adapter((torch.zeros((16, 16), device=device, dtype=dtype), torch.zeros(16, device=device, dtype=dtype)))
 
 
+def _padded(values: Tensor) -> Tensor:
+    """v4.1 §3: pad a partial chunk to EVAL_CHUNK rows by repeating its last real row; same dtype/device/layout."""
+    missing = EVAL_CHUNK - len(values)
+    if missing <= 0:
+        return values
+    return torch.cat((values, values[-1:].expand(missing, *values.shape[1:])))
+
+
 def losses(host: Host, data: Features, adapter: Adapter | None, *, check_finite: bool = True) -> Tensor:
+    """Shared frozen evaluator: every chunk has exactly EVAL_CHUNK rows; exactly N losses in caller order."""
+    count = len(data.labels)
+    if count == 0 or len(data.read) != count or len(data.base) != count:
+        raise ContractViolation("nonempty aligned read/base/labels required")
     expected = state_hash(host)
     assert_frozen(host, expected)
     result = []
     with torch.no_grad():
-        for start in range(0, len(data.labels), 128):
-            read, base = data.read[start : start + 128], data.base[start : start + 128]
+        for start in range(0, count, EVAL_CHUNK):
+            stop = min(start + EVAL_CHUNK, count)
+            read, base = _padded(data.read[start:stop]), _padded(data.base[start:stop])
+            labels = _padded(data.labels[start:stop])
             values = base if adapter is None else adapter.apply(read, base)
-            result.append(F.cross_entropy(host.classify(values), data.labels[start : start + 128], reduction="none"))
+            chunk = F.cross_entropy(host.classify(values), labels, reduction="none")
+            result.append(chunk[: stop - start])
     values = torch.cat(result)
     assert_frozen(host, expected)
     if check_finite and not bool(torch.isfinite(values).all()):

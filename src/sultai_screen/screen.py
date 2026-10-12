@@ -18,6 +18,8 @@ from sultai.trust import FitUnavailable
 
 from .alignment import align, moments, transport
 from .contracts import (
+    AMENDMENT_PATH,
+    AMENDMENT_SHA,
     PREREG_SHA,
     RHO,
     InstrumentHold,
@@ -31,6 +33,7 @@ from .contracts import (
     json_value,
     mapping,
     number,
+    protocol_identity,
     publish,
     read_record,
     text,
@@ -43,14 +46,17 @@ from .impair import make_impairment
 
 REPO = Path(__file__).resolve().parents[2]
 PROTOCOL = REPO / "docs/plans/2026-10-10-gate3-headroom-screen.md"
+AMENDMENT = REPO / AMENDMENT_PATH
 DEV_ARTIFACT = REPO / "docs/results/gate3-split-2026-10-11/dev-indices-int32-le.bin"
 INTACT_SEEDS = tuple(range(3000, 3006))
 BOTTLENECK_SEEDS = INTACT_SEEDS
 
 
-def source_identity(*, expected_prereg: str = PREREG_SHA) -> Record:
-    if file_sha(PROTOCOL) != expected_prereg:
+def source_identity() -> Record:
+    if file_sha(PROTOCOL) != PREREG_SHA:
         raise PilotHold("committed preregistration identity mismatch")
+    if file_sha(AMENDMENT) != AMENDMENT_SHA:
+        raise PilotHold("committed protocol amendment identity mismatch")
     commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPO, text=True).strip()
     dirty = subprocess.check_output(["git", "status", "--porcelain"], cwd=REPO, text=True)
     if dirty:
@@ -68,7 +74,7 @@ def source_identity(*, expected_prereg: str = PREREG_SHA) -> Record:
         "commit": commit,
         "source_sha256": aggregate,
         "source_files": hashes,
-        "preregistration_sha256": expected_prereg,
+        **protocol_identity(),
     }
 
 
@@ -94,8 +100,8 @@ def environment_identity() -> Record:
     return actual
 
 
-def provenance(*, expected_prereg: str = PREREG_SHA) -> Record:
-    result = source_identity(expected_prereg=expected_prereg)
+def provenance() -> Record:
+    result = source_identity()
     result.update(environment_identity())
     result.update({"determinism": flags(), "physical_gpu": os.environ["CUDA_VISIBLE_DEVICES"]})
     return result
@@ -110,9 +116,11 @@ def _training(root: Path, seed: int, width: int, device: torch.device) -> Host:
     payload = mapping(record["payload"])
     original_identity = mapping(record["identity"])
     current_identity = provenance()
+    if "protocol_sha256" not in original_identity:
+        raise PilotHold("training receipt carries no amended protocol identity")
     if (
         original_identity["source_sha256"] != current_identity["source_sha256"]
-        or original_identity["preregistration_sha256"] != current_identity["preregistration_sha256"]
+        or original_identity["protocol_sha256"] != current_identity["protocol_sha256"]
     ):
         raise PilotHold("training receipt belongs to another source/protocol")
     if integer(payload["seed"]) != seed or integer(payload["width"]) != width:

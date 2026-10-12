@@ -17,7 +17,6 @@ from sultai.repair import Example, fit
 from sultai.trust import ContractViolation, InputDataError
 from sultai_screen.alignment import hungarian, transport
 from sultai_screen.contracts import (
-    PREREG_SHA,
     FeasibilityHold,
     InstrumentHold,
     OracleUnavailable,
@@ -27,6 +26,7 @@ from sultai_screen.contracts import (
     file_sha,
     json_value,
     number,
+    protocol_identity,
     publish,
     read_record,
 )
@@ -602,7 +602,7 @@ class ScreenTests(unittest.TestCase):
             ):
                 identity = source_identity()
                 certificate = {
-                    "preregistration_sha256": PREREG_SHA,
+                    **protocol_identity(),
                     "quality_passed": True,
                     "runtime_tests_passed": True,
                     "independent_panel_accepted": True,
@@ -623,7 +623,7 @@ class ScreenTests(unittest.TestCase):
                 ):
                     with self.assertRaises(PilotHold):
                         check_certificate(dict(certificate, **{key: value}))
-                with self.assertRaises(KeyError):
+                with self.assertRaisesRegex(PilotHold, "protocol identity missing"):
                     check_certificate({})
                 (root / "untracked.py").write_text("value=1\n")
                 with self.assertRaises(PilotHold):

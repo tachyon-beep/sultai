@@ -1,5 +1,36 @@
 # Resume Sultai after the bounded correction
 
+## Gate 3 v4.1 fixed-evaluation package — 2026-10-13
+
+John authorised this package on 2026-10-12 ("yes, please authorise and
+execute") and assigned it to the Nyx Claude session `sultai-claude-nyx` while
+`codex-sultai-gate3` is paused; see the
+[authorisation record](certificates/2026-10-13-gate3-fixed-evaluation-authorization.md).
+The tracker claim could not be reassigned by this session's tooling and still
+names the Codex owner. Delivered on `codex/gate3-screen`:
+
+- Shared frozen evaluator `sultai_screen.fit.losses` now pads every partial
+  chunk to exactly 128 rows by repeating the last real example, applies the
+  module after padding and returns exactly N losses in caller order. The
+  global-permutation twin stays bitwise. Training paths are unchanged.
+- [Protocol amendment v4.1](plans/2026-10-13-gate3-headroom-screen-v4.1-amendment.md):
+  v4 bytes preserved; one composed identity `gate3-v4.1`; receipts and
+  certificates must carry all four identity fields, old-only identities are
+  rejected; fresh confirmatory seed ranges (intact 4100–4163, bottleneck
+  5200–5399); GPU-time accounting stated; linked pilot 2 custody binding.
+- Launcher binding for linked pilot 2 (`--linked-pilot-2`): carries the
+  cumulative **1473.267264504917 s** against the unchanged 10,800 s cap and
+  binds all three custody receipts and the terminal charge records by hash.
+  It refuses to run without John's disposition document
+  `docs/certificates/2026-10-13-gate3-linked-pilot-2-disposition.md`, which
+  does not exist yet.
+- Evidence: `docs/results/gate3-fixed-evaluation-2026-10-13/` (20 quality
+  checks on 24 files; 159 CPU tests). Independent exact-source reviews are
+  recorded under `docs/reviews/gate3-headroom/` as they complete.
+
+**No GPU execution, pilot, confirmation or merge is cleared by this package.**
+The earlier holds, custody receipts and charges below are unchanged.
+
 ## Active Gate 3 implementation — 2026-10-11
 
 John subsequently authorized the separate bounded headroom-screen implementation,

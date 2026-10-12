@@ -19,7 +19,6 @@ from sultai.trust import FitUnavailable
 from .contracts import (
     CHEAP_RATES,
     PILOT_SECONDS,
-    PREREG_SHA,
     RHO,
     FeasibilityHold,
     InstrumentHold,
@@ -33,6 +32,7 @@ from .contracts import (
     json_value,
     mapping,
     number,
+    protocol_identity,
     publish,
     read_record,
     sequence,
@@ -373,14 +373,16 @@ def stop_report(error: Exception, stage: str, charged: float) -> Record:
         "error_type": type(error).__name__,
         "error": str(error),
         "charged_gpu_process_seconds": charged,
-        "preregistration_sha256": PREREG_SHA,
+        **protocol_identity(),
     }
 
 
 def check_certificate(approved: Record) -> Record:
+    for key, value in protocol_identity().items():
+        if key not in approved or approved[key] != value:
+            raise PilotHold(f"review certificate protocol identity missing or mismatched: {key}")
     if (
-        approved["preregistration_sha256"] != PREREG_SHA
-        or approved["quality_passed"] is not True
+        approved["quality_passed"] is not True
         or approved["runtime_tests_passed"] is not True
         or approved["independent_panel_accepted"] is not True
     ):
@@ -455,6 +457,64 @@ def linked_retry(approved: Record) -> Record:
     }
 
 
+# v4.1 §6: linked pilot 2 (attempt 3) succeeds attempts 1 and 2 and the diagnostic; the cumulative
+# charge is carried and all three custody receipts plus the terminal charge records are bound by hash.
+RETRY_ROOT = "runs/gate3-pilot-2026-10-11-01a125af-retry1"
+DIAGNOSTIC_ROOT = "runs/gate3-twin-diagnostic-2026-10-12-01a125af"
+RETRY_CHARGE = 1469.3526015179232
+CUMULATIVE_CHARGE = 1473.267264504917
+PRIOR_RECEIPTS_2 = (
+    PRIOR_RECEIPTS[0],
+    (RETRY_RECEIPT, "d3726c4293655faf7c5630a12a235368a47bde6d8eccafa2d96780ddcdf01888"),
+    (".weft/gate3-twin-diagnostic-attempt.json", "5cf565c14899c7a0fa7635beb37170a1c3d1e2f86a9f9124fcf88b677ff779e4"),
+    (f"{RETRY_ROOT}/pilot-result.json", "943ace1533cde6950d0e57cc1ef64fd5ec4f318826a89b5f1d7cfce026cd3931"),
+    (f"{RETRY_ROOT}/ledger-015.json", "42ee5feedcda3c7841064b0bd65c049cdcf84ed0432e480cf2ae6d89bef73ce1"),
+    (f"{DIAGNOSTIC_ROOT}/charge.json", "3660f2fd5d59364429eed82f259f75d5c97fcc41407a30e50c8fd6552f291f33"),
+)
+PILOT_2_RECEIPT = ".weft/gate3-pilot-linked-pilot-2.json"
+DISPOSITION_2 = "docs/certificates/2026-10-13-gate3-linked-pilot-2-disposition.md"
+
+
+def linked_pilot_two(approved: Record) -> Record:
+    """T2: missing/changed prior custody or terminal charge records, or no explicit disposition, raises PilotHold."""
+    if (
+        approved["linked_pilot_2_approved"] is not True
+        or approved["prior_charge_gpu_process_seconds"] != CUMULATIVE_CHARGE
+    ):
+        raise PilotHold("linked pilot 2 and the exact cumulative charge require John's explicit disposition")
+    evidence = [mapping(entry) for entry in sequence(approved["evidence"])]
+    if not any(entry["path"] == DISPOSITION_2 for entry in evidence):
+        raise PilotHold("bound operator disposition evidence for linked pilot 2 required")
+    hashes: Record = {}
+    for relative, expected in PRIOR_RECEIPTS_2:
+        path = REPO / relative
+        if not path.is_file() or file_sha(path) != expected:
+            raise PilotHold(f"prior attempt receipt missing or changed: {relative}")
+        hashes[relative] = expected
+    result = read_record(REPO / RETRY_ROOT / "pilot-result.json")
+    ledger = read_record(REPO / RETRY_ROOT / "ledger-015.json")
+    charge = read_record(REPO / DIAGNOSTIC_ROOT / "charge.json")
+    if (
+        result["charged_gpu_process_seconds"] != RETRY_CHARGE
+        or result["verdict"] != "execution-invalid"
+        or result["pilot_clean"] is not False
+        or ledger["charged_gpu_process_seconds"] != RETRY_CHARGE
+        or ledger["ceiling_gpu_process_seconds"] != PILOT_SECONDS
+        or charge["opening_charge_gpu_process_seconds"] != RETRY_CHARGE
+        or charge["total_charge_gpu_process_seconds"] != CUMULATIVE_CHARGE
+        or charge["total_ceiling_gpu_process_seconds"] != PILOT_SECONDS
+        or charge["child_returncode"] != 0
+        or charge["timed_out"] is not False
+    ):
+        raise PilotHold("terminal records of attempt 2 and the diagnostic must carry the exact cumulative charge")
+    return {
+        "prior_receipts": hashes,
+        "opening_charge_gpu_process_seconds": CUMULATIVE_CHARGE,
+        "attempt_number": 3,
+        "further_attempt_authorized": False,
+    }
+
+
 def check_output_root(root: Path) -> None:
     if not root.is_absolute() or not (
         root.resolve().is_relative_to((REPO / "runs").resolve())
@@ -501,7 +561,9 @@ def cheap_rate_decision(cheap: tuple[Record, ...]) -> Record:
     return {"eta_B": eta, "mean_selection_loss": mean_selection, "fixed_rate_results": fixed}
 
 
-def pilot(root: Path, data: Path, certificate: Path, *, retry: bool = False) -> int:
+def pilot(root: Path, data: Path, certificate: Path, *, retry: bool = False, second: bool = False) -> int:
+    if retry and second:
+        raise PilotHold("one linkage per attempt: linked retry 1 and linked pilot 2 are distinct attempts")
     check_output_root(root)
     if root.exists():
         raise PilotHold("one attempt requires a new output root; no automatic resume")
@@ -509,11 +571,11 @@ def pilot(root: Path, data: Path, certificate: Path, *, retry: bool = False) -> 
     identity = check_certificate(approved)
     source_commit = text(identity["commit"])
     environment = environment_identity()
-    linkage = linked_retry(approved) if retry else None
+    linkage = linked_retry(approved) if retry else linked_pilot_two(approved) if second else None
     handover = check_handover()
     # Durable one-attempt custody across output paths and supervisor restarts.
     # Never remove/reset this receipt to make a second invocation appear fresh.
-    attempt = REPO / (RETRY_RECEIPT if retry else ".weft/gate3-pilot-attempt.json")
+    attempt = REPO / (RETRY_RECEIPT if retry else PILOT_2_RECEIPT if second else ".weft/gate3-pilot-attempt.json")
     custody = dict(identity, environment=environment, linkage=linkage, certificate_sha256=file_sha(certificate))
     claim_attempt(attempt, root, custody)
     root.mkdir(parents=True, exist_ok=False)
@@ -525,13 +587,16 @@ def pilot(root: Path, data: Path, certificate: Path, *, retry: bool = False) -> 
             "linkage": linkage,
             "implementation_commit": source_commit,
             "certificate_sha256": file_sha(certificate),
-            "preregistration_sha256": PREREG_SHA,
+            **protocol_identity(),
             "pilot_gpu_hour_ceiling": 3,
             "oracle_seeds": 3,
             "confirmatory_cotenancy_processes_per_card": 3,
         },
     )
-    supervisor = Supervisor(root, data, PRIOR_CHARGE) if retry else Supervisor(root, data)
+    if retry or second:
+        supervisor = Supervisor(root, data, PRIOR_CHARGE if retry else CUMULATIVE_CHARGE)
+    else:
+        supervisor = Supervisor(root, data)
     stage = "timing-replay"
     try:
         # The six intact and six bottleneck hosts share seed labels only for a descriptive
@@ -708,7 +773,7 @@ def pilot(root: Path, data: Path, certificate: Path, *, retry: bool = False) -> 
                 "sizing": sizing,
                 "former": posthoc[0]["former"],
                 "charged_gpu_process_seconds": supervisor.charged,
-                "preregistration_sha256": PREREG_SHA,
+                **protocol_identity(),
             },
         )
         return 0
@@ -730,9 +795,18 @@ def main() -> int:
     parser.add_argument(
         "--linked-retry", action="store_true", help="one explicitly reviewed linked successor, same total cap"
     )
+    parser.add_argument(
+        "--linked-pilot-2",
+        action="store_true",
+        help="v4.1 §6 linked pilot 2: fresh hosts, cumulative charge carried, same total cap",
+    )
     args = parser.parse_args()
     return pilot(
-        args.output.resolve(), args.data_root.resolve(), args.review_certificate.resolve(), retry=args.linked_retry
+        args.output.resolve(),
+        args.data_root.resolve(),
+        args.review_certificate.resolve(),
+        retry=args.linked_retry,
+        second=args.linked_pilot_2,
     )
 
 
