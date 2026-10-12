@@ -58,23 +58,28 @@ anything for a generator to amortise?). That design says in its own words
 that its first rung "cannot show parameter efficiency, and it is not meant
 to". Four attempts and 6,207 GPU process-seconds later, the screen stopped on
 its own rule because the primary repair family could not be defined on the
-host. The instrument is sound; the question was a proxy. The attempt-4
-evidence already contains the first reading on the real objective, by
-accident: a 272-parameter module, 0.1 percent of the host, lowered
-development loss on every host it was fitted to, whether or not it could see
-any "lost" information
+host. The software and the P1 known answer are sound; the primary family
+was undefined and the oracle was short of plateau; the question was a
+proxy. The attempt-4 evidence contains an accidental first hint on the real
+objective: a 272-parameter module, 0.1 percent of the host, lowered
+development loss on every **impaired** host it was fitted to, whether or
+not it could see any "lost" information
 ([attempt-4 hold](certificates/2026-10-13-gate3-linked-pilot-3-hold.md)).
-Nothing in that evidence separates new capacity from re-tuning of an
-undertrained host, which is exactly the control the recut study adds.
+No unimpaired-host fit was run, and nothing in that evidence separates new
+capacity from calibrating or finishing an undertrained host. Those are
+exactly the controls the recut study puts between the module and a
+"present" reading.
 
 ## 4. Rules for every preregistration from here on
 
-1. **The primary endpoint is stated in retained-parameter and loss units.**
-   Every arm reports a point on the plane (physically retained parameters,
-   development loss) with its compute booked. Development accuracy is
-   reported beside loss; loss is primary because it is the quantity every
-   arm optimises and the one the existing instrument measures with
-   paired-bootstrap intervals.
+1. **The primary endpoint is stated in retained-parameter and loss units,
+   with an accuracy guard.** Every arm reports a point on the plane
+   (physically retained parameters, development loss) with its compute
+   booked. John said "accuracy"; the author's formalisation is mean
+   development cross-entropy as the primary unit, because it is what every
+   arm optimises and what the instrument measures with paired-bootstrap
+   intervals, with a dev-accuracy co-read that must not be negative for any
+   "present" verdict. John confirms or changes the unit (decision J0).
 2. **"Efficient" is a comparison against named cheaper routes to the same
    loss**, never against zero: re-tuning an equal count of the host's own
    parameters on the same data; more training of the host; the same
@@ -96,14 +101,20 @@ undertrained host, which is exactly the control the recut study adds.
 
 | Rung | Question | Primary measure | What beats it |
 |---|---|---|---|
-| **M0** (next: [capacity frontier screen](plans/2026-10-13-capacity-frontier-screen.md)) | Does capacity added at a site by an ordinary loss fit buy loss that re-tuning an equal count of existing parameters does not, and does an overgrown module physically cut to the small budget keep more of its gain than a module built small? | Per-anchor paired gain differences in nats at matched retained parameters and matched data; frontier-equivalent parameters as the scale | Re-tune control equal to the module; built-small equal to cut-down |
+| **M0** (next: [capacity frontier screen](plans/2026-10-13-capacity-frontier-screen.md)) | Fitted on data the host already saw, does a nonlinear module at a known site buy loss that calibration, a foldable affine module, re-tuning the host's own parameters and a decayed finish do not; and does an overgrown module physically cut to the small budget keep more of its gain than the plug-in module built small at matched budget? | Per-anchor paired gain differences in nats at matched retained parameters, matched data and matched budget, with an accuracy guard; the width frontier's slope as the scale | Any cheaper route equal to the module; built-small equal to cut-down |
 | **M1** | Can a learned or generated builder find that capacity at lower cost, or better, than the SGD fit, on hosts it has not seen? | Recovered fraction of the SGD-fit gain at zero task-gradient steps, against retrieval and a deterministic hypernetwork at matched evidence | Retrieval equal to generation; or SGD in a few steps equal to both |
-| **M2** | Starting from a starved host, does grow-and-remove reach the frontier at fewer retained parameters than static width? | Frontier excess in nats at the retained count, at matched compute, against static capacity and the cut-down architecture retrained from scratch | Static capacity at the same count equal or better |
+| **M2** | Starting from a near-empty host (D02; the starting point is John's decision J-D02), does grow-and-remove during training reach the frontier at fewer retained parameters than static width? | Frontier excess in nats at the retained count, at matched compute, against static capacity and the cut-down architecture retrained from scratch | Static capacity at the same count equal or better |
 | **M3** | The half-retained-parameters claim | Loss of the grown model against the from-scratch width sweep at matched or larger compute, all cost ledgers disclosed | The sweep at half the parameters |
 
-A rung opens only when the previous rung's verdict says "present" under its
-preregistered margins; a negative at any rung is a published finding, not a
-reason to move the goalposts.
+M1 opens only on an M0 "present" reading. **M2 does not wait for M1**: M1
+only decides which builder M2 uses, and an ordinary SGD builder is
+admissible, because the central bet (CONCEPT: addition and deliberate
+removal during development) must not be gated behind the optional
+generator (D09). M0's add-and-remove contrast is a terminal-truncation
+precedent, not the developmental-removal question; that question is M2's.
+M3 opens on an M2 "present". A negative at any rung is a published finding,
+not a reason to move the goalposts. Site S1 in M0 is a privileged, known
+site; site discovery belongs to M2.
 
 ## 6. Gate reinterpretation (proposed, pending John)
 
@@ -111,13 +122,13 @@ The frozen [correction protocol](plans/2026-10-09-correction-protocol.md)
 words gates 3 to 5 as repair gates. Proposed reading under this statement,
 not an edit of the frozen text: Gate 3 "useful repair headroom" is closed on
 the attempt-4 finding; the M0 screen stands in its place as "useful capacity
-headroom"; Gate 5 "benefit after removal" is read as M0's add-and-remove
-contrast. Gates 4, 6 and 7 are unchanged. John confirms or amends this
+headroom"; Gate 5 "benefit after removal" stays open and is read by rung
+M2, not by M0's truncation contrast. Gates 4, 6 and 7 are unchanged. John confirms or amends this
 reading before the M0 freeze.
 
 ## 7. Where to look
 
-- The recut study: [capacity frontier screen draft v1](plans/2026-10-13-capacity-frontier-screen.md).
-- Closure of the repair screen: [attempt-4 final disposition](certificates/2026-10-13-gate3-linked-pilot-3-final-disposition.md).
-- Decision record: D26 in [DECISIONS.md](DECISIONS.md).
-- Session pickup: [RESUME.md](RESUME.md).
+The recut study is [the capacity frontier screen draft](plans/2026-10-13-capacity-frontier-screen.md);
+its reviews are under `reviews/m0-capacity/`; the repair screen's closure is
+[the attempt-4 final disposition](certificates/2026-10-13-gate3-linked-pilot-3-final-disposition.md);
+the decision is D26 in [DECISIONS.md](DECISIONS.md).

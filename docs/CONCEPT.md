@@ -9,9 +9,12 @@ its measurements remain in [SMOKE.md](SMOKE.md).
 
 ## Objective and mechanism
 
-John restated the objective on 2026-10-13: new, more efficient capacity,
-measured as accuracy gained per parameter retained; repair is not the goal.
-The measurement rules and progress ladder live in [STEERING.md](STEERING.md)
+John restated the objective on 2026-10-13: "build new more efficient
+capacity into the model … increase its accuracy at the most efficient
+parameter cost possible"; repair is not the goal. "Accuracy per parameter
+retained", with loss as the measured unit and accuracy as a guard, is the
+author's formalisation, pending John's confirmation (decision J0). The
+measurement rules and progress ladder live in [STEERING.md](STEERING.md)
 (decision D26).
 
 Sultai starts with very little task-model structure and develops a capable

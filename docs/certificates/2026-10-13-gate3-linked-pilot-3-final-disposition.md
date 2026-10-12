@@ -33,6 +33,13 @@ the published result and retires what was never executed:
 | Option 2 (bounded diagnostic) and option 3 (v5 bottleneck redesign) | Not taken; superseded by the recut |
 | Tracker claim `sultai-ef0da96d8a` | Remains with `sultai-claude-nyx`; closure or re-scoping is recorded there when the tracker accepts the write |
 
+**Correction to the preserved hold record** (found by the M0 reality
+review, the hold's bytes are not edited): the hold says oracle plateau was
+"certified on one of twelve width-4 fits". The receipts certify anchor
+3003 at both P5 and P6 at width 4, so the count is two of twelve width-4
+grids, two of twenty-four bottleneck grids, and two of thirty grids
+including the six P1 grids. The reading of the hold is unchanged.
+
 Successors: the [steering statement](../STEERING.md), the
 [capacity frontier screen draft v1](../plans/2026-10-13-capacity-frontier-screen.md)
 and decision D26 in [DECISIONS.md](../DECISIONS.md). The Gate 2 verdict is
