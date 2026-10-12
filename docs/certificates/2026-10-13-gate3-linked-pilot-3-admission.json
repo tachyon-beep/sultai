@@ -1,0 +1,40 @@
+{
+  "implementation_commit": "1dfe62f146b1ca05d5d155d94a30bbb06df99a20",
+  "implementation_source_sha256": "36c3fb277d7d56c27b2f193e0a77e762558885ddad8de62def2351e5c57eb617",
+  "protocol_version": "gate3-v4.2",
+  "protocol_sha256": "ae7ca18bbd89a978c4f27ae5b49fc2ecaead33c714f462c425d7f1d0460bb651",
+  "preregistration_sha256": "7668d20ad55c3a62384975a7cf1f3989dbe69bf701ce02bc9c68ac2601d0d42a",
+  "amendment_sha256": "43149802b41f9882c3d76acb7695153fbdd672b2bd640881e967f41c0f6ede9f",
+  "quality_passed": true,
+  "runtime_tests_passed": true,
+  "independent_panel_accepted": true,
+  "evidence": [
+    {
+      "path": "docs/results/gate3-v42-p3-ladder-2026-10-13/quality.json",
+      "sha256": "77245f17fd2358205f6a937f54ee9dd25e7346db38d06695fc522bf7a354f043"
+    },
+    {
+      "path": "docs/results/gate3-v42-p3-ladder-2026-10-13/runtime.json",
+      "sha256": "c43439272814c83188e6eb17d7eaa0bda93b897c3043d8958fc7a905f40eb677"
+    },
+    {
+      "path": "docs/reviews/gate3-headroom/v42-p3-ladder-implementation-review-2026-10-13.md",
+      "sha256": "c2e789125cea64d0a980125e0ac6d82967ba9482c9ee01a147e5d30a2ac4a3c7"
+    },
+    {
+      "path": "docs/reviews/gate3-headroom/v42-p3-ladder-rereview-1dfe62f-2026-10-13.md",
+      "sha256": "7f326badc961a897bd1d984b0b648a47feb352d074884eb5680ac4f90bd40333"
+    },
+    {
+      "path": "docs/certificates/2026-10-13-gate3-linked-pilot-3-disposition.md",
+      "sha256": "a3b3d203c02e40cfeafc4ce57bacd3e28d19358a3fbbd59db0251324be4bcb71"
+    }
+  ],
+  "linked_pilot_3_approved": true,
+  "prior_charge_gpu_process_seconds": 2934.3435500559863,
+  "pilot_gpu_hour_ceiling": 3,
+  "confirmation_cleared": false,
+  "nvidia_driver_version": "580.178.04",
+  "pr_url": "https://github.com/tachyon-beep/sultai/pull/3",
+  "recorded_utc": "2026-10-12T15:09:09.229013+00:00"
+}
