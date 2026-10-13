@@ -1279,13 +1279,16 @@ def acceptance_action(request: Request, data: Dataset, device: torch.device) -> 
 
 
 def chunked_accuracy(host: Host, data: Features) -> Tensor:
-    """R34b: 0/1 correctness from host.classify on the unpadded site in EVAL_CHUNK-row batches (the last one partial),
-    concatenated; the padded evaluator's batch size, so a GPU batch-size bit difference cannot change an argmax."""
+    """R34b/R34c: 0/1 correctness from host.classify on the site in EVAL_CHUNK-row batches, each zero-padded to exactly
+    EVAL_CHUNK rows (in practice only the last) with the padding rows discarded before the argmax, so the reference
+    sees the padded evaluator's batch shape on card; independent of it by code path (classify, not logits)."""
+    chunks: list[Tensor] = []
     with torch.no_grad():
-        values = torch.cat(
-            [host.classify(data.base[start : start + EVAL_CHUNK]) for start in range(0, len(data.labels), EVAL_CHUNK)]
-        )
-    return (values.argmax(1) == data.labels).float()
+        for start in range(0, len(data.labels), EVAL_CHUNK):
+            site = data.base[start : start + EVAL_CHUNK]
+            padding = site.new_zeros((EVAL_CHUNK - len(site), *site.shape[1:]))
+            chunks.append(host.classify(torch.cat((site, padding)))[: len(site)])
+    return (torch.cat(chunks).argmax(1) == data.labels).float()
 
 
 def fold_check_action(request: Request, data: Dataset, device: torch.device) -> Record:
