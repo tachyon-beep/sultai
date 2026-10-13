@@ -296,6 +296,13 @@ class SupervisionTests(unittest.TestCase):
         self.assertEqual(admit_extended(3_000.0, 10_400.0, w, 14_400.0), [])
         self.assertEqual(admit_extended(0.0, 0.0, w, 1e9), list(EXTENDED_ORDER))
 
+    def test_unmeasured_frontier_widths_are_costed_at_the_measured_half_width_host(self) -> None:
+        # By stage 4 only the 0.5, 1.0 and 1.5 hosts have been measured; F(0.25) and F(0.75) run only after admission.
+        w = dataclasses.replace(workloads(), host={0.5: 35.0, 1.0: 45.0, 1.5: 85.0})
+        self.assertEqual(extended_cost("F(0.75)", w), 6 * (35.0 + 0.5))
+        self.assertEqual(extended_cost("F(0.25)", w), 6 * (35.0 + 0.5))
+        self.assertEqual(admit_extended(0.0, 0.0, w, 1e9), list(EXTENDED_ORDER))
+
     def test_core_over_ceiling_stops_before_v1(self) -> None:
         self.assertFalse(core_over_ceiling(5_000.0, 9_400.0, 14_400.0))
         self.assertTrue(core_over_ceiling(5_000.0, 9_400.5, 14_400.0))

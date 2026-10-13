@@ -198,9 +198,12 @@ def extended_cost(item: str, w: Workloads) -> float:
         # Six 20-epoch F(1.0) hosts: twice the measured 10-epoch host, plus one evaluation each.
         return DEVELOPMENT_ANCHORS * (2 * unit_seconds(w, "host:1.0") + unit_seconds(w, "evaluation"))
     if item in FRONTIER_ITEMS:
-        # Six F(s) hosts at the measured width-s host cost, plus one evaluation each.
+        # Six F(s) hosts plus one evaluation each. The 0.25 and 0.75 hosts are trained only after admission, so the
+        # stage-4 projection costs them at the measured 0.5 host (§8: "F(0.25) 210 s (launch-bound, as the 0.5 host);
+        # F(0.75) 210 s"); a measured width-s host is used instead when one is present.
         scale = FRONTIER_ITEMS[item]
-        return DEVELOPMENT_ANCHORS * (unit_seconds(w, f"host:{scale}") + unit_seconds(w, "evaluation"))
+        host = f"host:{scale}" if scale in w.host else "host:0.5"
+        return DEVELOPMENT_ANCHORS * (unit_seconds(w, host) + unit_seconds(w, "evaluation"))
     raise ContractViolation(f"unknown extended item {item!r}")
 
 
