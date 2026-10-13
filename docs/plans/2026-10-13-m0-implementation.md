@@ -381,7 +381,7 @@ Formula **[spec, written out]**: with `u = z + W z + b` and `tail[0]` weight `K 
 
 **Files:**
 - Create: `docs/results/m0-implementation-<date>/quality.json`, `runtime.json`, `runtime.txt`; `docs/reviews/m0-capacity/implementation/<item>.md` (one per §2 item below); `docs/certificates/<date>-m0-pilot-admission.json`
-- Modify: `docs/RESUME.md` (state), `CLAUDE.md` programme-steering section (the three bundled gates), `README.md` (pointer)
+- Modify: `docs/RESUME.md` (state), `README.md` (pointer); `CLAUDE.md` already carries the three bundled gates (landed with this plan at `91412df`)
 
 - [ ] **Step 1: Run the gates on the final commit:** `scripts/check_policy.py`, `scripts/check_quality.py --ruff <path> --output docs/results/m0-implementation-<date>/quality.json`, `mypy src scripts`, the full suite with output captured to `runtime.txt`; write `runtime.json` (commit, test count, OK).
 - [ ] **Step 2: Exact-source reviews, one file per §2 item**, each by a fresh reviewer briefed read-only with the item's draft text, the diff and the tests: width-tuple constructor and bitwise reference host; pinned attempt-4 hashes and replay; seed admission; trainer schedules and optimiser state; seen-fit partition; accuracy evaluator; generalised fitter and checkpoint bitwise claim; module arms and slicing known answer; M-aff fold and residual; calibration and N0; re-tune subsets and complement hash; S-static; P1-only instrument and import isolation; statistics and verdicts; supervisor ceiling, one-per-card and costs; worker, pilot and confirmatory custody. Findings are dispositioned in the same file; a finding that changes a frozen value is amendment 2 and stops the PR.
