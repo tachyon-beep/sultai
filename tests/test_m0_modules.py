@@ -1,15 +1,28 @@
 from __future__ import annotations
 
+import tempfile
 import unittest
+from pathlib import Path
+from unittest.mock import patch
 
 import torch
-from torch import Tensor
+from torch import Tensor, nn
 from torch.nn import functional as F
 
 from sultai.trust import ContractViolation
-from sultai_screen.data import Dataset, as_tensor, generator
+from sultai_screen.contracts import PilotHold
+from sultai_screen.data import Dataset, as_tensor, generator, normalized
 from sultai_screen.fit import Adapter, initial_adapter, losses, mean_loss
-from sultai_screen.host import Features, Host, freeze, make_host, state_hash
+from sultai_screen.host import Cached, Features, Host, cached, freeze, load_host, make_host, state_hash
+from sultai_screen.m0.calibrate import (
+    apply_calibration,
+    class_bias,
+    load_noop,
+    no_op,
+    recalibrate_bn,
+    save_noop,
+    temperature,
+)
 from sultai_screen.m0.data import features_from_images
 from sultai_screen.m0.fold import fold_affine, fold_residual
 from sultai_screen.m0.modules import (
@@ -375,6 +388,258 @@ class FoldTests(unittest.TestCase):
         for folded in (self.host, fold_affine(self.host, affine(10))):
             with self.assertRaises(ContractViolation):
                 fold_residual(self.host, adapter, folded, development, data, torch.arange(8))
+
+
+BN_BUFFERS = ("running_mean", "running_var", "num_batches_tracked")
+
+
+def calibration_dataset(labels: Tensor | None = None) -> Dataset:
+    rng = torch.Generator().manual_seed(9)
+    images = torch.randint(0, 256, (64, 3, 32, 32), generator=rng, dtype=torch.uint8)
+    drawn = torch.randint(0, 10, (64,), generator=rng)
+    return Dataset(
+        images,
+        drawn if labels is None else labels,
+        torch.arange(64),
+        torch.arange(0, 16),
+        torch.arange(16, 40),
+        torch.arange(40, 64),
+    )
+
+
+def batch_norms(host: Host) -> list[nn.BatchNorm2d]:
+    return [module for module in host.modules() if isinstance(module, nn.BatchNorm2d)]
+
+
+def sampled_logits(seed: int, n: int = 2000) -> tuple[Tensor, Tensor]:
+    """Logits with labels drawn from their own softmax, so the fitted temperature has a finite interior optimum."""
+    rng = torch.Generator().manual_seed(seed)
+    values = torch.randn((n, 10), generator=rng, dtype=torch.float64) * 3
+    labels = torch.multinomial(torch.softmax(values, 1), 1, generator=rng).squeeze(1)
+    return values, labels
+
+
+class SelectionOnly:
+    """Stands in for Cached and fails the test if anything other than the selection split is read."""
+
+    def __init__(self, inner: Cached, seen: list[Features]) -> None:
+        self._inner = inner
+        self._seen = seen
+
+    @property
+    def selection(self) -> Features:
+        self._seen.append(self._inner.selection)
+        return self._inner.selection
+
+    @property
+    def conditioning(self) -> Features:
+        raise AssertionError("no_op read the conditioning split")
+
+    @property
+    def development(self) -> Features:
+        raise AssertionError("no_op read the development split")
+
+
+class CalibrateTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.root = Path(self.directory.name)
+        self.data = calibration_dataset()
+        self.checkpoint = self.save(make_host(3000, 0, CPU), "host.pt")
+
+    def save(self, host: Host, name: str) -> Path:
+        path = self.root / name
+        torch.save(dict(host.state_dict()), path)
+        return path
+
+    def recalibrated(self, path: Path, data: Dataset | None = None) -> Host:
+        source = self.data if data is None else data
+        return recalibrate_bn(load_host(path, 3000, 0, CPU, frozen=False), source.images, source.train)
+
+    def guarded_no_op(self, raw: Host, recalibrated: Host, data: Dataset) -> tuple[tuple[Host, str], list[Features]]:
+        seen: list[Features] = []
+
+        def wrapper(host: Host, source: Dataset) -> SelectionOnly:
+            return SelectionOnly(cached(host, source), seen)
+
+        with patch("sultai_screen.m0.calibrate.cached", side_effect=wrapper):
+            return no_op(raw, recalibrated, data), seen
+
+    def test_recalibrate_refuses_a_sealed_host_before_any_forward(self) -> None:
+        host = load_host(self.checkpoint, 3000, 0, CPU, frozen=True)
+        before = {name: tensor.clone() for name, tensor in host.state_dict().items()}
+        with self.assertRaisesRegex(PilotHold, "sealed"):
+            recalibrate_bn(host, self.data.images, self.data.train)
+        for name, tensor in host.state_dict().items():
+            self.assertTrue(torch.equal(tensor, before[name]), name)
+        for module in batch_norms(host):
+            self.assertEqual(module.momentum, 0.1)
+            self.assertFalse(module.training)
+
+    def test_recalibrate_changes_only_batchnorm_statistics_and_freezes(self) -> None:
+        host = load_host(self.checkpoint, 3000, 0, CPU, frozen=False)
+        self.assertFalse(host.sealed)
+        before = {name: tensor.clone() for name, tensor in host.state_dict().items()}
+        result = recalibrate_bn(host, self.data.images, self.data.train)
+        self.assertIs(result, host)
+        after = result.state_dict()
+        self.assertEqual(set(after), set(before))
+        changed = {name for name, tensor in after.items() if not torch.equal(tensor, before[name])}
+        statistics = {name for name in before if name.rsplit(".", 1)[1] in BN_BUFFERS}
+        self.assertEqual(changed, statistics)
+        self.assertEqual(len(statistics), 3 * len(batch_norms(result)))
+        for name, parameter in result.named_parameters():
+            self.assertTrue(torch.equal(parameter, before[name]), name)
+            self.assertFalse(parameter.requires_grad, name)
+            self.assertIsNone(parameter.grad, name)
+        self.assertTrue(result.sealed)
+        self.assertFalse(result.training)
+        result.train()
+        with self.assertRaises(PilotHold):
+            result(normalized(self.data.images[:2]))
+
+    def test_recalibrate_is_cumulative_over_fixed_chunks_with_the_partial_chunk(self) -> None:
+        indices = torch.cat((torch.arange(64), torch.arange(64), torch.arange(2)))
+        host = recalibrate_bn(load_host(self.checkpoint, 3000, 0, CPU, frozen=False), self.data.images, indices)
+        for module in batch_norms(host):
+            self.assertIsNone(module.momentum)
+            self.assertEqual(int(module.num_batches_tracked), 2)
+        first = host.front[1]
+        self.assertIsInstance(first, nn.BatchNorm2d)
+        with torch.no_grad():
+            means = [
+                as_tensor(host.front[0](normalized(self.data.images[chunk]))).mean(dim=(0, 2, 3))
+                for chunk in (indices[:128], indices[128:])
+            ]
+        self.assertLessEqual(max_diff(as_tensor(first.running_mean), (means[0] + means[1]) / 2), 1e-5)
+        repeat = recalibrate_bn(load_host(self.checkpoint, 3000, 0, CPU, frozen=False), self.data.images, indices)
+        self.assertEqual(state_hash(repeat), state_hash(host))
+
+    def test_no_op_recomputes_selection_features_from_each_candidate(self) -> None:
+        raw = load_host(self.checkpoint, 3000, 0, CPU, frozen=True)
+        rbn = self.recalibrated(self.checkpoint)
+        front = [as_tensor(module.running_mean) for module in batch_norms(raw)[:3]]
+        moved = [as_tensor(module.running_mean) for module in batch_norms(rbn)[:3]]
+        self.assertGreater(max(max_diff(a, b) for a, b in zip(front, moved, strict=True)), 1e-2)
+        (_, label), seen = self.guarded_no_op(raw, rbn, self.data)
+        self.assertIn(label, ("raw", "R-bn"))
+        self.assertEqual(len(seen), 2)
+        self.assertFalse(torch.equal(seen[0].read, seen[1].read))
+        self.assertTrue(torch.equal(seen[0].labels, seen[1].labels))
+        self.assertTrue(torch.equal(seen[0].read, cached(raw, self.data).selection.read))
+        self.assertTrue(torch.equal(seen[1].read, cached(rbn, self.data).selection.read))
+
+    def absurd(self, host: Host) -> int:
+        """Pin the last tail BatchNorm far off its data: every example then gets one confident class."""
+        last = batch_norms(host)[-1]
+        with torch.no_grad():
+            last.running_mean.fill_(-1e3)
+            last.running_var.fill_(1.0)
+            predicted = as_tensor(host(normalized(self.data.images[:1]))).argmax(1)
+        return int(predicted[0])
+
+    def test_no_op_picks_recalibration_when_it_lowers_selection_loss(self) -> None:
+        stale = load_host(self.checkpoint, 3000, 0, CPU, frozen=False)
+        freeze(stale)
+        wrong = (self.absurd(stale) + 1) % 10
+        stale_path = self.save(stale, "stale.pt")
+        data = calibration_dataset(torch.full((64,), wrong))
+        raw = load_host(stale_path, 3000, 0, CPU, frozen=True)
+        rbn = self.recalibrated(stale_path, data)
+        raw_loss = mean_loss(raw, cached(raw, data).selection, None)
+        rbn_loss = mean_loss(rbn, cached(rbn, data).selection, None)
+        self.assertGreater(raw_loss, rbn_loss + 1.0)
+        (chosen, label), seen = self.guarded_no_op(raw, rbn, data)
+        self.assertEqual(label, "R-bn")
+        self.assertIs(chosen, rbn)
+        self.assertEqual(len(seen), 2)
+
+    def test_no_op_keeps_raw_when_recalibration_does_not_help(self) -> None:
+        raw = self.recalibrated(self.checkpoint)
+        worse = self.recalibrated(self.checkpoint)
+        wrong = (self.absurd(worse) + 1) % 10
+        data = calibration_dataset(torch.full((64,), wrong))
+        raw_loss = mean_loss(raw, cached(raw, data).selection, None)
+        worse_loss = mean_loss(worse, cached(worse, data).selection, None)
+        self.assertGreater(worse_loss, raw_loss + 1.0)
+        (chosen, label), seen = self.guarded_no_op(raw, worse, data)
+        self.assertEqual(label, "raw")
+        self.assertIs(chosen, raw)
+        self.assertEqual(len(seen), 2)
+
+    def test_no_op_tie_keeps_raw(self) -> None:
+        raw = load_host(self.checkpoint, 3000, 0, CPU, frozen=True)
+        twin = load_host(self.checkpoint, 3000, 0, CPU, frozen=True)
+        (chosen, label), _ = self.guarded_no_op(raw, twin, self.data)
+        self.assertEqual(label, "raw")
+        self.assertIs(chosen, raw)
+
+    def test_save_and_load_noop_bind_the_chosen_host(self) -> None:
+        raw = load_host(self.checkpoint, 3000, 0, CPU, frozen=True)
+        rbn = self.recalibrated(self.checkpoint)
+        output = self.root / "anchor"
+        output.mkdir()
+        digest = save_noop(rbn, output)
+        self.assertEqual(digest, state_hash(rbn))
+        self.assertTrue((output / "noop.pt").is_file())
+        self.assertNotEqual(state_hash(raw), digest)
+        with self.assertRaises(PilotHold):
+            load_noop(output, 3000, (64, 64, 128, 128), state_hash(raw), CPU)
+        loaded = load_noop(output, 3000, (64, 64, 128, 128), digest, CPU)
+        self.assertEqual(state_hash(loaded), digest)
+        self.assertTrue(loaded.sealed)
+        self.assertFalse(loaded.training)
+
+    def test_temperature_scales_with_the_logits(self) -> None:
+        values, labels = sampled_logits(21)
+        once = temperature(values, labels)
+        twice = temperature(values * 2, labels)
+        self.assertIsInstance(once, float)
+        self.assertLess(abs(once - 1.0), 0.2)
+        self.assertLess(abs(twice / once - 2.0), 1e-3)
+        self.assertEqual(temperature(values, labels), once)
+        self.assertEqual(temperature(values.float(), labels), temperature(values.float(), labels))
+
+    def test_class_bias_has_eleven_numbers_and_fits_no_worse_than_temperature(self) -> None:
+        values, labels = sampled_logits(22)
+        shifted = values + torch.linspace(-1.0, 1.0, 10, dtype=torch.float64)
+        t, bias = class_bias(values, labels)
+        self.assertIsInstance(t, float)
+        self.assertEqual(tuple(bias.shape), (10,))
+        self.assertEqual(1 + bias.numel(), 11)
+        self.assertTrue(bool(torch.isfinite(bias).all()))
+        t_shift, bias_shift = class_bias(shifted, labels)
+        only = temperature(shifted, labels)
+        joint_loss = float(F.cross_entropy(apply_calibration(shifted, t_shift, bias_shift), labels))
+        temp_loss = float(F.cross_entropy(shifted / only, labels))
+        self.assertLess(joint_loss, temp_loss)
+        repeat = class_bias(values, labels)
+        self.assertEqual(repeat[0], t)
+        self.assertTrue(torch.equal(repeat[1], bias))
+
+    def test_apply_calibration_is_scaled_logits_plus_bias(self) -> None:
+        values, _ = sampled_logits(23, n=5)
+        bias = torch.linspace(-0.5, 0.5, 10, dtype=torch.float64)
+        self.assertTrue(torch.equal(apply_calibration(values, 1.7, bias), values / 1.7 + bias))
+        narrow = values.float()
+        result = apply_calibration(narrow, 1.7, bias)
+        self.assertEqual(result.dtype, torch.float32)
+        self.assertTrue(torch.equal(result, narrow / 1.7 + bias.float()))
+
+    def test_calibration_contract_violations(self) -> None:
+        values, labels = sampled_logits(24, n=8)
+        for bad_values, bad_labels in (
+            (values[:, :9], labels),
+            (values, labels[:7]),
+            (values[:0], labels[:0]),
+            (values.clone().fill_(float("nan")), labels),
+            (values, labels.clone().fill_(10)),
+        ):
+            with self.subTest(shape=tuple(bad_values.shape)), self.assertRaises(ContractViolation):
+                temperature(bad_values, bad_labels)
+            with self.subTest(shape=tuple(bad_values.shape)), self.assertRaises(ContractViolation):
+                class_bias(bad_values, bad_labels)
 
 
 if __name__ == "__main__":
