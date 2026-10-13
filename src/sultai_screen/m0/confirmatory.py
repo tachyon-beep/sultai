@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import signal
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from types import FrameType
@@ -119,8 +120,8 @@ def whitelist(jobs: list[Job], arms: frozenset[str]) -> list[Job]:
         if item.action not in actions:
             raise PilotHold(f"{item.name}: action {item.action} is outside the §10 confirmatory")
         if item.action in ("modules", "retune"):
-            if "--arms" not in item.extra:
-                raise PilotHold(f"{item.name}: a {item.action} child must restrict its --arms to the §10 whitelist")
+            if item.extra.count("--arms") != 1:
+                raise PilotHold(f"{item.name}: a {item.action} child must name exactly one --arms in the §10 whitelist")
             outside = sorted(set(item.extra[item.extra.index("--arms") + 1].split(",")) - arms)
             if outside:
                 raise PilotHold(f"{item.name}: arm(s) {outside} are outside the §10 whitelist")
@@ -145,7 +146,27 @@ def evidenced(approved: Record, path: Path, what: str) -> Record:
     entries = [mapping(entry) for entry in sequence(approved["evidence"])]
     if not any(entry["path"] == relative and entry["sha256"] == sha for entry in entries):
         raise PilotHold(f"{what} ({relative}) is not hash-listed in the certificate evidence")
+    tracked = subprocess.run(["git", "ls-files", "--error-unmatch", relative], cwd=REPO, capture_output=True)
+    if tracked.returncode != 0:
+        raise PilotHold(f"{what} ({relative}) is not tracked by git; only committed evidence is read")
     return {relative: sha}
+
+
+def field(record: Record, key: str, where: str) -> Json:
+    """A required key of a pilot receipt; a missing one holds before custody (never a KeyError)."""
+    if key not in record:
+        raise PilotHold(f"{where} lacks {key!r}")
+    return record[key]
+
+
+def failed_prior(custody: Record) -> Record | None:
+    """§11: a restart follows a failed attempt only; the prior result, when published, is bound by hash."""
+    result = Path(text(field(custody, "output", "the prior confirmatory custody receipt"))) / "confirmatory-result.json"
+    if not result.is_file():
+        return None
+    if field(read_record(result), "verdict", "the prior confirmatory result") == "confirmatory-read":
+        raise PilotHold("the prior confirmatory attempt read V1 and V2; a restart follows a failed attempt only")
+    return {str(result): file_sha(result)}
 
 
 def workloads_of(record: Record) -> Workloads:
@@ -166,14 +187,14 @@ def admit_launch(approved: Record, pilot_result: Path, static: bool, restart: Pa
     """Every refusal before custody, so a refused launch never consumes the single attempt."""
     binding: Record = {"pilot_result": evidenced(approved, pilot_result, "the pilot result")}
     pilot = read_record(pilot_result)
-    if pilot["pilot_clean"] is not True:
+    if field(pilot, "pilot_clean", "the pilot result") is not True:
         raise PilotHold("the confirmatory requires a clean pilot result")
     for key, value in protocol_identity().items():
         if key not in pilot or pilot[key] != value:
             raise PilotHold(f"the pilot result carries another protocol identity ({key})")
     admission = pilot_result.parent / "04-admission.json"
     binding["pilot_admission"] = evidenced(approved, admission, "the pilot's measured kernels")
-    if static and pilot["static_admitted"] is not True:
+    if static and field(pilot, "static_admitted", "the pilot result") is not True:
         raise PilotHold("S-static joins only if the pilot's SD(D5) rule admitted it")
     if static and not ("confirmatory_ceiling_hours" in approved and approved["confirmatory_ceiling_hours"] == 14):
         raise PilotHold("S-static requires John's 14 GPU-hour confirmatory ceiling in the admission certificate")
@@ -186,15 +207,19 @@ def admit_launch(approved: Record, pilot_result: Path, static: bool, restart: Pa
             raise PilotHold("a restart requires the prior confirmatory custody receipt")
         binding["restart_disposition"] = evidenced(approved, restart, "the restart disposition")
         binding["linked_confirmatory_custody"] = {CUSTODY: file_sha(prior)}
-    schedule = mapping(pilot["schedule"])
-    checkpoints = raise_only(tuple(integer(c) for c in sequence(schedule["checkpoints"])), CHECKPOINTS)
-    checkpoints_b = raise_only(tuple(integer(c) for c in sequence(schedule["checkpoints_b"])), CHECKPOINTS_B)
+        binding["linked_confirmatory_result"] = failed_prior(read_record(prior))
+    schedule = mapping(field(pilot, "schedule", "the pilot result"))
+    axes = (field(schedule, key, "the pilot schedule") for key in ("checkpoints", "checkpoints_b"))
+    checkpoints, checkpoints_b = (
+        raise_only(tuple(integer(c) for c in sequence(values)), default)
+        for values, default in zip(axes, (CHECKPOINTS, CHECKPOINTS_B), strict=True)
+    )
     if checkpoints_b != tuple(2 * c for c in checkpoints):
         raise PilotHold("M-small-B's axis must stay at twice the module axis")
-    n = integer(pilot["confirmatory_count"])
+    n = integer(field(pilot, "confirmatory_count", "the pilot result"))
     start = BLOCKS[lineage].start
     seeds = tuple(admit(seed, lineage) for seed in range(start, start + n))
-    w = workloads_of(mapping(read_record(admission)["workloads"]))
+    w = workloads_of(mapping(field(read_record(admission), "workloads", "the pilot's 04-admission.json")))
     arms = stats.CONFIRMATORY_ARMS | (STATIC_ARMS if static else frozenset())
     projection = (with_static if static else project_confirmatory)(n, w, arms, w.fixed_v0)
     if projection["within_ceiling"] is not True:
@@ -363,13 +388,16 @@ def read_once(plan: Plan, anchors: list[Anchor], quantities: list[Record]) -> Re
 
 
 def stopped(error: Exception, stage: str, run: Run, plan: Plan) -> Record:
-    """The stop report with the M0 identity; any trained anchor burns the block (§10), so the record says so."""
+    """The stop report with the M0 identity; custody consumed the block (ruling R22, §11), so every stop burns it.
+
+    Ruling R21: a pinned-hash replay mismatch is `execution-invalid` (not the certified software or hardware); a failed
+    instrument clause (acceptance matrix, slicing, identities, fold residual, fold-check) is `instrument-failed`.
+    """
     report = m0_stop_report(error, stage, run.supervisor.charged)
-    launched = {text(mapping(entry)["job"]) for entry in run.supervisor.ledger}
     return {
         **{key: value for key, value in report.items() if key not in STOP_ONLY_PILOT},
         "seed_block": plan.block(),
-        "seed_block_burnt": any(f"train-{s}" in launched for s in plan.seeds),
+        "seed_block_burnt": True,
         "ceiling_gpu_process_seconds": plan.ceiling,
     }
 

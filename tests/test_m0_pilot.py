@@ -88,9 +88,11 @@ def noop_loss(seed: int, scale: float) -> Tensor:
     return 1.5 - 0.2 * scale + 0.005 * (seed % 6) + 0.001 * torch.arange(N, dtype=torch.float32)
 
 
-def arm_record(arm: str, seed: int, n0: Tensor, *, r_aff: float, certified: bool) -> tuple[Record, dict[str, Tensor]]:
+def arm_record(
+    arm: str, seed: int, n0: Tensor, *, r_aff: float, certified: bool, boost: float = 0.0
+) -> tuple[Record, dict[str, Tensor]]:
     index = sorted(KNOWN_ARMS).index(arm)
-    gain = 0.02 + 0.001 * (index % 10) + 0.002 * ((seed + index) % 4)
+    gain = 0.02 + 0.001 * (index % 10) + 0.002 * ((seed + index) % 4) + boost
     loss = n0 - gain
     correct = (torch.arange(N) % 3 != 0).float()
     vectors = {"loss": loss, "correct": correct}
@@ -151,12 +153,17 @@ class FakeCluster:
         self.module_seconds = scenario.pop("module_seconds", 10.0)
         self.unavailable = scenario.pop("unavailable", {})
         self.fold_mismatch = scenario.pop("fold_mismatch", False)
+        self.acceptance_failed = scenario.pop("acceptance_failed", frozenset())
+        self.boost = scenario.pop("boost", {})
         if scenario:
             raise AssertionError(f"unknown scenario keys {sorted(scenario)}")
         self.launched: list[tuple[str, str, str, dict[str, str], str]] = []
         self.violations: list[str] = []
 
     def __call__(self, command: list[str], **kwargs: dict[str, str]) -> subprocess.Popen[bytes]:
+        if command[0] == "git":
+            # The confirmatory's tracked-evidence check runs real git in the temporary repository.
+            return REAL_POPEN(command, **kwargs)
         module = command[command.index("-m") + 1]
         action = command[command.index("-m") + 2]
         tokens = command[command.index("-m") + 3 :]
@@ -207,7 +214,10 @@ class FakeCluster:
             }
         if action == "acceptance":
             items = ("resume_bitwise", "checkpoint_bitwise", "static_step0_bitwise", "evaluation_consistent")
-            return {**base, **dict.fromkeys(items, True), "straight_epoch_state_sha256": ["s"], "checkpoint_rate": 0.3}
+            passed = dict.fromkeys(items, True) | (
+                {"static_step0_bitwise": False} if output.name in self.acceptance_failed else {}
+            )
+            return {**base, **passed, "straight_epoch_state_sha256": ["s"], "checkpoint_rate": 0.3}
         if action == "timing":
             return {
                 **base,
@@ -259,7 +269,8 @@ class FakeCluster:
                     }
                     continue
                 certified = seed not in self.uncertified
-                records[arm], vectors[arm] = arm_record(arm, seed, n0, r_aff=r_aff, certified=certified)
+                boost = self.boost[arm] if arm in self.boost else 0.0
+                records[arm], vectors[arm] = arm_record(arm, seed, n0, r_aff=r_aff, certified=certified, boost=boost)
             torch.save(vectors, output / "vectors.pt")
             return {
                 **base,
@@ -709,6 +720,34 @@ class ConfirmatoryTests(unittest.TestCase):
         self.disposition = self.repo / "docs/certificates/m0-confirmatory-restart-disposition.md"
         self.disposition.parent.mkdir(parents=True)
         self.disposition.write_text("John: one restart from the restart block.\n")
+        # Evidence must be tracked: a real index in the temporary repository, with runs/ ignored as in Sultai.
+        (self.repo / ".gitignore").write_text("runs/\n")
+        self.git("init", "-q")
+        self.git("add", ".gitignore", "docs")
+
+    def git(self, *arguments: str) -> None:
+        subprocess.run(["git", *arguments], cwd=self.repo, check=True, capture_output=True)
+
+    def prior_attempt(self, verdict: str) -> Path:
+        """The first attempt's custody receipt, pointing at an output root whose result carries `verdict`."""
+        first = self.base / "first"
+        first.mkdir()
+        (first / "confirmatory-result.json").write_text(json.dumps({"verdict": verdict}))
+        prior = self.repo / CONFIRMATORY_CUSTODY
+        prior.parent.mkdir()
+        prior.write_text(json.dumps({"output": str(first)}))
+        return first / "confirmatory-result.json"
+
+    def assert_burnt_stop(self, root: Path, verdict: str) -> Record:
+        result = read_record(root / "confirmatory-result.json")
+        self.assertEqual(result["verdict"], verdict)
+        self.assertIs(result["seed_block_burnt"], True)
+        self.assertEqual(result["seed_block"], {"lineage": "confirmatory", "first": 7500, "last": 7531, "count": 32})
+        for key in ("v1", "v2", "labels", "intervals", "programme_reading", "achieved_half_width"):
+            self.assertNotIn(key, result)
+        self.assertEqual(result["protocol_sha256"], protocol_identity()["protocol_sha256"])
+        self.assertTrue((self.repo / CONFIRMATORY_CUSTODY).is_file())
+        return result
 
     def write_pilot(self, **changes: Json) -> None:
         self.pilot_result.write_text(json.dumps(pilot_record(**changes)))
@@ -765,6 +804,20 @@ class ConfirmatoryTests(unittest.TestCase):
         changed = self.certificate()
         self.pilot_result.write_text(json.dumps(pilot_record(confirmatory_count=33)))
         self.assert_refused(changed, "evidence")
+        missing = pilot_record()
+        del missing["confirmatory_count"]
+        self.pilot_result.write_text(json.dumps(missing))
+        self.assert_refused(self.certificate(), "lacks 'confirmatory_count'")
+        self.write_pilot(schedule={"checkpoints": list(CHECKPOINTS)})
+        self.assert_refused(self.certificate(), "lacks 'checkpoints_b'")
+
+    def test_evidence_must_be_tracked_not_merely_hash_listed(self) -> None:
+        ignored = self.repo / "runs/m0-pilot"
+        ignored.mkdir(parents=True)
+        for name in ("pilot-result.json", "04-admission.json"):
+            (ignored / name).write_bytes((self.results / name).read_bytes())
+        self.results, self.pilot_result = ignored, ignored / "pilot-result.json"
+        self.assert_refused(self.certificate(), "the pilot result .* not tracked by git")
 
     def test_static_requires_the_pilot_admission_and_johns_14_hour_certificate(self) -> None:
         self.assert_refused(self.certificate(14), "S-static", static=True)
@@ -778,8 +831,12 @@ class ConfirmatoryTests(unittest.TestCase):
                 whitelist([job("modules-7500", "modules", 7500, "confirmatory", "--arms", arms)], allowed)
         with self.assertRaisesRegex(PilotHold, "whitelist"):
             whitelist([job("retune-7500", "retune", 7500, "confirmatory", "--arms", "R-272s,R-all")], allowed)
-        with self.assertRaisesRegex(PilotHold, "--arms"):
+        with self.assertRaisesRegex(PilotHold, "exactly one --arms"):
             whitelist([job("modules-7500", "modules", 7500, "confirmatory")], allowed)
+        with self.assertRaisesRegex(PilotHold, "exactly one --arms"):
+            whitelist(
+                [job("modules-7500", "modules", 7500, "confirmatory", "--arms", "M-sq", "--arms", "M-exp")], allowed
+            )
         for action in ("instrument", "timing", "cooled20", "static"):
             with self.assertRaisesRegex(PilotHold, action):
                 whitelist([job(f"{action}-7500", action, 7500, "confirmatory")], allowed)
@@ -799,9 +856,9 @@ class ConfirmatoryTests(unittest.TestCase):
 
     def test_restart_requires_the_listed_disposition_and_the_prior_custody_receipt(self) -> None:
         self.assert_refused(self.certificate(disposition=True), "prior", restart=self.disposition)
+        failed = self.prior_attempt("instrument-failed")
         prior = self.repo / CONFIRMATORY_CUSTODY
-        prior.parent.mkdir()
-        prior.write_text('{"output": "first attempt"}\n')
+        before = prior.read_bytes()
         with self.assertRaisesRegex(PilotHold, "the restart disposition .* not hash-listed"):
             self.launch(self.certificate(), restart=self.disposition)
         self.assertFalse((self.repo / RESTART_CUSTODY).exists())
@@ -814,8 +871,16 @@ class ConfirmatoryTests(unittest.TestCase):
         self.assertEqual(custody["linked_confirmatory_custody"], {CONFIRMATORY_CUSTODY: file_sha(prior)})
         disposition = str(self.disposition.relative_to(self.repo))
         self.assertEqual(custody["restart_disposition"], {disposition: file_sha(self.disposition)})
-        self.assertEqual(prior.read_text(), '{"output": "first attempt"}\n')
+        self.assertEqual(custody["linked_confirmatory_result"], {str(failed): file_sha(failed)})
+        self.assertEqual(prior.read_bytes(), before)
         self.assertEqual(read_record(root / "confirmatory-result.json")["seed_block"]["lineage"], "restart")
+
+    def test_restart_refuses_after_a_prior_attempt_that_read_v1_and_v2(self) -> None:
+        self.prior_attempt("confirmatory-read")
+        with self.assertRaisesRegex(PilotHold, "follows a failed attempt only"):
+            self.launch(self.certificate(disposition=True), restart=self.disposition)
+        self.assertFalse((self.repo / RESTART_CUSTODY).exists())
+        self.assertFalse((self.base / "run").exists())
 
     def test_clean_confirmatory_runs_the_whitelist_on_fresh_anchors_under_its_own_ceiling(self) -> None:
         (self.repo / ".weft").mkdir()
@@ -886,7 +951,7 @@ class ConfirmatoryTests(unittest.TestCase):
 
     def test_static_runs_s_static_under_the_14_hour_ceiling(self) -> None:
         self.write_pilot(static_admitted=True)
-        code, root, cluster = self.launch(self.certificate(14), static=True)
+        code, root, cluster = self.launch(self.certificate(14), static=True, boost={"S-static:refit": 0.05})
         result = read_record(root / "confirmatory-result.json")
         self.assertEqual(code, 0, result)
         self.assertEqual(self.ledger_ceilings(root), {M0_CONFIRMATORY_STATIC_SECONDS})
@@ -894,23 +959,45 @@ class ConfirmatoryTests(unittest.TestCase):
         static = sorted(name for name in cluster.names() if name.startswith("static-"))
         self.assertEqual(static, [f"static-{seed}" for seed in range(7500, 7532)])
         self.assertLessEqual(STATIC_ARMS, self.arms_of(cluster, "modules-7500"))
-        self.assertIn("static_reading", result)
+        # D5 = loss(M-sq) - loss(S-static:refit) ~ 0.05 > M_s on every anchor, so the reading is read at n = 32.
+        self.assertGreater(result["intervals"]["D5"]["lower"], 0.02)
+        self.assertEqual(result["static_reading"], "design-in beats insertion")
         self.assertTrue(math.isfinite(result["achieved_half_width"]["D5"]))
         self.assertEqual(result["ceiling_gpu_process_seconds"], M0_CONFIRMATORY_STATIC_SECONDS)
 
     def test_a_v0_failure_publishes_instrument_failed_burns_the_block_and_reads_nothing(self) -> None:
         code, root, cluster = self.launch(self.certificate(), r_aff={7503: 0.006})
         self.assertEqual(code, 2)
-        result = read_record(root / "confirmatory-result.json")
-        self.assertEqual(result["verdict"], "instrument-failed")
+        result = self.assert_burnt_stop(root, "instrument-failed")
         self.assertEqual(result["stage"], "v0")
         self.assertIn("7503", result["error"])
-        for key in ("v1", "v2", "labels", "intervals", "programme_reading", "achieved_half_width"):
-            self.assertNotIn(key, result)
-        self.assertTrue(result["seed_block_burnt"])
-        self.assertEqual(result["seed_block"], {"lineage": "confirmatory", "first": 7500, "last": 7531, "count": 32})
-        self.assertEqual(result["protocol_sha256"], protocol_identity()["protocol_sha256"])
         self.assertFalse(any(name.startswith(("tcool-", "modules-", "retune-")) for name in cluster.names()))
+
+    def test_a_replay_mismatch_is_execution_invalid_and_still_burns_the_block(self) -> None:
+        # Rulings R21 (inherited Gate 3 class) and R22 (custody consumed the block before any anchor trained).
+        code, root, cluster = self.launch(self.certificate(), replay_mismatch=frozenset(("replay-3002",)))
+        self.assertEqual(code, 2)
+        result = self.assert_burnt_stop(root, "execution-invalid")
+        self.assertIs(result["software_valid"], False)
+        self.assertEqual(result["stage"], "replay")
+        self.assertFalse(any(action == "train" for _, action, _, _, _ in cluster.launched))
+
+    def test_an_acceptance_failure_is_instrument_failed_and_burns_the_block(self) -> None:
+        code, root, cluster = self.launch(self.certificate(), acceptance_failed=frozenset(("acceptance-1",)))
+        self.assertEqual(code, 2)
+        result = self.assert_burnt_stop(root, "instrument-failed")
+        self.assertEqual(result["stage"], "replay")
+        self.assertIn("(iii)", result["error"])
+        self.assertFalse(any(action == "train" for _, action, _, _, _ in cluster.launched))
+
+    def test_the_pilot_count_sets_the_anchors_exactly(self) -> None:
+        self.write_pilot(confirmatory_count=33)
+        code, root, cluster = self.launch(self.certificate())
+        result = read_record(root / "confirmatory-result.json")
+        self.assertEqual(code, 0, result)
+        trained = [int(flags["--seed"]) for _, action, _, flags, _ in cluster.launched if action == "train"]
+        self.assertEqual(trained, list(range(7500, 7533)))
+        self.assertEqual(result["anchors"], list(range(7500, 7533)))
 
     def test_an_unavailable_required_arm_holds_at_aggregation_and_drops_no_anchor(self) -> None:
         code, root, cluster = self.launch(self.certificate(), unavailable={7510: frozenset(("M-small",))})
