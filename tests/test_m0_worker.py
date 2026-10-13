@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import math
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -17,7 +18,18 @@ from unittest.mock import patch
 import torch
 from torch import Tensor
 
-from sultai_screen.contracts import Json, PilotHold, Record, file_sha, mapping, publish, read_record, sequence
+from sultai_screen.contracts import (
+    Json,
+    PilotHold,
+    Record,
+    encode,
+    file_sha,
+    mapping,
+    number,
+    publish,
+    read_record,
+    sequence,
+)
 from sultai_screen.data import Dataset, Seal
 from sultai_screen.fit import Adapter, Candidate, Grid, fit_sgd, grid
 from sultai_screen.host import REFERENCE_WIDTHS, Features, Host, state_hash
@@ -171,6 +183,23 @@ def run(action: str, output: Path, seed: int = 3000, lineage: str = "anchor", *e
         if worker.main(argv) != 0:
             raise AssertionError(f"{action} child failed")
     return read_record(output / "result.json")
+
+
+def provenance_calls(action: str, output: Path, *extra: str) -> int:
+    """Run an anchor-3000 child in process and count how often it computed the M0 provenance."""
+    argv = [action, "--output", str(output), "--data-root", "/nonexistent", "--seed", "3000"]
+    argv += ["--lineage", "anchor", "--scale", "1.0", *extra]
+    with patched(), patch("sultai_screen.m0.worker.provenance", return_value=IDENTITY) as identity:
+        if worker.main(argv) != 0:
+            raise AssertionError(f"{action} child failed")
+    return identity.call_count
+
+
+def rewrite(root: Path, change: Callable[[Record], None]) -> None:
+    """Edit a published receipt's payload in place (tamper fixtures only)."""
+    record = read_record(root / "result.json")
+    change(mapping(record["payload"]))
+    (root / "result.json").write_text(encode(record) + "\n")
 
 
 def payload_of(record: Record) -> Record:
@@ -487,15 +516,19 @@ class WorkerTests(unittest.TestCase):
             "checkpoint_bitwise",
             "static_step0_bitwise",
             "evaluation_consistent",
-            "fold_residual_reproducible",
         ):
             self.assertIs(payload[name], True, name)
-        self.assertTrue(math.isfinite(float(str(payload["fold_residual"]))))
+        for removed in ("fold_residual_reproducible", "fold_residual", "fold_residual_repeat", "fold_rate"):
+            self.assertNotIn(removed, payload)
         alone = payload_of(run("acceptance", self.root / "acceptance-alone"))
         self.assertIs(alone["training_root_used"], False)
         self.assertEqual(alone["resumed_epoch_state_sha256"], payload["resumed_epoch_state_sha256"])
-        for name in ("resume_bitwise", "checkpoint_bitwise", "evaluation_consistent", "fold_residual_reproducible"):
+        for name in ("resume_bitwise", "checkpoint_bitwise", "evaluation_consistent"):
             self.assertIs(alone[name], True, name)
+        cooled = self.root / "acceptance-cooled-host"
+        run("train", cooled, 6018, "cooled-20", "--epochs", "20")
+        with self.assertRaisesRegex(PilotHold, "constant-0.05"):
+            run("acceptance", self.root / "acceptance-cooled", 6018, "cooled-20", "--training-root", str(cooled))
 
     def test_timing_and_instrument_children(self) -> None:
         timing = payload_of(run("timing", self.root / "timing", 3000, "anchor", "--noop-root", str(self.root / "noop")))
@@ -511,6 +544,8 @@ class WorkerTests(unittest.TestCase):
             run("timing", self.root / "timing-raw", 3000, "anchor", "--training-root", str(self.root / "train"))
         )
         self.assertEqual(raw["host"], "raw")
+        for always_true in ("module_grid_finite", "front_rerun_finite"):
+            self.assertNotIn(always_true, timing)
         with (
             patch("sultai_screen.m0.worker.materiality", return_value={"seed": 3000}) as materiality,
             patch("sultai_screen.m0.worker.posthoc", return_value={"alpha": 0.1}) as posthoc,
@@ -518,7 +553,17 @@ class WorkerTests(unittest.TestCase):
             instrument = payload_of(
                 run("instrument", self.root / "instrument", 3000, "anchor", "--training-root", str(self.root / "train"))
             )
-        self.assertEqual(instrument, {"seed": 3000, "materiality": {"seed": 3000}, "posthoc": {"alpha": 0.1}})
+        self.assertEqual(
+            instrument,
+            {
+                "seed": 3000,
+                "lineage": "anchor",
+                "scale": 1.0,
+                "widths": list(REFERENCE_WIDTHS),
+                "materiality": {"seed": 3000},
+                "posthoc": {"alpha": 0.1},
+            },
+        )
         self.assertEqual(materiality.call_count, 1)
         self.assertEqual(posthoc.call_args.args[3], self.root / "instrument")
 
@@ -580,6 +625,8 @@ class WorkerTests(unittest.TestCase):
             self.assertTrue(all(mapping(c)["finite"] is False for c in candidates))
             self.assertNotIn("development_loss", record)
         self.assertEqual(len(sequence(mapping(records["M-exp"])["candidates"])), 2)
+        for name in ("M-exp", "M-wide→4:refit"):
+            self.assertEqual(mapping(records[name])["cause"], name)
         for name in ("M-sq", "M-wide→4:sliced"):
             self.assertEqual(mapping(records[name])["status"], "available")
         self.assertEqual(set(vectors(out)), {"N0", "M-sq", "M-wide→4:sliced"})
@@ -591,6 +638,8 @@ class WorkerTests(unittest.TestCase):
                 )
             )
         self.assertEqual(sequence(payload["unavailable_arms"]), ["M-wide", "M-wide→8:rank:sliced", "lottery"])
+        for name in ("M-wide", "M-wide→8:rank:sliced", "lottery"):
+            self.assertEqual(mapping(mapping(payload["arms"])[name])["cause"], "M-wide")
         self.assertEqual(mapping(mapping(payload["arms"])["M-sq"])["status"], "available")
         noop = ("--noop-root", str(self.root / "noop"))
         with patch("sultai_screen.m0.worker.retune_grid", side_effect=overflowing_retune):
@@ -598,6 +647,57 @@ class WorkerTests(unittest.TestCase):
         self.assertEqual(sequence(retuned["unavailable_arms"]), ["R-aff"])
         self.assertEqual(mapping(mapping(retuned["arms"])["R-aff"])["status"], "unavailable")
         self.assertIs(mapping(mapping(retuned["arms"])["R-272s"])["complement_unchanged"], True)
+
+    def test_fold_check_recomputes_the_modules_residual_on_n0(self) -> None:
+        modules = self.root / "fold-modules"
+        noop = ("--noop-root", str(self.root / "noop"))
+        receipt = payload_of(run("modules", modules, 3000, "anchor", "--arms", "M-aff", *noop))
+        arm = mapping(mapping(receipt["arms"])["M-aff"])
+        check = payload_of(
+            run("fold-check", self.root / "fold-check", 3000, "anchor", *noop, "--modules-root", str(modules))
+        )
+        self.assertIs(check["fold_residual_matches_receipt"], True)
+        self.assertLessEqual(abs(number(check["recomputed_r_aff"]) - number(check["receipt_r_aff"])), 1e-6)
+        self.assertEqual(check["receipt_r_aff"], receipt["r_aff"])
+        self.assertEqual((check["selected_rate"], check["selected_steps"]), (arm["rate"], arm["steps"]))
+        self.assertEqual(check["modules_vectors_sha256"], receipt["vectors_sha256"])
+        self.assertEqual((check["lineage"], check["widths"]), ("anchor", list(REFERENCE_WIDTHS)))
+
+        tampered = self.root / "fold-tampered"
+        shutil.copytree(modules, tampered)
+
+        def shift(payload: Record) -> None:
+            payload["r_aff"] = number(payload["r_aff"]) + 0.01
+            mapping(mapping(payload["arms"])["M-aff"])["r_aff"] = payload["r_aff"]
+
+        rewrite(tampered, shift)
+        moved = payload_of(
+            run("fold-check", self.root / "fold-moved", 3000, "anchor", *noop, "--modules-root", str(tampered))
+        )
+        self.assertIs(moved["fold_residual_matches_receipt"], False)
+
+        unavailable = self.root / "fold-unavailable"
+        shutil.copytree(modules, unavailable)
+
+        def drop(payload: Record) -> None:
+            payload["r_aff"] = None
+            mapping(payload["arms"])["M-aff"] = {"status": "unavailable", "cause": "M-aff", "candidates": []}
+
+        rewrite(unavailable, drop)
+        with self.assertRaisesRegex(PilotHold, "M-aff"):
+            run("fold-check", self.root / "fold-none", 3000, "anchor", *noop, "--modules-root", str(unavailable))
+        with self.assertRaisesRegex(PilotHold, "modules"):
+            run("fold-check", self.root / "fold-missing", 3000, "anchor", *noop)
+        foreign = self.root / "fold-foreign"
+        shutil.copytree(modules, foreign)
+        rewrite(foreign, lambda payload: payload.update({"noop_sha256": "0" * 64}))
+        with self.assertRaisesRegex(PilotHold, "N0"):
+            run("fold-check", self.root / "fold-foreign-check", 3000, "anchor", *noop, "--modules-root", str(foreign))
+
+    def test_a_child_computes_its_provenance_once(self) -> None:
+        self.assertEqual(provenance_calls("modules", self.root / "modules-once", *self.roots()), 1)
+        training = ("--training-root", str(self.root / "train"))
+        self.assertEqual(provenance_calls("noop", self.root / "noop-once", *training), 1)
 
     def test_failing_action_publishes_an_m0_failure_receipt_and_reraises(self) -> None:
         out = self.root / "modules-bad"

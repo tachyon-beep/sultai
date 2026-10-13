@@ -7,6 +7,7 @@ Run as `python -B -m sultai_screen.m0.worker <action> ...`. Never imports `sulta
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import functools
 import hashlib
 import itertools
@@ -174,6 +175,9 @@ class Request:
     noop_root: Path | None
     tcool_root: Path | None
     static_root: Path | None
+    modules_root: Path | None = None
+    # The child's M0 provenance, computed once by worker() and used for every receipt check and the envelope.
+    identity: Record | None = None
 
 
 def _sync(device: torch.device) -> None:
@@ -202,15 +206,21 @@ def _identity(request: Request) -> Record:
     }
 
 
-def _receipt(root: Path, actions: frozenset[str], seed: int, lineage: Lineage, widths: Widths) -> Record:
-    """The payload of a published M0 receipt, refused unless source, protocol, seed, lineage and widths all match."""
+def _receipt(
+    root: Path, actions: frozenset[str], seed: int, lineage: Lineage, widths: Widths, identity: Record | None
+) -> Record:
+    """The payload of a published M0 receipt, refused unless source, protocol, seed, lineage and widths all match.
+
+    `identity` is the child's provenance (computed once by worker()); None computes it here (direct callers).
+    """
     record = read_record(root / "result.json")
     for key in ("action", "identity", "payload"):
         if key not in record:
             raise PilotHold(f"{root} holds no published M0 receipt ({key} missing)")
     if text(record["action"]) not in actions:
         raise PilotHold(f"{root} is a {record['action']} receipt, not one of {sorted(actions)}")
-    original, current = mapping(record["identity"]), provenance()
+    original = mapping(record["identity"])
+    current = provenance() if identity is None else identity
     for key in ("source_sha256", "protocol_sha256"):
         if key not in original or original[key] != current[key]:
             raise PilotHold(f"receipt {root} belongs to another source/protocol ({key})")
@@ -234,9 +244,16 @@ def _bound(root: Path, payload: Record, files: dict[str, str]) -> None:
 
 
 def _training(
-    root: Path, seed: int, lineage: Lineage, widths: Widths, device: torch.device, *, frozen: bool
+    root: Path,
+    seed: int,
+    lineage: Lineage,
+    widths: Widths,
+    device: torch.device,
+    *,
+    frozen: bool,
+    identity: Record | None = None,
 ) -> tuple[Host, Record]:
-    payload = _receipt(root, TRAINING_ACTIONS, seed, lineage, widths)
+    payload = _receipt(root, TRAINING_ACTIONS, seed, lineage, widths, identity)
     _bound(
         root,
         payload,
@@ -249,10 +266,28 @@ def _training(
 
 
 def load_training(
-    root: Path, seed: int, lineage: Lineage, widths: Widths, device: torch.device, *, frozen: bool
+    root: Path,
+    seed: int,
+    lineage: Lineage,
+    widths: Widths,
+    device: torch.device,
+    *,
+    frozen: bool,
+    identity: Record | None = None,
 ) -> Host:
     """The M0 analogue of screen._training, which also refuses a receipt of another lineage or width tuple (§2)."""
-    return _training(root, seed, lineage, widths, device, frozen=frozen)[0]
+    return _training(root, seed, lineage, widths, device, frozen=frozen, identity=identity)[0]
+
+
+def _request_training(request: Request, device: torch.device, *, frozen: bool) -> tuple[Host, Record]:
+    root = _required(request.training_root, f"{request.action}")
+    return _training(
+        root, request.seed, request.lineage, request.widths, device, frozen=frozen, identity=request.identity
+    )
+
+
+def _request_receipt(request: Request, root: Path, actions: frozenset[str]) -> Record:
+    return _receipt(root, actions, request.seed, request.lineage, request.widths, request.identity)
 
 
 def _required(root: Path | None, purpose: str) -> Path:
@@ -263,7 +298,7 @@ def _required(root: Path | None, purpose: str) -> Path:
 
 def _noop_host(request: Request, device: torch.device) -> tuple[Host, Record]:
     root = _required(request.noop_root, "fitting on N0")
-    payload = _receipt(root, frozenset(("noop",)), request.seed, request.lineage, request.widths)
+    payload = _request_receipt(request, root, frozenset(("noop",)))
     return load_noop(root, request.seed, request.widths, text(payload["noop_sha256"]), device), payload
 
 
@@ -365,7 +400,7 @@ def _noop_rule(host: Host, checkpoint: Path, request: Request, data: Dataset, de
 def tcool_action(request: Request, data: Dataset, device: torch.device) -> Record:
     """Resume a 10-epoch host from its saved momentum for epochs 10-14 under TCOOL, then apply its own N0 rule."""
     root = _required(request.training_root, "T-cool")
-    host, source = _training(root, request.seed, request.lineage, request.widths, device, frozen=False)
+    host, source = _request_training(request, device, frozen=False)
     if source["epochs"] != 10 or source["schedule"] != "constant-0.05":
         raise PilotHold("T-cool resumes a ten-epoch constant-rate host only")
     optimizer = _optimizer(host, root / "optimizer.pt", device)
@@ -415,7 +450,7 @@ def static_action(request: Request, data: Dataset, device: torch.device) -> Reco
 
 def _static(request: Request, device: torch.device) -> tuple[StaticHost, Record]:
     root = _required(request.static_root, "S-static")
-    payload = _receipt(root, frozenset(("static",)), request.seed, request.lineage, request.widths)
+    payload = _request_receipt(request, root, frozenset(("static",)))
     _bound(
         root,
         payload,
@@ -429,11 +464,10 @@ def _static(request: Request, device: torch.device) -> tuple[StaticHost, Record]
 
 def instrument_action(request: Request, data: Dataset, device: torch.device) -> Record:
     """P1 materiality and the post-hoc known answer at alpha = 0.1, in one child on the raw trained host."""
-    root = _required(request.training_root, "the P1 instrument")
-    host = load_training(root, request.seed, request.lineage, request.widths, device, frozen=True)
+    host, _ = _request_training(request, device, frozen=True)
     cache = cached(host, data)
     return {
-        "seed": request.seed,
+        **_identity(request),
         "materiality": materiality(host, cache, request.seed),
         "posthoc": posthoc(host, cache, request.seed, request.output),
     }
@@ -445,9 +479,8 @@ def _calibrated_loss(values: Tensor, labels: Tensor) -> float:
 
 def noop_action(request: Request, data: Dataset, device: torch.device) -> Record:
     """N0 (raw versus R-bn on selection), R-temp and R-cal fitted on the fit examples; never a development number."""
-    root = _required(request.training_root, "N0")
-    raw = load_training(root, request.seed, request.lineage, request.widths, device, frozen=True)
-    unsealed = load_training(root, request.seed, request.lineage, request.widths, device, frozen=False)
+    raw, _ = _request_training(request, device, frozen=True)
+    unsealed, _ = _request_training(request, device, frozen=False)
     fit_ids = seen_fit(data)
     recalibrated = recalibrate_bn(unsealed, data.images, fit_ids)
     chosen, label = no_op(raw, recalibrated, data)
@@ -508,10 +541,12 @@ class Collector:
         self.vectors: dict[str, dict[str, Tensor]] = {}
         self.unavailable: list[str] = []
 
-    def attempt(self, names: tuple[str, ...], body: Callable[[], Json]) -> None:
+    def attempt(self, names: tuple[str, ...], body: Callable[[], Json], *, cause: str | None = None) -> None:
         """Run one arm, or a block of arms sharing one fit; with no finite candidate, each unrecorded arm is unavailable.
 
-        R11: the anchor is retained and the child continues; the arm keeps every candidate report and has no vectors.
+        R11: the anchor is retained and the child continues; the arm keeps the failed fit's candidate reports and has
+        no vectors. `cause` names the arm whose fit failed (default: the single arm itself), so a dependent's record
+        never passes another fit's candidates off as its own.
         """
         try:
             body()
@@ -521,7 +556,12 @@ class Collector:
                 candidates.extend(error.candidates)
             for name in names:
                 if name not in self.records:
-                    self.records[name] = {"status": "unavailable", "error": str(error), "candidates": candidates}
+                    self.records[name] = {
+                        "status": "unavailable",
+                        "cause": names[0] if cause is None else cause,
+                        "error": str(error),
+                        "candidates": candidates,
+                    }
                     self.unavailable.append(name)
 
     def put(self, name: str, loss: Tensor, correct: Tensor, record: Record) -> Record:
@@ -718,7 +758,7 @@ def modules_action(request: Request, data: Dataset, device: torch.device) -> Rec
             collect.attempt((name,), plain[name])
     dependents = tuple(name for name in MODULE_ARMS if name in wanted & WIDE_DEPENDENTS)
     if dependents:
-        collect.attempt(dependents, lambda: _wide_arms(site, wanted, collect, device))
+        collect.attempt(dependents, lambda: _wide_arms(site, wanted, collect, device), cause="M-wide")
     for name in ("M-small", "M-small-B", "M-exp"):
         if name in wanted:
             collect.attempt((name,), plain[name])
@@ -805,7 +845,7 @@ def _tcool_arms(
 ) -> None:
     """T-cool (its host after its own N0 rule, no module) and M-sq | T-cool, each on the T-cool host's own site."""
     root = _required(request.tcool_root, "T-cool arms")
-    receipt = _receipt(root, frozenset(("tcool",)), request.seed, request.lineage, request.widths)
+    receipt = _request_receipt(request, root, frozenset(("tcool",)))
     _bound(root, receipt, {"host.pt": "checkpoint_sha256", "loss-stream.bin": "loss_stream_sha256"})
     host = load_noop(root, request.seed, request.widths, text(receipt["noop_sha256"]), device)
     payload["tcool_noop_sha256"] = text(receipt["noop_sha256"])
@@ -1000,14 +1040,13 @@ def timing_action(request: Request, data: Dataset, device: torch.device) -> Reco
     """One module grid and the first front-re-running arm (R-aff), one-per-card kernels for costs.Workloads.
 
     Uses N0 when --noop-root is given, else the raw trained host (stage 1 runs before N0 exists); no selection or
-    development value is published.
+    development value is published. A grid with no finite candidate raises (choose), so completion means finite.
     """
     if request.noop_root is not None:
         host, _ = _noop_host(request, device)
         kind = "N0"
     else:
-        root = _required(request.training_root, "timing")
-        host = load_training(root, request.seed, request.lineage, request.widths, device, frozen=True)
+        host, _ = _request_training(request, device, frozen=True)
         kind = "raw"
     cache = cached(host, data)
     fit_ids = seen_fit(data)
@@ -1015,11 +1054,11 @@ def timing_action(request: Request, data: Dataset, device: torch.device) -> Reco
     _sync(device)
     started = time.monotonic()
     site = Site(host, fit, cache.selection, cache.development, request.seed, request.checkpoints)
-    module = site.grid()
+    site.grid()
     _sync(device)
     module_seconds = time.monotonic() - started
     started = time.monotonic()
-    front = retune_grid(
+    retune_grid(
         host,
         RAFF(host),
         data=data,
@@ -1042,18 +1081,25 @@ def timing_action(request: Request, data: Dataset, device: torch.device) -> Reco
         "module_grid_seconds": module_seconds,
         **_schedule(request),
         "module_grid_steps": len(MODULE_RATES) * request.checkpoints[-1],
-        "module_grid_finite": module.best.selection is not None,
         "front_rerun_grid_seconds": front_seconds,
         "front_rerun_steps": steps,
         "front_rerun_seconds_per_1000_steps": front_seconds / (steps / 1000),
-        "front_rerun_finite": front.best.selection is not None,
         "development_evaluation_seconds": time.monotonic() - started,
     }
 
 
 def acceptance_action(request: Request, data: Dataset, device: torch.device) -> Record:
-    """The §9 stage-1 GPU acceptance matrix (ruling R10), one child per card; five booleans and their evidence."""
+    """The §9 stage-1 GPU acceptance matrix (rulings R10, R13), one child per card; four booleans and their evidence.
+
+    (i) resume versus uninterrupted, (ii) checkpointed grid versus separate runs, (iii) static step zero versus the
+    plain host, (iv) logits/losses/accuracy agreement. The M-aff fold check is the separate `fold-check` child,
+    which compares against the modules receipt's r_aff on the same N0.
+    """
     seed, widths, output = request.seed, request.widths, request.output
+    if request.training_root is not None:
+        host, source = _request_training(request, device, frozen=True)
+        if source["schedule"] != "constant-0.05":
+            raise PilotHold("acceptance (i) resumes a constant-0.05 host; the training receipt has another schedule")
     # (i) resume versus uninterrupted under constant(0.05).
     straight = make_host(seed, 0, device, widths=widths)
     straight_hashes, _, _ = train_epochs(
@@ -1066,10 +1112,8 @@ def acceptance_action(request: Request, data: Dataset, device: torch.device) -> 
         optimizer=recipe_optimizer(straight.parameters()),
     )
     if request.training_root is not None:
-        root = request.training_root
-        resumed = load_training(root, seed, request.lineage, widths, device, frozen=False)
-        host = load_training(root, seed, request.lineage, widths, device, frozen=True)
-        momentum = root / "optimizer.pt"
+        resumed, _ = _request_training(request, device, frozen=False)
+        momentum = request.training_root / "optimizer.pt"
     else:
         resumed = make_host(seed, 0, device, widths=widths)
         optimizer = recipe_optimizer(resumed.parameters())
@@ -1118,11 +1162,6 @@ def acceptance_action(request: Request, data: Dataset, device: torch.device) -> 
     evaluation_consistent = loss_difference <= ACCEPTANCE_TOLERANCE and torch.equal(
         accuracy(host, development, None), argmax
     )
-    # (v) the M-aff fold residual recomputed from a fresh fold agrees within 1e-6.
-    affine = site.affine()
-    adapter = affine.best.adapter
-    first = fold_residual(host, adapter, fold_affine(host, adapter), development, data, data.development)
-    second = fold_residual(host, adapter, fold_affine(host, adapter), development, data, data.development)
     _sync(device)
     return {
         **_identity(request),
@@ -1137,10 +1176,51 @@ def acceptance_action(request: Request, data: Dataset, device: torch.device) -> 
         "static_step0_bitwise": static_step0_bitwise,
         "evaluation_consistent": evaluation_consistent,
         "loss_max_difference": loss_difference,
-        "fold_residual_reproducible": abs(first - second) <= ACCEPTANCE_TOLERANCE,
-        "fold_residual": first,
-        "fold_residual_repeat": second,
-        "fold_rate": affine.best.rate,
+    }
+
+
+def fold_check_action(request: Request, data: Dataset, device: torch.device) -> Record:
+    """R13: re-run the modules receipt's selected M-aff candidate on the same N0, fold it, recompute r_aff.
+
+    One fit_sgd run at the receipt's selected (rate, steps) on the seen fit features: the grid's seed-derived
+    stream makes it bitwise the grid's candidate (acceptance (ii)). Never re-grids. A residual that differs from
+    the receipt by more than ACCEPTANCE_TOLERANCE is reported, not raised; the pilot decides.
+    """
+    host, _ = _noop_host(request, device)
+    root = _required(request.modules_root, "fold-check (the modules child's output, --modules-root)")
+    receipt = _request_receipt(request, root, frozenset(("modules",)))
+    _bound(root, receipt, {VECTORS: "vectors_sha256"})
+    if "noop_sha256" not in receipt or receipt["noop_sha256"] != state_hash(host):
+        raise PilotHold("the modules receipt was fitted on another N0 than the loaded noop.pt")
+    arms = mapping(receipt["arms"]) if "arms" in receipt else {}
+    if "M-aff" not in arms:
+        raise PilotHold("the modules receipt holds no M-aff arm")
+    arm = mapping(arms["M-aff"])
+    for key in ("rate", "steps", "r_aff"):
+        if "status" not in arm or arm["status"] != "available" or key not in arm or arm[key] is None:
+            raise PilotHold(f"the modules receipt's M-aff arm is unavailable or records no {key}")
+    if "r_aff" not in receipt or receipt["r_aff"] is None:
+        raise PilotHold("the modules receipt records no M-aff r_aff")
+    rate, steps, receipt_r_aff = number(arm["rate"]), integer(arm["steps"]), number(receipt["r_aff"])
+    cache = cached(host, data)
+    fit = features_from_images(host, data, seen_fit(data))
+    run = fit_sgd(
+        host, fit, cache.selection, seed=request.seed, rate=rate, steps=steps, minibatch=True, nonlinear=False
+    )
+    if run.selection is None:
+        raise PilotHold("the re-run M-aff candidate is nonfinite; the receipt selected a finite one")
+    recomputed = fold_residual(
+        host, run.adapter, fold_affine(host, run.adapter), cache.development, data, data.development
+    )
+    _sync(device)
+    return {
+        **_identity(request),
+        "selected_rate": rate,
+        "selected_steps": steps,
+        "receipt_r_aff": receipt_r_aff,
+        "recomputed_r_aff": recomputed,
+        "fold_residual_matches_receipt": abs(recomputed - receipt_r_aff) <= ACCEPTANCE_TOLERANCE,
+        "modules_vectors_sha256": text(receipt["vectors_sha256"]),
     }
 
 
@@ -1159,6 +1239,7 @@ ACTIONS: Final[dict[str, Action]] = {
     "retune": retune_action,
     "timing": timing_action,
     "acceptance": acceptance_action,
+    "fold-check": fold_check_action,
 }
 
 
@@ -1168,6 +1249,7 @@ def worker(request: Request) -> int:
     device = configure(cuda=True)
     request.output.mkdir(parents=True, exist_ok=False)
     identity = provenance()
+    request = dataclasses.replace(request, identity=identity)
     started = time.monotonic()
     if device.type == "cuda":
         torch.cuda.reset_peak_memory_stats()
@@ -1213,11 +1295,8 @@ def _checkpoints(value: str) -> tuple[int, ...]:
     return steps
 
 
-def _lineage(value: str) -> Lineage:
-    for lineage in BLOCKS:
-        if lineage == value:
-            return lineage
-    raise PilotHold(f"unknown lineage {value}")
+# argparse `choices` admits only these keys, so the lookup cannot miss.
+LINEAGES: Final[dict[str, Lineage]] = {lineage: lineage for lineage in BLOCKS}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -1235,11 +1314,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--noop-root", type=Path)
     parser.add_argument("--tcool-root", type=Path)
     parser.add_argument("--static-root", type=Path)
+    parser.add_argument("--modules-root", type=Path, help="fold-check: the modules child's output")
     parser.add_argument("--epochs", type=int, default=10, help="training actions: 20 for cooled-20, else 10")
     parser.add_argument("--checkpoints", type=_checkpoints, default=CHECKPOINTS, help="module and re-tune axis")
     parser.add_argument("--checkpoints-b", type=_checkpoints, default=CHECKPOINTS_B, help="M-small-B axis")
     args = parser.parse_args(argv)
-    lineage = _lineage(args.lineage)
+    lineage = LINEAGES[args.lineage]
     if args.width != 0:
         parser.error("M0 hosts have no bottleneck; --width must be 0")
     if args.scale != width_scale(lineage):
@@ -1270,6 +1350,7 @@ def main(argv: list[str] | None = None) -> int:
             noop_root=args.noop_root,
             tcool_root=args.tcool_root,
             static_root=args.static_root,
+            modules_root=args.modules_root,
         )
     )
 
