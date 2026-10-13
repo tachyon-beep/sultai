@@ -1,14 +1,28 @@
 from __future__ import annotations
 
+import tempfile
 import unittest
+from pathlib import Path
 
 import torch
 from torch import Tensor
 from torch.nn import functional as F
 
-from sultai.trust import ContractViolation
+from sultai.trust import ContractViolation, InputDataError
+from sultai_screen.contracts import PilotHold
 from sultai_screen.data import Dataset, generator, normalized
-from sultai_screen.host import Host, freeze, make_host, state_hash
+from sultai_screen.fit import fit_sgd, losses, mean_loss
+from sultai_screen.host import (
+    Host,
+    cached,
+    constant,
+    freeze,
+    make_host,
+    recipe_optimizer,
+    state_hash,
+    train_epochs,
+    train_host,
+)
 from sultai_screen.m0.retune import (
     R272S,
     RAFF,
@@ -20,6 +34,16 @@ from sultai_screen.m0.retune import (
     fit_retune,
     recalibrate_after,
     retune_grid,
+)
+from sultai_screen.m0.static import (
+    StaticHost,
+    load_static,
+    save_static,
+    static_adapter,
+    static_features,
+    static_hash,
+    static_module,
+    train_static,
 )
 
 CPU = torch.device("cpu")
@@ -294,6 +318,144 @@ class RetuneTests(unittest.TestCase):
         self.assertTrue(all(c.example_passes == 32 and c.parameter_steps == 272 for c in failed))
         self.assertEqual(result.best.rate, 0.1)
         self.assertFalse(result.report()["candidates"][0]["finite"])
+
+
+SMALL = (16, 16, 32, 32)
+
+
+class StaticTests(unittest.TestCase):
+    static: StaticHost
+    hashes: list[str]
+    stream: Tensor
+    plain_hashes: list[str]
+    plain_stream: Tensor
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        data = dataset()
+        cls.static, cls.hashes, cls.stream, _ = train_static(3000, data, CPU, widths=SMALL)
+        cls.plain_hashes, cls.plain_stream, _ = train_host(make_host(3000, 0, CPU, widths=SMALL), data, 3000)
+
+    def setUp(self) -> None:
+        self.data = dataset()
+
+    def test_construction_is_the_anchor_host_and_the_zero_module_is_identity(self) -> None:
+        host = make_host(3000, 0, CPU)
+        before = torch.random.get_rng_state()
+        static = StaticHost(host)
+        self.assertTrue(torch.equal(torch.random.get_rng_state(), before))
+        self.assertEqual(state_hash(static.host), state_hash(make_host(3000, 0, CPU)))
+        self.assertEqual(tuple(static.w.shape), (16, 16))
+        self.assertEqual(tuple(static.b.shape), (16,))
+        self.assertFalse(bool(static.w.any()) or bool(static.b.any()))
+        plain = make_host(3000, 0, CPU)
+        static.eval()
+        plain.eval()
+        images = normalized(self.data.images[:8])
+        with torch.no_grad():
+            self.assertTrue(torch.equal(static(images), plain(images)))
+
+    def test_one_step_moves_the_module(self) -> None:
+        ids = torch.arange(32)
+        data = Dataset(self.data.images, self.data.labels, ids, ids.clone(), ids.clone(), ids.clone())
+        static = StaticHost(make_host(3000, 0, CPU, widths=SMALL))
+        optimizer = recipe_optimizer(static.parameters())
+        _, stream, _ = train_epochs(
+            static, static.host, data, 3000, epochs=range(1), rates=constant(0.05), optimizer=optimizer
+        )
+        self.assertEqual(len(stream), 1)
+        self.assertTrue(bool(static.w.detach().ne(0).any()))
+        self.assertTrue(bool(static.b.detach().ne(0).any()))
+
+    def test_module_joins_the_recipe_groups(self) -> None:
+        static = StaticHost(make_host(3000, 0, CPU, widths=SMALL))
+        decay, affine = recipe_optimizer(static.parameters()).param_groups
+        self.assertEqual(decay["weight_decay"], 5e-4)
+        self.assertEqual(affine["weight_decay"], 0.0)
+        self.assertTrue(any(p is static.w for p in decay["params"]))
+        self.assertFalse(any(p is static.w for p in affine["params"]))
+        self.assertTrue(any(p is static.b for p in affine["params"]))
+        self.assertFalse(any(p is static.b for p in decay["params"]))
+
+    def test_training_stream_shares_order_and_differs_with_the_module_in_the_graph(self) -> None:
+        self.assertEqual(len(self.stream), 20)
+        self.assertEqual(len(self.hashes), 10)
+        # Same order/crop/flip draws and an identical step-0 forward: the first loss is bitwise the anchor's.
+        self.assertTrue(torch.equal(self.stream[0], self.plain_stream[0]))
+        self.assertFalse(torch.equal(self.stream[1:], self.plain_stream[1:]))
+        self.assertNotEqual(self.hashes[-1], self.plain_hashes[-1])
+        self.assertEqual(self.hashes[-1], state_hash(self.static.host))
+        self.assertTrue(self.static.host.sealed)
+        self.assertFalse(self.static.training or self.static.w.requires_grad or self.static.b.requires_grad)
+        self.assertIsNone(self.static.w.grad)
+        self.assertTrue(bool(self.static.w.ne(0).any()))
+
+    def test_save_load_round_trip_and_tampered_module_is_refused(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            record = save_static(self.static, root)
+            self.assertEqual(sorted(path.name for path in root.iterdir()), ["host.pt", "static-module.pt"])
+            self.assertEqual(record["static_sha256"], static_hash(self.static))
+            self.assertEqual(record["host_sha256"], state_hash(self.static.host))
+            loaded = load_static(root, 3000, SMALL, CPU, static_hash(self.static))
+            self.assertEqual(static_hash(loaded), static_hash(self.static))
+            self.assertTrue(loaded.host.sealed)
+            self.assertFalse(loaded.w.requires_grad or loaded.b.requires_grad)
+            module = torch.load(root / "static-module.pt", weights_only=True)
+            module["w"] = module["w"].clone()
+            module["w"][0, 0] += 1.0
+            torch.save(module, root / "static-module.pt")
+            with self.assertRaises(PilotHold):
+                load_static(root, 3000, SMALL, CPU, static_hash(self.static))
+        self.assertNotEqual(static_hash(self.static), state_hash(self.static.host))
+
+    def test_static_module_boundary_rejects_missing_keys_wrong_shape_and_nonfinite(self) -> None:
+        good = {"w": torch.ones(16, 16), "b": torch.ones(16)}
+        checked = static_module(good)
+        self.assertTrue(torch.equal(checked["w"], good["w"]) and torch.equal(checked["b"], good["b"]))
+        nan = torch.ones(16)
+        nan[3] = float("nan")
+        inf = torch.ones(16, 16)
+        inf[2, 2] = float("inf")
+        for bad in (
+            [torch.ones(16, 16), torch.ones(16)],
+            {"w": torch.ones(16, 16)},
+            {"w": torch.ones(16, 16), "b": torch.ones(16), "c": torch.ones(1)},
+            {"w": torch.ones(16, 15), "b": torch.ones(16)},
+            {"w": torch.ones(16, 16), "b": torch.ones(16, 1)},
+            {"w": torch.ones(16, 16, dtype=torch.float64), "b": torch.ones(16)},
+            {"w": torch.ones(16, 16), "b": nan},
+            {"w": inf, "b": torch.ones(16)},
+            {"w": torch.ones(16, 16), "b": [1.0] * 16},
+        ):
+            with self.assertRaises(InputDataError):
+                static_module(bad)
+
+    def test_no_refit_term_is_the_complete_model(self) -> None:
+        development = cached(self.static.host, self.data).development
+        adapter = static_adapter(self.static)
+        self.assertTrue(adapter.nonlinear)
+        self.assertTrue(
+            torch.equal(adapter.weights[0], self.static.w) and torch.equal(adapter.weights[1], self.static.b)
+        )
+        complete = losses(self.static.host, development, adapter)
+        self.assertFalse(torch.equal(complete, losses(self.static.host, development, None)))
+        features = static_features(self.static, self.data, self.data.development)
+        self.assertTrue(torch.equal(losses(self.static.host, features, adapter), complete))
+        with torch.no_grad():
+            direct = F.cross_entropy(
+                self.static(normalized(self.data.images[self.data.development])),
+                self.data.labels[self.data.development],
+                reduction="none",
+            )
+        self.assertTrue(torch.allclose(direct, complete, atol=1e-5))
+
+    def test_refit_warm_starts_from_the_learned_module(self) -> None:
+        features = static_features(self.static, self.data, SELECTION)
+        adapter = static_adapter(self.static)
+        refit = fit_sgd(self.static.host, features, features, seed=11, rate=0.1, steps=1, minibatch=True, start=adapter)
+        self.assertEqual(refit.step0_selection, mean_loss(self.static.host, features, adapter))
+        self.assertNotEqual(refit.step0_selection, mean_loss(self.static.host, features, None))
 
 
 if __name__ == "__main__":
