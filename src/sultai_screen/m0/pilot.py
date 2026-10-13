@@ -67,6 +67,7 @@ from sultai_screen.m0.receipts import (
     STATIC_FILES,
     TRAINING_FILES,
     Anchor,
+    Source,
     anchor,
     bound,
     derive_workloads,
@@ -235,15 +236,33 @@ def slicing_known_answer() -> Record:
     }
 
 
-def admission(charged: float, w: Workloads, ceiling: float) -> Record:
-    """§8 stage 4: charged so far plus the remaining core and admitted extended work; no completed stage re-added."""
-    core = stage_seconds("core", w)
+def already_run(w: Workloads, raised: bool) -> Record:
+    """Ruling R19: core work stage 2 already charged: the six N0 children and, on the default axis, the M-aff grids."""
+    maff = 0.0 if raised else len(ANCHORS) * w.grid["aff"]
+    n0 = len(ANCHORS) * w.fold_and_calibrations
+    return {
+        "N0": {"names": [f"noop-{s}" for s in ANCHORS], "seconds": n0},
+        "M-aff": {"names": [] if raised else [f"maff-{s}" for s in ANCHORS], "seconds": maff},
+        "seconds": n0 + maff,
+        "remaining_core_seconds": stage_seconds("core", w) - n0 - maff,
+    }
+
+
+def admission(charged: float, w: Workloads, ceiling: float, done: float) -> Record:
+    """§8 stage 4: charged so far plus the exact remaining core (core less `done`, R19) and the admitted extended work."""
+    core = stage_seconds("core", w) - done
     over = core_over_ceiling(charged, core, ceiling)
     admitted = [] if over else admit_extended(charged, core, w, ceiling)
+    extended = project_pilot(charged, tuple(admitted), w)
     return {
         "core_over_ceiling": over,
         "admitted_extended": list(admitted),
-        "projection": project_pilot(charged, ("core", *admitted), w),
+        "projection": {
+            "method": "charged so far plus the remaining core (already-run work subtracted) and admitted extended items",
+            "charged": charged,
+            "remaining_lines": {"core": core, **mapping(extended["remaining_lines"])},
+            "projected_gpu_process_seconds": number(extended["projected_gpu_process_seconds"]) + core,
+        },
         "ceiling_gpu_process_seconds": ceiling,
     }
 
@@ -524,19 +543,14 @@ def stage_admission(
         "fold_and_calibrations": run.charges([f"noop-{s}" for s in ANCHORS]),
     }
     w, sources = derive_workloads(timing, charges, fixed_v0=fixed_v0, ratio=checkpoints[-1] / CHECKPOINTS[-1])
-    record = admission(run.supervisor.charged, w, M0_PILOT_SECONDS)
+    done = already_run(w, raised)
+    record = admission(run.supervisor.charged, w, M0_PILOT_SECONDS, number(done["seconds"]))
     record.update(
         {
             "schedule": {"checkpoints": list(checkpoints), "checkpoints_b": list(checkpoints_b), "raised": raised},
             "workloads": workloads_record(w),
             "workload_sources": sources,
-            "already_run": {
-                "V0": "stages 1-2, in charged",
-                "hosts": "stage 3, in charged",
-                "M-aff": [] if raised else [f"maff-{s}" for s in ANCHORS],
-                "N0": [f"noop-{s}" for s in ANCHORS],
-                "note": "the core line keeps grid:aff and the N0 line although stage 2 ran them (conservative, R16)",
-            },
+            "already_run": {**done, "V0": "stages 1-2, in charged", "hosts": "stage 3, in charged"},
         }
     )
     publish(run.path("04-admission.json"), record)
@@ -626,6 +640,26 @@ def spreads(anchors: list[Anchor], quantities: list[Record], acceptance: list[Js
     }
 
 
+def starved_host(item: Source, seed: int) -> Record:
+    """R11 for a descriptive item: an unavailable starved-pair arm is reported, never a stop."""
+    records = mapping(item.payload["arms"])
+    absent = sorted(
+        name
+        for name in stats.STARVED_PAIR_ARMS
+        if name not in records or mapping(records[name])["status"] != "available"
+    )
+    if absent:
+        causes: Record = {
+            name: {key: mapping(records[name])[key] for key in ("cause", "error", "candidates")}
+            for name in absent
+            if name in records
+        }
+        return {"seed": seed, "status": "unavailable", "unavailable_arms": list(absent), "causes": causes}
+    host = anchor(seed, (item,), stats.STARVED_PAIR_ARMS)
+    quantities = stats.quantities(host.result, stats.STARVED_PAIR_ARMS)
+    return {"status": "available", **host.report, "quantities": quantities}
+
+
 def stage_extended(run: Run, admitted: list[str], schedule: tuple[tuple[int, ...], tuple[int, ...]]) -> Record:
     """The admitted §5 extended host items (R-all, M-exp and the lottery ran inside the anchors' children)."""
     flags = ("--checkpoints", axis(schedule[0]), "--checkpoints-b", axis(schedule[1]))
@@ -642,12 +676,8 @@ def stage_extended(run: Run, admitted: list[str], schedule: tuple[tuple[int, ...
                 for s in seeds
             ]
         )  # fmt: skip
-        hosts = [
-            anchor(s, (source(run.root, f"starved-{s}", "modules", s, lineage),), stats.STARVED_PAIR_ARMS)
-            for s in seeds
-        ]
         record["starved-pair"] = [
-            {**host.report, "quantities": stats.quantities(host.result, stats.STARVED_PAIR_ARMS)} for host in hosts
+            starved_host(source(run.root, f"starved-{s}", "modules", s, lineage), s) for s in seeds
         ]
     lineages = tuple(lineage for item, lineage in EXTENDED_HOSTS if item in admitted)
     if lineages:
@@ -660,7 +690,10 @@ def stage_extended(run: Run, admitted: list[str], schedule: tuple[tuple[int, ...
 
 
 def confirmatory_count(quantities: list[Record], w: Workloads, static_admitted: bool) -> Record:
-    """§9 stage 6: n = max(32, n*) sized on D1 only; the projection includes the fixed V0 term."""
+    """§9 stage 6: n = max(32, n*) sized on D1 only; the projection includes the fixed V0 term (R20 half-widths)."""
+    for seed, q in zip(ANCHORS, quantities, strict=True):
+        if q["D1"] is None:
+            raise InstrumentHold(f"D1 is undefined on anchor {seed} ({q['D1_reason']}); the count cannot be sized")
     sd_d1 = stats.sd([number(q["D1"]) for q in quantities])
     required, n = stats.confirmatory_count(sd_d1)
     projection = project_confirmatory(n, w, stats.CONFIRMATORY_ARMS, w.fixed_v0)
@@ -673,6 +706,26 @@ def confirmatory_count(quantities: list[Record], w: Workloads, static_admitted: 
         "static_admitted": static_admitted,
         "static_projection": static,
         "within_ceiling": projection["within_ceiling"],
+        **half_widths(quantities),
+    }
+
+
+def half_widths(quantities: list[Record]) -> Record:
+    """§9 stage 6 (R20): D2, D3 and D5 at their achieved half-widths over the development anchors."""
+    widths: Record = {}
+    reasons: Record = {}
+    for key in ("D2", "D3", "D5"):
+        values = [q[key] for q in quantities]
+        defined = None not in values
+        widths[key] = (
+            stats.achieved_half_width([number(v) for v in values if v is not None], BOOTSTRAP_SEED) if defined else None
+        )
+        reasons[key] = None if defined else f"{key} undefined on an anchor"
+    return {
+        "achieved_half_width": widths,
+        "achieved_half_width_reasons": reasons,
+        "achieved_half_width_development_only": True,
+        "bootstrap_seed": BOOTSTRAP_SEED,
     }
 
 
@@ -691,21 +744,27 @@ def development_medians(quantities: list[Record], points: dict[float, tuple[floa
         "bootstrap_seed": BOOTSTRAP_SEED,
     }
     if "starved-pair" in extended:
-        starved = [mapping(mapping(host)["quantities"]) for host in sequence(extended["starved-pair"])]
-        record["starved_pair_medians"] = {key: median_or_none([q[key] for q in starved]) for key in ("D1", "D3")}
+        hosts = [mapping(host) for host in sequence(extended["starved-pair"])]
+        starved = [mapping(host["quantities"]) for host in hosts if host["status"] == "available"]
+        record["starved_pair_medians"] = (
+            {key: median_or_none([q[key] for q in starved]) for key in ("D1", "D3")} if starved else None
+        )
+        record["starved_pair_hosts"] = {"available": len(starved), "run": len(hosts)}
     if "hosts" in extended:
-        hosts = mapping(extended["hosts"])
+        trained = mapping(extended["hosts"])
         widths = dict(points)
         for lineage in ("frontier-0.25", "frontier-0.75"):
-            if lineage in hosts:
-                parsed = [(integer(h[0]), integer(h[1]), number(h[2])) for h in map(sequence, sequence(hosts[lineage]))]
+            if lineage in trained:
+                parsed = [
+                    (integer(h[0]), integer(h[1]), number(h[2])) for h in map(sequence, sequence(trained[lineage]))
+                ]
                 count, losses = points_of(parsed)
                 widths[count] = losses
         if len(widths) > len(points):
             record["frontier_descriptive"] = stats.frontier_slope_descriptive(widths, BOOTSTRAP_SEED).report()
-        if "cooled-20" in hosts:
+        if "cooled-20" in trained:
             # The 20-epoch point never enters either frontier fit (§6).
-            losses20 = [number(sequence(host)[2]) for host in sequence(hosts["cooled-20"])]
+            losses20 = [number(sequence(host)[2]) for host in sequence(trained["cooled-20"])]
             record["cooled_20_median_n0_loss"] = stats.median(losses20)
     return record
 
@@ -726,23 +785,25 @@ def pilot(root: Path, data: Path, certificate: Path) -> int:
     # Durable one-attempt custody across output roots and supervisor restarts; never removed or reset.
     claim_attempt(REPO / CUSTODY, root, dict(identity, environment=environment, certificate_sha256=certificate_sha))
     root.mkdir(parents=True, exist_ok=False)
-    publish(
-        root / "00-opening.json",
-        {
-            "cards": cards,
-            "environment": environment,
-            "implementation_commit": text(identity["commit"]),
-            "certificate_sha256": certificate_sha,
-            "custody": CUSTODY,
-            "pilot_gpu_process_seconds_ceiling": M0_PILOT_SECONDS,
-            "processes_per_card": 1,
-            "worker": WORKER,
-            **protocol_identity(),
-        },
-    )
     run = Run(root, Supervisor(root, data, ceiling=M0_PILOT_SECONDS, per_card=1, module=WORKER))
-    stage = "replay-timing"
+    stage = "opening"
     try:
+        # Everything after custody is inside the attempt, so any failure publishes pilot-result.json.
+        publish(
+            root / "00-opening.json",
+            {
+                "cards": cards,
+                "environment": environment,
+                "implementation_commit": text(identity["commit"]),
+                "certificate_sha256": certificate_sha,
+                "custody": CUSTODY,
+                "pilot_gpu_process_seconds_ceiling": M0_PILOT_SECONDS,
+                "processes_per_card": 1,
+                "worker": WORKER,
+                **protocol_identity(),
+            },
+        )
+        stage = "replay-timing"
         replay = stage_replay(run)
         publish(root / "01-replay-timing.json", replay)
         stage = "instrument"
@@ -766,6 +827,7 @@ def pilot(root: Path, data: Path, certificate: Path) -> int:
         slicing = mapping(instrument["slicing"])["known_answer"] is True
         spread = spreads(anchors, quantities, sequence(replay["acceptance"]), slicing)
         publish(root / "05-spreads.json", spread)
+        stage = "extended"
         extended = stage_extended(run, admitted, (checkpoints, checkpoints_b))
         publish(root / "05-extended.json", extended)
         stage = "confirmatory-count"

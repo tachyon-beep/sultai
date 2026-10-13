@@ -29,6 +29,7 @@ from sultai_screen.m0.modules import FRONTIER_WIDTHS
 from sultai_screen.m0.pilot import (
     CUSTODY,
     admission,
+    already_run,
     check_cards,
     check_certificate,
     m0_stop_report,
@@ -128,6 +129,8 @@ class FakeCluster:
         self.r_aff = scenario.pop("r_aff", {})
         self.uncertified = scenario.pop("uncertified", frozenset())
         self.module_seconds = scenario.pop("module_seconds", 10.0)
+        self.unavailable = scenario.pop("unavailable", {})
+        self.fold_mismatch = scenario.pop("fold_mismatch", False)
         if scenario:
             raise AssertionError(f"unknown scenario keys {sorted(scenario)}")
         self.launched: list[tuple[str, str, str, dict[str, str], str]] = []
@@ -224,7 +227,17 @@ class FakeCluster:
             records: Record = {}
             vectors: dict[str, dict[str, Tensor]] = {"N0": {"loss": n0, "correct": (torch.arange(N) % 2).float()}}
             r_aff = self.r_aff[seed] if seed in self.r_aff else 0.001
+            failed = self.unavailable[seed] if seed in self.unavailable else frozenset()
             for arm in flags["--arms"].split(","):
+                if arm in failed:
+                    candidates = [{"rate": 1.0, "steps": 200, "selection_loss": None, "finite": False}]
+                    records[arm] = {
+                        "status": "unavailable",
+                        "cause": arm,
+                        "error": "nonfinite",
+                        "candidates": candidates,
+                    }
+                    continue
                 certified = seed not in self.uncertified
                 records[arm], vectors[arm] = arm_record(arm, seed, n0, r_aff=r_aff, certified=certified)
             torch.save(vectors, output / "vectors.pt")
@@ -235,7 +248,7 @@ class FakeCluster:
                 "arms": records,
                 "unavailable_arms": [],
                 "n0": {"development_loss": float(n0.double().mean())},
-                "r_aff": r_aff if "M-aff" in records else None,
+                "r_aff": r_aff if "M-aff" in vectors else None,
                 "vectors_sha256": file_sha(output / "vectors.pt"),
             }
         if action == "fold-check":
@@ -244,7 +257,7 @@ class FakeCluster:
                 **base,
                 "receipt_r_aff": receipt["r_aff"],
                 "recomputed_r_aff": receipt["r_aff"],
-                "fold_residual_matches_receipt": True,
+                "fold_residual_matches_receipt": not self.fold_mismatch,
             }
         raise AssertionError(f"unexpected action {action}")
 
@@ -327,7 +340,13 @@ class PilotRunTests(unittest.TestCase):
         self.assertEqual(schedule["checkpoints"], list(CHECKPOINTS))
         self.assertEqual(schedule["checkpoints_b"], list(CHECKPOINTS_B))
         admitted = read_record(root / "04-admission.json")
-        self.assertEqual(admitted["already_run"]["M-aff"], [f"maff-{seed}" for seed in range(3000, 3006)])
+        self.assertEqual(admitted["already_run"]["M-aff"]["names"], [f"maff-{seed}" for seed in range(3000, 3006)])
+        workload = admitted["workloads"]
+        self.assertAlmostEqual(admitted["already_run"]["M-aff"]["seconds"], 6 * workload["grid"]["aff"])
+        self.assertAlmostEqual(admitted["already_run"]["N0"]["seconds"], 6 * workload["fold_and_calibrations"])
+        self.assertAlmostEqual(
+            admitted["projection"]["remaining_lines"]["core"], admitted["already_run"]["remaining_core_seconds"]
+        )
         self.assertEqual(admitted["admitted_extended"], list(EXTENDED_ORDER))
         for name, action, _, flags, _ in cluster.launched:
             if name.startswith("modules-"):
@@ -343,6 +362,9 @@ class PilotRunTests(unittest.TestCase):
         self.assertTrue(spreads["v0"]["passed"])
         count = read_record(root / "06-confirmatory-count.json")
         self.assertGreaterEqual(count["confirmatory_count"], 32)
+        self.assertEqual(set(count["achieved_half_width"]), {"D2", "D3", "D5"})
+        self.assertTrue(all(math.isfinite(value) for value in count["achieved_half_width"].values()))
+        self.assertTrue(count["achieved_half_width_development_only"])
         medians = read_record(root / "07-development-medians.json")
         self.assertTrue(medians["development_only"])
         self.assertIsNone(medians["confirmatory_verdict"])
@@ -365,7 +387,7 @@ class PilotRunTests(unittest.TestCase):
                 self.assertEqual(flags["--checkpoints"], "400,1600,6400")
                 self.assertEqual(flags["--checkpoints-b"], "800,3200,12800")
         admitted = read_record(root / "04-admission.json")
-        self.assertEqual(admitted["already_run"]["M-aff"], [])
+        self.assertEqual(admitted["already_run"]["M-aff"], {"names": [], "seconds": 0.0})
         k = 10.0 / 9600
         self.assertAlmostEqual(admitted["workloads"]["grid"]["module"], k * 9600 * 2)
 
@@ -385,6 +407,35 @@ class PilotRunTests(unittest.TestCase):
         self.assertIn("3003", result["error"])
         self.assertFalse((root / "03-hosts.json").exists())
         self.assertFalse(any(name.startswith(("tcool-", "frontier-")) for name in cluster.names()))
+
+    def test_fold_check_mismatch_holds_at_stage_two_as_acceptance_item_five(self) -> None:
+        code, root, cluster, _ = self.launch(fold_mismatch=True)
+        self.assertEqual(code, 2)
+        result = self.assert_stop(root, "instrument", "instrument-failed")
+        self.assertIn("(v)", result["error"])
+        self.assertNotIn("maff-3002", cluster.names())
+
+    def test_an_unavailable_optional_core_arm_is_recorded_and_the_pilot_continues(self) -> None:
+        code, root, _, published = self.launch(unavailable={3002: frozenset(("M-exp",))})
+        self.assertEqual(code, 0, read_record(root / "pilot-result.json"))
+        self.assertEqual([name for name in published if name in RECEIPTS], list(RECEIPTS))
+        anchors = {entry["seed"]: entry for entry in read_record(root / "05-spreads.json")["anchors"]}
+        self.assertEqual(anchors[3002]["unavailable_arms"], ["M-exp"])
+        self.assertEqual(anchors[3001]["unavailable_arms"], [])
+        self.assertIsNone(read_record(root / "07-development-medians.json")["medians"]["G_mexp"])
+
+    def test_an_unavailable_starved_pair_arm_is_reported_and_never_stops_the_pilot(self) -> None:
+        code, root, _, published = self.launch(unavailable={6002: frozenset(("M-aff",))})
+        self.assertEqual(code, 0, read_record(root / "pilot-result.json"))
+        self.assertEqual([name for name in published if name in RECEIPTS], list(RECEIPTS))
+        hosts = {entry["seed"]: entry for entry in read_record(root / "05-extended.json")["starved-pair"]}
+        self.assertEqual(hosts[6002]["status"], "unavailable")
+        self.assertEqual(hosts[6002]["unavailable_arms"], ["M-aff"])
+        self.assertEqual(hosts[6002]["causes"]["M-aff"]["cause"], "M-aff")
+        self.assertEqual(hosts[6003]["status"], "available")
+        medians = read_record(root / "07-development-medians.json")
+        self.assertEqual(medians["starved_pair_hosts"], {"available": 5, "run": 6})
+        self.assertIsNotNone(medians["starved_pair_medians"]["D1"])
 
     def test_core_over_ceiling_stops_at_stage_four_before_any_core_child(self) -> None:
         code, root, cluster, _ = self.launch(module_seconds=400.0)
@@ -465,7 +516,10 @@ class AdmissionTests(unittest.TestCase):
     def test_projection_is_charged_plus_remaining_work_after_two_stages_have_run(self) -> None:
         w = workloads()
         charged = stage_seconds("V0", w) + stage_seconds("hosts", w)
-        record = admission(charged, w, M0_PILOT_SECONDS)
+        done = already_run(w, raised=False)
+        self.assertEqual(done["N0"]["seconds"], 6 * w.fold_and_calibrations)
+        self.assertEqual(done["M-aff"]["seconds"], 6 * w.grid["aff"])
+        record = admission(charged, w, M0_PILOT_SECONDS, done["seconds"])
         projection = record["projection"]
         lines = projection["remaining_lines"]
         admitted = record["admitted_extended"]
@@ -473,11 +527,17 @@ class AdmissionTests(unittest.TestCase):
         self.assertEqual(set(lines), {"core", *admitted})
         self.assertNotIn("V0", lines)
         self.assertNotIn("hosts", lines)
-        expected = charged + stage_seconds("core", w) + sum(extended_cost(item, w) for item in admitted)
+        remaining_core = stage_seconds("core", w) - 6 * w.fold_and_calibrations - 6 * w.grid["aff"]
+        self.assertAlmostEqual(lines["core"], remaining_core)
+        self.assertAlmostEqual(done["remaining_core_seconds"], remaining_core)
+        expected = charged + remaining_core + sum(extended_cost(item, w) for item in admitted)
         self.assertAlmostEqual(projection["projected_gpu_process_seconds"], expected)
+        raised = already_run(w, raised=True)
+        self.assertEqual(raised["M-aff"], {"names": [], "seconds": 0.0})
+        self.assertAlmostEqual(raised["remaining_core_seconds"] - remaining_core, 6 * w.grid["aff"])
         self.assertLessEqual(expected, M0_PILOT_SECONDS)
         self.assertEqual(admitted, list(EXTENDED_ORDER[: len(admitted)]))
-        over = admission(M0_PILOT_SECONDS - 1.0, w, M0_PILOT_SECONDS)
+        over = admission(M0_PILOT_SECONDS - 1.0, w, M0_PILOT_SECONDS, done["seconds"])
         self.assertTrue(over["core_over_ceiling"])
         self.assertEqual(over["admitted_extended"], [])
 
