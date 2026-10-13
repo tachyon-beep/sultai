@@ -15,9 +15,12 @@ from sultai_screen.data import generator
 from sultai_screen.fit import paired_se
 from sultai_screen.host import Host, parameter_count
 from sultai_screen.m0.stats import (
+    CONFIRMATORY_ARMS,
     CORE_ARMS,
     CORE_PARAMETERS,
+    PILOT_ARMS,
     REFERENCE_PARAMETERS,
+    STARVED_PAIR_ARMS,
     AnchorResult,
     ArmResult,
     achieved_half_width,
@@ -207,6 +210,63 @@ class StatsTests(unittest.TestCase):
                 unfolded={},
                 raw_candidates={},
             )
+
+    def test_confirmatory_record_reports_absent_pilot_arms_with_reason(self) -> None:
+        gains = dict.fromkeys(CONFIRMATORY_ARMS, 0.01)
+        gains.update({"M-sq": 0.05, "M-aff": 0.02, "M-wide→8:rank:refit": 0.045, "M-small-B": 0.035})
+        record = quantities(anchor(gains), CONFIRMATORY_ARMS)
+        self.assertAlmostEqual(float(record["D1"]), 0.03, places=12)
+        self.assertAlmostEqual(float(record["D1prime"]), 0.04, places=12)
+        self.assertAlmostEqual(float(record["D2"]), 0.01, places=12)
+        self.assertAlmostEqual(float(record["D3"]), 0.04, places=12)
+        for key in ("D1", "D1prime", "D2", "D2s", "D2_random", "D2s_random", "D3", "G_tcool", "r_aff", "G_rcal"):
+            self.assertIsNone(record[f"{key}_reason"], msg=key)
+        for key, arm_name in (
+            ("D4", "M-sq-fresh"),
+            ("leave_one_out", "M-wide→8:ablation"),
+            ("survival", "M-wide→16:sliced"),
+            ("retune_fraction", "R-all"),
+            ("D5", "S-static:refit"),
+            ("G_mexp", "M-exp"),
+        ):
+            self.assertIsNone(record[key], msg=key)
+            self.assertEqual(record[f"{key}_reason"], f"{arm_name} not run", msg=key)
+        with self.assertRaises(ContractViolation):
+            quantities(anchor(gains), PILOT_ARMS)
+        del gains["M-wide"]
+        with self.assertRaises(ContractViolation):
+            quantities(anchor(gains), CONFIRMATORY_ARMS)
+
+    def test_starved_pair_record_reports_d1_and_d3(self) -> None:
+        gains = dict.fromkeys(STARVED_PAIR_ARMS, 0.01)
+        gains.update({"M-sq": 0.05, "M-aff": 0.02, "T-cool": 0.07})
+        record = quantities(anchor(gains, hits={"M-sq": 3}), STARVED_PAIR_ARMS)
+        self.assertAlmostEqual(float(record["D1"]), 0.03, places=12)
+        self.assertAlmostEqual(float(record["D3"]), 0.04, places=12)
+        self.assertAlmostEqual(float(record["G_tcool"]), 0.07, places=12)
+        self.assertAlmostEqual(float(record["delta_acc"]), 0.25, places=12)
+        self.assertAlmostEqual(float(record["r_aff"]), 0.0012, places=12)
+        for key, arm_name in (
+            ("D1prime", "R-272s"),
+            ("D2", "M-wide→8:rank:refit"),
+            ("D2s", "M-wide→8:rank:sliced"),
+            ("D4", "M-sq-fresh"),
+            ("survival", "M-wide"),
+            ("leave_one_out", "M-wide→8:ablation"),
+        ):
+            self.assertIsNone(record[key], msg=key)
+            self.assertEqual(record[f"{key}_reason"], f"{arm_name} not run", msg=key)
+
+    def test_stage_arm_sets(self) -> None:
+        self.assertEqual(PILOT_ARMS, frozenset(CORE_ARMS))
+        self.assertLess(CONFIRMATORY_ARMS, PILOT_ARMS)
+        self.assertLess(STARVED_PAIR_ARMS, CONFIRMATORY_ARMS)
+        excluded = {"M-sq-fresh", "M-wide→8:ablation"} | {
+            f"M-wide→{h}:{k}" for h in (16, 4, 2) for k in ("sliced", "refit")
+        }
+        self.assertEqual(PILOT_ARMS - CONFIRMATORY_ARMS, excluded)
+        with self.assertRaises(ContractViolation):
+            quantities(anchor(default_gains()), frozenset({"M-sq", "not-an-arm"}))
 
     def test_harm_lists_candidates_beyond_harm_margin(self) -> None:
         raw = {

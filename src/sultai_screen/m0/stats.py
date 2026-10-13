@@ -60,6 +60,32 @@ CORE_ARMS: Final = (
 )
 OPTIONAL_ARMS: Final = ("R-all", "M-exp", "lottery", "S-static", "S-static:refit")
 KNOWN_ARMS: Final = frozenset(CORE_ARMS + OPTIONAL_ARMS)
+# Arm sets each stage runs by design; `quantities` raises when one of these is missing and reports every quantity
+# whose arms are absent as None with reason "<arm> not run".
+PILOT_ARMS: Final = frozenset(CORE_ARMS)
+# §10 confirmatory set: N0 and calibrations, M-sq, M-aff (with residual), R-272s, R-aff, T-cool, M-sq | T-cool,
+# M-wide, M-wide→8 (both rankings, sliced and refit), M-small, M-small-B. S-static stays optional (14 h flag only).
+CONFIRMATORY_ARMS: Final = frozenset(
+    (
+        "R-temp",
+        "R-cal",
+        "M-sq",
+        "M-aff",
+        "R-272s",
+        "R-aff",
+        "T-cool",
+        "M-sq|T-cool",
+        "M-wide",
+        "M-wide→8:rank:sliced",
+        "M-wide→8:rank:refit",
+        "M-wide→8:random:sliced",
+        "M-wide→8:random:refit",
+        "M-small",
+        "M-small-B",
+    )
+)
+# §5 extended item 1: the starved 0.5-host pair reports D1 and D3 only.
+STARVED_PAIR_ARMS: Final = frozenset(("M-sq", "M-aff", "T-cool", "M-sq|T-cool", "R-temp", "R-cal"))
 DENOMINATOR_REASON: Final = "denominator ≤ 0"
 
 
@@ -131,15 +157,24 @@ class AnchorResult:
             raise ContractViolation("fold residual must be finite")
 
 
-def _optional(value: float | None, reason: str | None, key: str) -> Record:
-    return {key: value, f"{key}_reason": reason}
+def _survival_names(kind: str) -> dict[int, str]:
+    return {h: f"M-wide→{h}:rank:{kind}" if h == 8 else f"M-wide→{h}:{kind}" for h in SURVIVAL_WIDTHS}
 
 
-def quantities(result: AnchorResult) -> Record:
-    """Per-anchor §6 quantities in nats; G(arm) = mean(N0 loss) - mean(arm loss). Optional values carry a reason."""
-    missing = [name for name in CORE_ARMS if name not in result.arms]
+def quantities(result: AnchorResult, required: frozenset[str] = PILOT_ARMS) -> Record:
+    """Per-anchor §6 quantities in nats; G(arm) = mean(N0 loss) - mean(arm loss).
+
+    `required` is the arm set the stage runs by design (PILOT_ARMS, CONFIRMATORY_ARMS or STARVED_PAIR_ARMS); a
+    missing required arm raises. Every quantity `k` carries `k_reason`: None when computed, otherwise
+    "<arm> not run" for the first absent arm it needs, or "denominator ≤ 0" for a ratio whose denominator is not
+    positive, with `k` itself None.
+    """
+    unknown = sorted(required - KNOWN_ARMS)
+    if unknown:
+        raise ContractViolation(f"unknown required arms: {unknown}")
+    missing = sorted(required - set(result.arms))
     if missing:
-        raise ContractViolation(f"core arms missing: {missing}")
+        raise ContractViolation(f"required arms missing: {missing}")
     arms = result.arms
     noop = _mean(result.noop_loss)
 
@@ -148,12 +183,6 @@ def quantities(result: AnchorResult) -> Record:
 
     def gain(name: str) -> float:
         return noop - loss(name)
-
-    def absent(*names: str) -> str | None:
-        for name in names:
-            if name not in arms:
-                return f"{name} not run"
-        return None
 
     record: Record = {
         "noop_loss": noop,
@@ -170,47 +199,65 @@ def quantities(result: AnchorResult) -> Record:
             }
             for name, arm in arms.items()
         },
-        "D1": gain("M-sq") - gain("M-aff"),
-        "D1prime": gain("M-sq") - max(gain("R-272s"), gain("R-aff")),
-        "D2": gain("M-wide→8:rank:refit") - gain("M-small-B"),
-        "D2s": gain("M-wide→8:rank:sliced") - gain("M-small"),
-        "D2_random": gain("M-wide→8:random:refit") - gain("M-small-B"),
-        "D2s_random": gain("M-wide→8:random:sliced") - gain("M-small"),
-        "D3": _mean(result.tcool_noop_loss) - loss("M-sq|T-cool"),
-        "G_tcool": gain("T-cool"),
-        "D4": gain("M-sq-fresh") - gain("M-sq"),
-        "r_aff": result.fold_residual,
-        "delta_acc": _mean(arms["M-sq"].correct) - _mean(result.noop_correct),
-        "G_rtemp": gain("R-temp"),
-        "G_rcal": gain("R-cal"),
-        "leave_one_out": gain("M-wide→8:ablation"),
         "unfolded": {
             name: {"loss": _mean(value), "gain": noop - _mean(value)} for name, value in result.unfolded.items()
         },
         "survivors": {name: list(units) for name, units in result.survivors.items()},
     }
-    for key, name in (("D5", "S-static:refit"), ("D5_norefit", "S-static")):
-        reason = absent(name)
-        record |= _optional(None if reason else loss("M-sq") - loss(name), reason, key)
-    for key, name in (("G_mexp", "M-exp"), ("G_lottery", "lottery")):
-        reason = absent(name)
-        record |= _optional(None if reason else gain(name), reason, key)
-    reason = absent("R-all") or (DENOMINATOR_REASON if gain("R-all") <= 0 else None)
-    record |= _optional(None if reason else gain("M-sq") / gain("R-all"), reason, "retune_fraction")
-    record |= _survival(gain)
+
+    def put(key: str, needs: tuple[str, ...], compute: Callable[[], Json]) -> None:
+        absent = next((name for name in needs if name not in arms), None)
+        reason = None if absent is None else f"{absent} not run"
+        record[key] = None if reason else compute()
+        record[f"{key}_reason"] = reason
+
+    def ratio(key: str, numerator: str, denominator: str) -> None:
+        if denominator in arms and numerator in arms and gain(denominator) <= 0:
+            record[key], record[f"{key}_reason"] = None, DENOMINATOR_REASON
+        else:
+            put(key, (numerator, denominator), lambda: gain(numerator) / gain(denominator))
+
+    put("D1", ("M-sq", "M-aff"), lambda: gain("M-sq") - gain("M-aff"))
+    put("D1prime", ("M-sq", "R-272s", "R-aff"), lambda: gain("M-sq") - max(gain("R-272s"), gain("R-aff")))
+    put("D2", ("M-wide→8:rank:refit", "M-small-B"), lambda: gain("M-wide→8:rank:refit") - gain("M-small-B"))
+    put("D2s", ("M-wide→8:rank:sliced", "M-small"), lambda: gain("M-wide→8:rank:sliced") - gain("M-small"))
+    put(
+        "D2_random",
+        ("M-wide→8:random:refit", "M-small-B"),
+        lambda: gain("M-wide→8:random:refit") - gain("M-small-B"),
+    )
+    put(
+        "D2s_random",
+        ("M-wide→8:random:sliced", "M-small"),
+        lambda: gain("M-wide→8:random:sliced") - gain("M-small"),
+    )
+    put("D3", ("M-sq|T-cool",), lambda: _mean(result.tcool_noop_loss) - loss("M-sq|T-cool"))
+    put("G_tcool", ("T-cool",), lambda: gain("T-cool"))
+    put("D4", ("M-sq-fresh", "M-sq"), lambda: gain("M-sq-fresh") - gain("M-sq"))
+    put("D5", ("M-sq", "S-static:refit"), lambda: loss("M-sq") - loss("S-static:refit"))
+    put("D5_norefit", ("M-sq", "S-static"), lambda: loss("M-sq") - loss("S-static"))
+    put("r_aff", ("M-aff",), lambda: result.fold_residual)
+    put("delta_acc", ("M-sq",), lambda: _mean(arms["M-sq"].correct) - _mean(result.noop_correct))
+    put("G_rtemp", ("R-temp",), lambda: gain("R-temp"))
+    put("G_rcal", ("R-cal",), lambda: gain("R-cal"))
+    put("G_mexp", ("M-exp",), lambda: gain("M-exp"))
+    put("G_lottery", ("lottery",), lambda: gain("lottery"))
+    put("leave_one_out", ("M-wide→8:ablation",), lambda: gain("M-wide→8:ablation"))
+    ratio("retune_fraction", "M-sq", "R-all")
+    curve_arms = ("M-wide", *_survival_names("sliced").values(), *_survival_names("refit").values())
+    if "M-wide" in arms and gain("M-wide") <= 0:
+        record["survival"], record["survival_reason"] = None, DENOMINATOR_REASON
+    else:
+        put("survival", curve_arms, lambda: _survival(gain))
     record["harm"] = _harm(result, noop)
     return record
 
 
-def _survival(gain: Callable[[str], float]) -> Record:
+def _survival(gain: Callable[[str], float]) -> Json:
     wide = gain("M-wide")
-    if wide <= 0:
-        return {"survival": None, "survival_reason": DENOMINATOR_REASON}
-    curves: dict[str, Json] = {}
-    for kind in ("sliced", "refit"):
-        names = {h: f"M-wide→{h}:rank:{kind}" if h == 8 else f"M-wide→{h}:{kind}" for h in SURVIVAL_WIDTHS}
-        curves[kind] = {str(h): gain(name) / wide for h, name in names.items()}
-    return {"survival": curves, "survival_reason": None}
+    return {
+        kind: {str(h): gain(name) / wide for h, name in _survival_names(kind).items()} for kind in ("sliced", "refit")
+    }
 
 
 def _harm(result: AnchorResult, noop: float) -> list[Json]:
