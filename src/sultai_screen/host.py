@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import os
 import time
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -76,6 +77,7 @@ class Host(nn.Module):
         self.classifier = nn.Linear(widths[3], 10)
         self.width = width
         self.widths = widths
+        self.sealed = False
 
     def classify(self, site: Tensor) -> Tensor:
         return as_tensor(self.classifier(as_tensor(self.tail(site)).mean(dim=(2, 3))))
@@ -113,6 +115,7 @@ def _bn_guard(module: nn.Module, _inputs: tuple[object, ...]) -> None:
 
 
 def freeze(host: Host) -> None:
+    host.sealed = True
     host.eval()
     host.requires_grad_(False)
     for parameter in host.parameters():
@@ -138,13 +141,40 @@ def augment(images: Tensor, y: Tensor, x: Tensor, flip: Tensor) -> Tensor:
     return torch.where(flip.to(images.device)[:, None, None, None], cropped.flip(3), cropped).contiguous()
 
 
-def train_host(host: Host, data: Dataset, seed: int, *, epochs: int = 10) -> tuple[list[str], Tensor, float]:
-    if epochs != 10:
-        raise ContractViolation("registered host recipe is exactly ten epochs")
-    host.train()
-    decay = [p for p in host.parameters() if p.ndim > 1]
-    affine = [p for p in host.parameters() if p.ndim <= 1]
-    optimizer = torch.optim.SGD(
+Schedule = Callable[[int], float]
+
+
+def constant(rate: float) -> Schedule:
+    def schedule(_step: int) -> float:
+        return rate
+
+    return schedule
+
+
+def linear_cooldown(start_step: int, stop_step: int, rate: float = 0.05) -> Schedule:
+    if not 0 <= start_step < stop_step:
+        raise ContractViolation("cooldown requires 0 <= start_step < stop_step")
+
+    def schedule(step: int) -> float:
+        if step < start_step:
+            return rate
+        if step < stop_step:
+            return rate * (1 - (step - start_step) / (stop_step - start_step))
+        return 0.0
+
+    return schedule
+
+
+# Global optimiser steps at batch 32 on the 40,000-example partition: 1,250 per epoch.
+TCOOL = linear_cooldown(12_500, 18_750)
+COOLED_20 = linear_cooldown(18_750, 25_000)
+
+
+def recipe_optimizer(parameters: Iterable[nn.Parameter]) -> torch.optim.SGD:
+    materialised = tuple(parameters)
+    decay = [p for p in materialised if p.ndim > 1]
+    affine = [p for p in materialised if p.ndim <= 1]
+    return torch.optim.SGD(
         [
             {"params": decay, "weight_decay": 5e-4},
             {"params": affine, "weight_decay": 0.0},
@@ -153,6 +183,23 @@ def train_host(host: Host, data: Dataset, seed: int, *, epochs: int = 10) -> tup
         momentum=0.9,
         nesterov=True,
     )
+
+
+def train_epochs(
+    model: nn.Module,
+    hashed: Host,
+    data: Dataset,
+    seed: int,
+    *,
+    epochs: range,
+    rates: Callable[[int], float],
+    optimizer: torch.optim.SGD,
+) -> tuple[list[str], Tensor, float]:
+    if epochs.step != 1 or epochs.start < 0 or len(epochs) == 0:
+        raise ContractViolation("training epochs must be a non-empty contiguous range from a non-negative start")
+    model.train()
+    parameters = tuple(as_tensor(p) for group in optimizer.param_groups for p in group["params"])
+    step = epochs.start * ((len(data.train) + 31) // 32)
     device = data.images.device
     # No per-step float()/item() sync. Every loss remains on the device until the epoch ends.
     stream: list[Tensor] = []
@@ -160,7 +207,7 @@ def train_host(host: Host, data: Dataset, seed: int, *, epochs: int = 10) -> tup
     if device.type == "cuda":
         torch.cuda.synchronize()
     start = time.monotonic()
-    for epoch in range(epochs):
+    for epoch in epochs:
         order = data.train[torch.randperm(len(data.train), generator=generator(seed, f"order:{epoch}"))]
         crop = torch.randint(0, 9, (len(order), 2), generator=generator(seed, f"crop:{epoch}"))
         flip = torch.rand(len(order), generator=generator(seed, f"flip:{epoch}")) < 0.5
@@ -170,23 +217,43 @@ def train_host(host: Host, data: Dataset, seed: int, *, epochs: int = 10) -> tup
             batch = augment(
                 data.images[ids], crop[index : index + 32, 0], crop[index : index + 32, 1], flip[index : index + 32]
             )
-            logits = as_tensor(host(normalized(batch)))
+            logits = as_tensor(model(normalized(batch)))
             loss = F.cross_entropy(logits, data.labels[ids])
             optimizer.zero_grad(set_to_none=True)
-            parameters = tuple(host.parameters())
             gradients = torch.autograd.grad(loss, parameters)
             for parameter, gradient in zip(parameters, gradients, strict=True):
                 parameter.grad = gradient
+            rate = rates(step)
+            for group in optimizer.param_groups:
+                group["lr"] = rate
             optimizer.step()
+            step += 1
             epoch_losses.append(loss.detach())
         values = torch.stack(epoch_losses)
         if not bool(torch.isfinite(values).all()):
             raise PilotHold("nonfinite host training loss")
         stream.append(values.cpu())
-        hashes.append(state_hash(host))
+        hashes.append(state_hash(hashed))
     if device.type == "cuda":
         torch.cuda.synchronize()
     return hashes, torch.cat(stream), time.monotonic() - start
+
+
+def train_host(host: Host, data: Dataset, seed: int, *, epochs: int = 10) -> tuple[list[str], Tensor, float]:
+    if epochs != 10:
+        raise ContractViolation("registered host recipe is exactly ten epochs")
+    return train_epochs(
+        host, host, data, seed, epochs=range(10), rates=constant(0.05), optimizer=recipe_optimizer(host.parameters())
+    )
+
+
+def momentum_buffers(optimizer: torch.optim.SGD, host: nn.Module) -> dict[str, Tensor]:
+    buffers: dict[str, Tensor] = {}
+    for name, parameter in host.named_parameters():
+        if parameter not in optimizer.state or "momentum_buffer" not in optimizer.state[parameter]:
+            raise ContractViolation(f"no momentum buffer for {name}; optimiser has not stepped this parameter")
+        buffers[name] = as_tensor(optimizer.state[parameter]["momentum_buffer"]).detach().clone()
+    return buffers
 
 
 @t3_boundary(
@@ -206,12 +273,48 @@ def checkpoint_state(value: object, expected: dict[str, Tensor]) -> dict[str, Te
     return result
 
 
-def load_host(path: Path, seed: int, width: int, device: torch.device) -> Host:
-    host = make_host(seed, width, device)
+@t3_boundary(
+    test="tests/test_m0_host.py::HostTests.test_optimizer_state_boundary_rejects_missing_keys_wrong_shape_and_nonfinite",
+    fingerprint="150973c7f74bf3fa8c04d6dfc256e9128b08a797c5be0a51101087dc02099944",
+)
+def optimizer_state(value: object, expected: dict[str, Tensor]) -> dict[str, Tensor]:
+    if not isinstance(value, dict) or set(value) != set(expected):
+        raise InputDataError("optimiser state must contain exactly the host parameter names")
+    result: dict[str, Tensor] = {}
+    for key, item in value.items():
+        if not isinstance(key, str) or not isinstance(item, Tensor) or not bool(torch.isfinite(item).all()):
+            raise InputDataError("optimiser state requires finite tensors and string keys")
+        if item.shape != expected[key].shape or item.dtype != expected[key].dtype:
+            raise InputDataError("momentum buffer shape/dtype differs from its host parameter")
+        result[key] = item
+    return result
+
+
+def restore_optimizer(host: nn.Module, buffers: dict[str, Tensor]) -> torch.optim.SGD:
+    named = dict(host.named_parameters())
+    if set(buffers) != set(named):
+        raise ContractViolation("momentum buffers must cover exactly the host parameters")
+    optimizer = recipe_optimizer(named.values())
+    for name, parameter in named.items():
+        optimizer.state[parameter]["momentum_buffer"] = buffers[name].detach().clone().to(parameter.device)
+    return optimizer
+
+
+def load_host(
+    path: Path,
+    seed: int,
+    width: int,
+    device: torch.device,
+    *,
+    widths: tuple[int, int, int, int] = REFERENCE_WIDTHS,
+    frozen: bool = True,
+) -> Host:
+    host = make_host(seed, width, device, widths=widths)
     unknown: object = torch.load(path, map_location=device, weights_only=True)
     state = checkpoint_state(unknown, dict(host.state_dict()))
     host.load_state_dict(state, strict=True)
-    freeze(host)
+    if frozen:
+        freeze(host)
     return host
 
 
