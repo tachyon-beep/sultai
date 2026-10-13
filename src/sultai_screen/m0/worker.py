@@ -40,6 +40,7 @@ from sultai_screen.contracts import (
 )
 from sultai_screen.data import Dataset, as_tensor, install_seal, load_dataset, normalized
 from sultai_screen.fit import (
+    EVAL_CHUNK,
     Adapter,
     Candidate,
     Grid,
@@ -1252,15 +1253,13 @@ def acceptance_action(request: Request, data: Dataset, device: torch.device) -> 
         images = normalized(data.images[data.train[:8].to(device)])
         static_step0_bitwise = torch.equal(as_tensor(static(images)), as_tensor(plain(images)))
     # (iv) the shared padded evaluator's losses agree with its logits, and its accuracy with an independent unpadded
-    # forward of the whole development site (F6: never the same logits call on both sides).
+    # forward of the development site (F6: never the same logits call on both sides; R34b: in EVAL_CHUNK batches).
     development = cache.development
     raw = logits(host, development, None)
     reference = F.cross_entropy(raw, development.labels, reduction="none")
     loss_difference = float((losses(host, development, None) - reference).abs().max())
-    with torch.no_grad():
-        unpadded = (host.classify(development.base).argmax(1) == development.labels).float()
     evaluation_consistent = loss_difference <= ACCEPTANCE_TOLERANCE and torch.equal(
-        accuracy(host, development, None), unpadded
+        accuracy(host, development, None), chunked_accuracy(host, development)
     )
     _sync(device)
     return {
@@ -1277,6 +1276,16 @@ def acceptance_action(request: Request, data: Dataset, device: torch.device) -> 
         "evaluation_consistent": evaluation_consistent,
         "loss_max_difference": loss_difference,
     }
+
+
+def chunked_accuracy(host: Host, data: Features) -> Tensor:
+    """R34b: 0/1 correctness from host.classify on the unpadded site in EVAL_CHUNK-row batches (the last one partial),
+    concatenated; the padded evaluator's batch size, so a GPU batch-size bit difference cannot change an argmax."""
+    with torch.no_grad():
+        values = torch.cat(
+            [host.classify(data.base[start : start + EVAL_CHUNK]) for start in range(0, len(data.labels), EVAL_CHUNK)]
+        )
+    return (values.argmax(1) == data.labels).float()
 
 
 def fold_check_action(request: Request, data: Dataset, device: torch.device) -> Record:

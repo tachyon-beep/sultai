@@ -1106,6 +1106,30 @@ class WorkerTests(unittest.TestCase):
         self.assertEqual(number(record["loss_max_difference"]), 0.0)
         self.assertIs(record["evaluation_consistent"], False)
 
+    def test_the_accuracy_reference_runs_in_eval_chunk_batches(self) -> None:
+        # R34b: the independent reference forward sees the padded evaluator's batch size (EVAL_CHUNK rows, the last
+        # chunk partial and unpadded), never one whole-split forward, so a GPU batch-size bit difference cannot
+        # falsely stop stage 1; the 0/1 comparison stays exact.
+        host = make_host(3000, 0, CPU)
+        host.eval()
+        base = torch.randn((300, 16, 8, 8), generator=torch.Generator().manual_seed(9))
+        data = Features(base, base, torch.arange(300) % 10)
+        sizes: list[int] = []
+        real = Host.classify
+
+        def recording(self: Host, site: Tensor) -> Tensor:
+            sizes.append(len(site))
+            return real(self, site)
+
+        with patch.object(Host, "classify", recording):
+            reference = worker.chunked_accuracy(host, data)
+        self.assertEqual(fit_module.EVAL_CHUNK, 128)
+        self.assertEqual(sizes, [128, 128, 44])
+        self.assertTrue(all(size <= fit_module.EVAL_CHUNK for size in sizes))
+        with torch.no_grad():
+            expected = torch.cat([real(host, base[i : i + 128]) for i in (0, 128, 256)]).argmax(1) == data.labels
+        self.assertTrue(torch.equal(reference, expected.float()))
+
     def test_survival_widths_are_the_frozen_set(self) -> None:
         # G3: the production survival widths, 16/8/4/2 (§5): three single refits plus the M-wide→8 grid arms.
         self.assertEqual(worker.SURVIVAL_CUTS, (16, 4, 2))
