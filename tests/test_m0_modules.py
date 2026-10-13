@@ -4,11 +4,14 @@ import unittest
 
 import torch
 from torch import Tensor
+from torch.nn import functional as F
 
 from sultai.trust import ContractViolation
-from sultai_screen.data import generator
-from sultai_screen.fit import Adapter, initial_adapter, losses
-from sultai_screen.host import Features, Host, freeze
+from sultai_screen.data import Dataset, as_tensor, generator
+from sultai_screen.fit import Adapter, initial_adapter, losses, mean_loss
+from sultai_screen.host import Features, Host, freeze, make_host, state_hash
+from sultai_screen.m0.data import features_from_images
+from sultai_screen.m0.fold import fold_affine, fold_residual
 from sultai_screen.m0.modules import (
     FRONTIER_WIDTHS,
     Cut,
@@ -235,6 +238,143 @@ class ModuleTests(unittest.TestCase):
         ):
             with self.assertRaises(ContractViolation):
                 call()
+
+
+def affine(seed: int, *, w_scale: float = 0.1, b_scale: float = 0.1) -> Adapter:
+    rng = torch.Generator().manual_seed(seed)
+    w = torch.randn((16, 16), generator=rng) * w_scale
+    b = torch.randn(16, generator=rng) * b_scale
+    return Adapter((w, b), nonlinear=False)
+
+
+def tiny_dataset() -> Dataset:
+    rng = torch.Generator().manual_seed(8)
+    images = torch.randint(0, 256, (8, 3, 32, 32), generator=rng, dtype=torch.uint8)
+    labels = torch.randint(0, 10, (8,), generator=rng)
+    ids = torch.arange(8)
+    return Dataset(images, labels, ids, ids.clone(), ids.clone(), ids.clone())
+
+
+class FoldTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.host = make_host(3000, 0, CPU)
+        freeze(self.host)
+        self.z = torch.randn((4, 16, 16, 16), generator=torch.Generator().manual_seed(5))
+
+    def conv_pair(self, adapter: Adapter) -> tuple[Tensor, Tensor, Tensor, Tensor]:
+        """tail[0] of folded on z and of host on u: float32 modules, then float64 conv on the stored float32 params."""
+        folded = fold_affine(self.host, adapter)
+        with torch.no_grad():
+            u = adapter.apply(self.z, self.z)
+            z64 = self.z.double()
+            u64 = Adapter(tuple(w.double() for w in adapter.weights), nonlinear=False).apply(z64, z64)
+            folded_conv, host_conv = folded.tail[0], self.host.tail[0]
+            folded64 = F.conv2d(z64, folded_conv.weight.double(), folded_conv.bias.double(), padding=1)
+            reference64 = F.conv2d(u64, host_conv.weight.double(), host_conv.bias.double(), padding=1)
+            return as_tensor(folded_conv(self.z)), as_tensor(host_conv(u)), folded64, reference64
+
+    def test_interior_exact_and_border_over_adds_when_bias_nonzero(self) -> None:
+        folded_out, reference, folded64, reference64 = self.conv_pair(affine(1))
+        self.assertLessEqual(max_diff(folded64[..., 1:15, 1:15], reference64[..., 1:15, 1:15]), 1e-6)
+        # The float32 kernel is already ~1.3e-6 from its float64 value before any fold: this bounds the kernel.
+        self.assertLessEqual(max_diff(folded_out[..., 1:15, 1:15], reference[..., 1:15, 1:15]), 1e-5)
+        border = torch.ones((16, 16), dtype=torch.bool)
+        border[1:15, 1:15] = False
+        self.assertEqual(int(border.sum()), 60)
+        self.assertGreater(max_diff(folded_out[..., border], reference[..., border]), 1e-5)
+
+    def test_zero_bias_fold_is_exact_everywhere(self) -> None:
+        folded_out, reference, folded64, reference64 = self.conv_pair(affine(2, b_scale=0.0))
+        self.assertLessEqual(max_diff(folded64, reference64), 1e-6)
+        # The float32 kernel is already ~1.3e-6 from its float64 value before any fold: this bounds the kernel.
+        self.assertLessEqual(max_diff(folded_out, reference), 1e-5)
+
+    def test_only_tail0_weight_and_bias_change_and_original_untouched(self) -> None:
+        before = state_hash(self.host)
+        original = {name: tensor.clone() for name, tensor in self.host.state_dict().items()}
+        folded = fold_affine(self.host, affine(3))
+        self.assertEqual(state_hash(self.host), before)
+        self.assertNotEqual(state_hash(folded), before)
+        self.assertTrue(folded.sealed)
+        self.assertFalse(folded.training)
+        self.assertFalse(any(p.requires_grad for p in folded.parameters()))
+        changed = folded.state_dict()
+        self.assertEqual(set(changed), set(original))
+        for name, tensor in original.items():
+            self.assertEqual(changed[name].dtype, tensor.dtype, name)
+            self.assertEqual(changed[name].shape, tensor.shape, name)
+            if name in ("tail.0.weight", "tail.0.bias"):
+                self.assertFalse(torch.equal(changed[name], tensor), name)
+            else:
+                self.assertTrue(torch.equal(changed[name], tensor), name)
+        for name, tensor in self.host.state_dict().items():
+            self.assertTrue(torch.equal(tensor, original[name]), name)
+
+    def test_fold_does_not_consume_global_rng(self) -> None:
+        torch.manual_seed(11)
+        expected = torch.rand(4)
+        torch.manual_seed(11)
+        fold_affine(self.host, affine(4))
+        self.assertTrue(torch.equal(torch.rand(4), expected))
+
+    def residual(self, adapter: Adapter) -> float:
+        data = tiny_dataset()
+        development = features_from_images(self.host, data, torch.arange(8))
+        folded = fold_affine(self.host, adapter)
+        return fold_residual(self.host, adapter, folded, development, data, torch.arange(8))
+
+    def test_residual_zero_bitwise_for_zero_adapter(self) -> None:
+        value = self.residual(affine(5, w_scale=0.0, b_scale=0.0))
+        self.assertIsInstance(value, float)
+        self.assertEqual(value, 0.0)
+
+    def test_residual_finite_and_nonzero_with_bias(self) -> None:
+        adapter = affine(6, w_scale=0.0, b_scale=1.0)
+        value = self.residual(adapter)
+        self.assertIsInstance(value, float)
+        self.assertTrue(torch.isfinite(torch.tensor(value)))
+        self.assertNotEqual(value, 0.0)
+        data = tiny_dataset()
+        development = features_from_images(self.host, data, torch.arange(8))
+        folded = fold_affine(self.host, adapter)
+        expected = mean_loss(folded, features_from_images(folded, data, torch.arange(8)), None) - mean_loss(
+            self.host, development, adapter
+        )
+        self.assertEqual(value, expected)
+
+    def test_residual_finite_for_random_affine(self) -> None:
+        value = self.residual(affine(7))
+        self.assertIsInstance(value, float)
+        self.assertTrue(torch.isfinite(torch.tensor(value)))
+
+    def test_contract_violations(self) -> None:
+        w, b = affine(8).weights
+        bad = (
+            Adapter((w, b)),
+            Adapter((w[:8], b), nonlinear=False),
+            Adapter((w, b[:8]), nonlinear=False),
+            Adapter((w, w, b), nonlinear=False),
+            random_module(4, 1),
+        )
+        for adapter in bad:
+            with (
+                self.subTest(count=len(adapter.weights), nonlinear=adapter.nonlinear),
+                self.assertRaises(ContractViolation),
+            ):
+                fold_affine(self.host, adapter)
+        for width in (2, 4):
+            wide = make_host(3000, width, CPU)
+            freeze(wide)
+            with self.subTest(width=width), self.assertRaises(ContractViolation):
+                fold_affine(wide, affine(8))
+
+    def test_residual_rejects_mismatched_folded_host(self) -> None:
+        adapter = affine(9)
+        data = tiny_dataset()
+        development = features_from_images(self.host, data, torch.arange(8))
+        for folded in (self.host, fold_affine(self.host, affine(10))):
+            with self.assertRaises(ContractViolation):
+                fold_residual(self.host, adapter, folded, development, data, torch.arange(8))
 
 
 if __name__ == "__main__":
