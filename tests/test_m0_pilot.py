@@ -23,8 +23,23 @@ from torch import Tensor
 from sultai.trust import InputDataError
 from sultai_screen.contracts import FeasibilityHold, InstrumentHold, Json, PilotHold, Record, file_sha, read_record
 from sultai_screen.m0 import pilot as m0_pilot
-from sultai_screen.m0.costs import EXTENDED_ORDER, Workloads, extended_cost, stage_seconds
-from sultai_screen.m0.identity import CHECKPOINTS, CHECKPOINTS_B, M0_PILOT_SECONDS, protocol_identity
+from sultai_screen.m0.confirmatory import CUSTODY as CONFIRMATORY_CUSTODY
+from sultai_screen.m0.confirmatory import RESTART_CUSTODY, Guarded, confirmatory, whitelist
+from sultai_screen.m0.costs import (
+    EXTENDED_ORDER,
+    M0_CONFIRMATORY_STATIC_SECONDS,
+    STATIC_ARMS,
+    Workloads,
+    extended_cost,
+    stage_seconds,
+)
+from sultai_screen.m0.identity import (
+    CHECKPOINTS,
+    CHECKPOINTS_B,
+    M0_CONFIRMATORY_SECONDS,
+    M0_PILOT_SECONDS,
+    protocol_identity,
+)
 from sultai_screen.m0.modules import FRONTIER_WIDTHS
 from sultai_screen.m0.pilot import (
     CUSTODY,
@@ -32,14 +47,15 @@ from sultai_screen.m0.pilot import (
     already_run,
     check_cards,
     check_certificate,
+    job,
     m0_stop_report,
     pilot,
     slicing_known_answer,
 )
-from sultai_screen.m0.receipts import Source, anchor, arm_vectors, derive_workloads
-from sultai_screen.m0.stats import KNOWN_ARMS, PILOT_ARMS
+from sultai_screen.m0.receipts import Source, anchor, arm_vectors, derive_workloads, workloads_record
+from sultai_screen.m0.stats import CONFIRMATORY_ARMS, KNOWN_ARMS, PILOT_ARMS
 from sultai_screen.m0.worker import ATTEMPT4_FINAL_STATE
-from sultai_screen.pilot import GPU_UUIDS
+from sultai_screen.pilot import GPU_UUIDS, Supervisor
 
 REAL_POPEN = subprocess.Popen
 SRC = Path(__file__).resolve().parents[1] / "src"
@@ -123,8 +139,12 @@ def write_files(output: Path, files: dict[str, str], seed: int) -> Record:
 class FakeCluster:
     """The Popen side effect: one M0 receipt per launched child, then a real `/bin/true` process."""
 
-    def __init__(self, repo: Path, **scenario: object) -> None:
+    def __init__(
+        self, repo: Path, custody: str = CUSTODY, ordered: str = "04-schedule.json", **scenario: object
+    ) -> None:
         self.repo = repo
+        self.custody = custody
+        self.ordered = ordered
         self.replay_mismatch = scenario.pop("replay_mismatch", frozenset())
         self.r_aff = scenario.pop("r_aff", {})
         self.uncertified = scenario.pop("uncertified", frozenset())
@@ -143,10 +163,10 @@ class FakeCluster:
         flags = dict(zip(tokens[0::2], tokens[1::2], strict=True))
         output = Path(flags["--output"])
         gpu = kwargs["env"]["CUDA_VISIBLE_DEVICES"]
-        if not (self.repo / CUSTODY).is_file():
+        if not (self.repo / self.custody).is_file():
             self.violations.append(f"{output.name} launched before custody")
-        if output.name.startswith("modules-") and not (output.parent / "04-schedule.json").is_file():
-            self.violations.append(f"{output.name} launched before 04-schedule.json")
+        if output.name.startswith("modules-") and not (output.parent / self.ordered).is_file():
+            self.violations.append(f"{output.name} launched before {self.ordered}")
         self.launched.append((output.name, action, gpu, flags, module))
         output.mkdir()
         envelope = {
@@ -651,6 +671,257 @@ class ReceiptTests(unittest.TestCase):
         other.payload["noop_sha256"] = "another"
         with self.assertRaisesRegex(PilotHold, "N0"):
             anchor(3002, (source("modules-3002", 3002, records, vectors), other), PILOT_ARMS)
+
+
+def pilot_record(**changes: Json) -> Record:
+    """A clean pilot-result.json as Task 17 publishes it."""
+    record: Record = {
+        "software_valid": True,
+        "instrument_valid": True,
+        "verdict": "pilot-clean; confirmatory verdict pending",
+        "pilot_clean": True,
+        "confirmatory_ready": False,
+        "reason": "pilot-filled values must be reviewed and committed before the confirmatory run",
+        "schedule": {"checkpoints": list(CHECKPOINTS), "checkpoints_b": list(CHECKPOINTS_B), "raised": False},
+        "admitted_extended": list(EXTENDED_ORDER),
+        "confirmatory_count": 32,
+        "static_admitted": False,
+        "charged_gpu_process_seconds": 9000.0,
+        **protocol_identity(),
+    }
+    record.update(changes)
+    return record
+
+
+class ConfirmatoryTests(unittest.TestCase):
+    """§10 under its own custody and ceiling; children faked exactly as PilotRunTests fakes them."""
+
+    def setUp(self) -> None:
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.base = Path(temporary.name)
+        self.repo = self.base / "repo"
+        self.results = self.repo / "docs/results/m0-pilot"
+        self.results.mkdir(parents=True)
+        self.pilot_result = self.results / "pilot-result.json"
+        self.write_pilot()
+        (self.results / "04-admission.json").write_text(json.dumps({"workloads": workloads_record(workloads())}))
+        self.disposition = self.repo / "docs/certificates/m0-confirmatory-restart-disposition.md"
+        self.disposition.parent.mkdir(parents=True)
+        self.disposition.write_text("John: one restart from the restart block.\n")
+
+    def write_pilot(self, **changes: Json) -> None:
+        self.pilot_result.write_text(json.dumps(pilot_record(**changes)))
+
+    def certificate(self, hours: int = 12, *, disposition: bool = False) -> Path:
+        paths = [self.pilot_result, self.results / "04-admission.json", *([self.disposition] if disposition else [])]
+        evidence = [{"path": str(path.relative_to(self.repo)), "sha256": file_sha(path)} for path in paths]
+        path = self.base / "certificate.json"
+        path.write_text(json.dumps({**IDENTITY, "evidence": evidence, "confirmatory_ceiling_hours": hours}))
+        return path
+
+    def launch(
+        self, certificate: Path, root_name: str = "run", *, static: bool = False, restart: Path | None = None,
+        **scenario: object,
+    ) -> tuple[int, Path, FakeCluster]:  # fmt: skip
+        custody = CONFIRMATORY_CUSTODY if restart is None else RESTART_CUSTODY
+        cluster = FakeCluster(self.repo, custody=custody, ordered="00-opening.json", **scenario)
+        root = self.base / root_name
+        with (
+            patch("sultai_screen.pilot.subprocess.Popen", side_effect=cluster),
+            patch("sultai_screen.m0.confirmatory.REPO", self.repo),
+            patch("sultai_screen.m0.confirmatory.check_certificate", return_value=IDENTITY),
+            patch("sultai_screen.m0.confirmatory.environment_identity", return_value={"torch": "fake"}),
+            patch("sultai_screen.m0.confirmatory.check_cards", return_value={"gpu_query": "fake"}),
+        ):
+            code = confirmatory(
+                root, self.base / "data", certificate, self.pilot_result, static=static, restart=restart
+            )
+        return code, root, cluster
+
+    def assert_refused(self, certificate: Path, pattern: str, **options: object) -> None:
+        with self.assertRaisesRegex(PilotHold, pattern):
+            self.launch(certificate, **options)
+        # Refused before custody: the single attempt is not consumed and no child (nor its root) exists.
+        self.assertFalse((self.repo / CONFIRMATORY_CUSTODY).exists())
+        self.assertFalse((self.repo / RESTART_CUSTODY).exists())
+        self.assertFalse((self.base / "run").exists())
+
+    def ledger_ceilings(self, root: Path) -> set[float]:
+        ledgers = sorted(root.glob("ledger-*.json"))
+        self.assertTrue(ledgers)
+        return {read_record(path)["ceiling_gpu_process_seconds"] for path in ledgers}
+
+    def arms_of(self, cluster: FakeCluster, name: str) -> set[str]:
+        flags = next(flags for launched, _, _, flags, _ in cluster.launched if launched == name)
+        return set(flags["--arms"].split(","))
+
+    def test_refuses_a_pilot_result_that_is_not_clean_or_carries_another_identity(self) -> None:
+        self.write_pilot(pilot_clean=False)
+        self.assert_refused(self.certificate(), "clean pilot")
+        self.write_pilot(protocol_sha256="0" * 64)
+        self.assert_refused(self.certificate(), "protocol_sha256")
+        self.write_pilot()
+        changed = self.certificate()
+        self.pilot_result.write_text(json.dumps(pilot_record(confirmatory_count=33)))
+        self.assert_refused(changed, "evidence")
+
+    def test_static_requires_the_pilot_admission_and_johns_14_hour_certificate(self) -> None:
+        self.assert_refused(self.certificate(14), "S-static", static=True)
+        self.write_pilot(static_admitted=True)
+        self.assert_refused(self.certificate(12), "14", static=True)
+
+    def test_the_whitelist_refuses_an_extended_arm_and_an_unrestricted_arm_list(self) -> None:
+        allowed = frozenset(CONFIRMATORY_ARMS)
+        for arms in ("M-sq,M-exp", "M-sq-fresh", "lottery", "M-wide→16:refit", "S-static"):
+            with self.assertRaisesRegex(PilotHold, "whitelist"):
+                whitelist([job("modules-7500", "modules", 7500, "confirmatory", "--arms", arms)], allowed)
+        with self.assertRaisesRegex(PilotHold, "whitelist"):
+            whitelist([job("retune-7500", "retune", 7500, "confirmatory", "--arms", "R-272s,R-all")], allowed)
+        with self.assertRaisesRegex(PilotHold, "--arms"):
+            whitelist([job("modules-7500", "modules", 7500, "confirmatory")], allowed)
+        for action in ("instrument", "timing", "cooled20", "static"):
+            with self.assertRaisesRegex(PilotHold, action):
+                whitelist([job(f"{action}-7500", action, 7500, "confirmatory")], allowed)
+        whitelist([job("static-7500", "static", 7500, "confirmatory")], allowed | STATIC_ARMS)
+        # Every launch, the reused pilot helpers' included, passes the whitelist before any child starts.
+        cluster = FakeCluster(self.repo, custody=CONFIRMATORY_CUSTODY)
+        root = self.base / "guarded"
+        root.mkdir()
+        run = Guarded(root, Supervisor(root, self.base / "data", ceiling=M0_CONFIRMATORY_SECONDS, per_card=1), allowed)
+        with (
+            patch("sultai_screen.pilot.subprocess.Popen", side_effect=cluster),
+            self.assertRaisesRegex(PilotHold, "whitelist"),
+        ):
+            run.run([job("modules-7500", "modules", 7500, "confirmatory", "--arms", "M-sq,M-exp")])
+        self.assertEqual(cluster.launched, [])
+        self.assertEqual(list(root.iterdir()), [])
+
+    def test_restart_requires_the_listed_disposition_and_the_prior_custody_receipt(self) -> None:
+        self.assert_refused(self.certificate(disposition=True), "prior", restart=self.disposition)
+        prior = self.repo / CONFIRMATORY_CUSTODY
+        prior.parent.mkdir()
+        prior.write_text('{"output": "first attempt"}\n')
+        with self.assertRaisesRegex(PilotHold, "the restart disposition .* not hash-listed"):
+            self.launch(self.certificate(), restart=self.disposition)
+        self.assertFalse((self.repo / RESTART_CUSTODY).exists())
+        code, root, cluster = self.launch(self.certificate(disposition=True), restart=self.disposition)
+        self.assertEqual(code, 0, read_record(root / "confirmatory-result.json"))
+        self.assertEqual(cluster.violations, [])
+        trained = [int(flags["--seed"]) for _, action, _, flags, _ in cluster.launched if action == "train"]
+        self.assertEqual(trained, list(range(7700, 7732)))
+        custody = read_record(self.repo / RESTART_CUSTODY)["identity"]
+        self.assertEqual(custody["linked_confirmatory_custody"], {CONFIRMATORY_CUSTODY: file_sha(prior)})
+        disposition = str(self.disposition.relative_to(self.repo))
+        self.assertEqual(custody["restart_disposition"], {disposition: file_sha(self.disposition)})
+        self.assertEqual(prior.read_text(), '{"output": "first attempt"}\n')
+        self.assertEqual(read_record(root / "confirmatory-result.json")["seed_block"]["lineage"], "restart")
+
+    def test_clean_confirmatory_runs_the_whitelist_on_fresh_anchors_under_its_own_ceiling(self) -> None:
+        (self.repo / ".weft").mkdir()
+        gate3 = self.repo / ".weft/gate3-pilot-attempt.json"
+        gate3.write_text('{"gate3": true}\n')
+        code, root, cluster = self.launch(self.certificate())
+        result = read_record(root / "confirmatory-result.json")
+        self.assertEqual(code, 0, result)
+        self.assertEqual(cluster.violations, [])
+        # Its own hard stop: 43,200 s in every ledger, one process per card, the M0 worker for every child.
+        self.assertEqual(self.ledger_ceilings(root), {M0_CONFIRMATORY_SECONDS})
+        self.assertEqual(M0_CONFIRMATORY_SECONDS, 43_200)
+        previous = 0
+        for path in sorted(root.glob("ledger-*.json")):
+            entries = read_record(path)["entries"]
+            cards = [entry["gpu"] for entry in entries[previous:]]
+            previous = len(entries)
+            self.assertEqual(len(cards), len(set(cards)), path.name)
+        self.assertEqual({module for *_, module in cluster.launched}, {"sultai_screen.m0.worker"})
+        # Fresh anchors exactly 7500..7531 at s = 1.0; only the V0 replay touches the development anchors.
+        trained = [int(flags["--seed"]) for _, action, _, flags, _ in cluster.launched if action == "train"]
+        self.assertEqual(trained, list(range(7500, 7532)))
+        for name, action, _, flags, _ in cluster.launched:
+            self.assertEqual(flags["--scale"], "1.0", name)
+            if action in ("replay", "acceptance"):
+                self.assertEqual(flags["--lineage"], "anchor", name)
+            else:
+                self.assertEqual(flags["--lineage"], "confirmatory", name)
+                self.assertIn(int(flags["--seed"]), range(7500, 7532), name)
+            self.assertNotIn(action, ("timing", "instrument", "static", "cooled20"), name)
+        names = cluster.names()
+        self.assertIn("replay-3000-gpu1", names)
+        self.assertLess(names.index("maff-7500"), names.index("fold-check-7500"))
+        self.assertLess(names.index("fold-check-7500"), names.index("maff-7502"))
+        # The §10 whitelist and nothing else: M-aff in V0, the rest in the core children.
+        for seed in range(7500, 7532):
+            ran = self.arms_of(cluster, f"maff-{seed}")
+            ran |= self.arms_of(cluster, f"modules-{seed}") | self.arms_of(cluster, f"retune-{seed}")
+            self.assertEqual(ran, set(CONFIRMATORY_ARMS), seed)
+            self.assertNotIn("M-aff", self.arms_of(cluster, f"modules-{seed}"))
+        # V1 and V2 read once, with the M0 identity and the R20 half-widths beside the D1 interval.
+        for key, value in protocol_identity().items():
+            self.assertEqual(result[key], value)
+        self.assertIn(result["v1"], ("present", "re-tuning equivalent", "indeterminate"))
+        self.assertIn(result["v2"], ("helps", "hurts", "indeterminate"))
+        self.assertNotIn("fresh-data effect", result["labels"])
+        self.assertIsNone(result["static_reading"])
+        self.assertEqual(result["anchors"], list(range(7500, 7532)))
+        self.assertEqual(result["seed_block"], {"lineage": "confirmatory", "first": 7500, "last": 7531, "count": 32})
+        interval = result["intervals"]["D1"]
+        self.assertLessEqual(interval["lower"], interval["median"])
+        self.assertLessEqual(interval["median"], interval["upper"])
+        self.assertIn("sign_test_lower", interval)
+        widths = result["achieved_half_width"]
+        self.assertEqual(set(widths), {"D2", "D3", "D5"})
+        self.assertTrue(math.isfinite(widths["D2"]) and math.isfinite(widths["D3"]))
+        self.assertIsNone(widths["D5"])
+        self.assertEqual(result["ceiling_gpu_process_seconds"], M0_CONFIRMATORY_SECONDS)
+        # Its own custody; the pilot's and Gate 3's receipts are never written.
+        custody = read_record(self.repo / CONFIRMATORY_CUSTODY)
+        self.assertEqual(custody["identity"]["protocol_version"], "m0-v4")
+        listed = {"docs/results/m0-pilot/pilot-result.json": file_sha(self.pilot_result)}
+        self.assertEqual(custody["identity"]["pilot_result"], listed)
+        self.assertFalse((self.repo / CUSTODY).exists())
+        self.assertEqual(gate3.read_text(), '{"gate3": true}\n')
+        with self.assertRaisesRegex(PilotHold, "custody"):
+            self.launch(self.certificate(), "another-root")
+
+    def test_static_runs_s_static_under_the_14_hour_ceiling(self) -> None:
+        self.write_pilot(static_admitted=True)
+        code, root, cluster = self.launch(self.certificate(14), static=True)
+        result = read_record(root / "confirmatory-result.json")
+        self.assertEqual(code, 0, result)
+        self.assertEqual(self.ledger_ceilings(root), {M0_CONFIRMATORY_STATIC_SECONDS})
+        self.assertEqual(M0_CONFIRMATORY_STATIC_SECONDS, 50_400)
+        static = sorted(name for name in cluster.names() if name.startswith("static-"))
+        self.assertEqual(static, [f"static-{seed}" for seed in range(7500, 7532)])
+        self.assertLessEqual(STATIC_ARMS, self.arms_of(cluster, "modules-7500"))
+        self.assertIn("static_reading", result)
+        self.assertTrue(math.isfinite(result["achieved_half_width"]["D5"]))
+        self.assertEqual(result["ceiling_gpu_process_seconds"], M0_CONFIRMATORY_STATIC_SECONDS)
+
+    def test_a_v0_failure_publishes_instrument_failed_burns_the_block_and_reads_nothing(self) -> None:
+        code, root, cluster = self.launch(self.certificate(), r_aff={7503: 0.006})
+        self.assertEqual(code, 2)
+        result = read_record(root / "confirmatory-result.json")
+        self.assertEqual(result["verdict"], "instrument-failed")
+        self.assertEqual(result["stage"], "v0")
+        self.assertIn("7503", result["error"])
+        for key in ("v1", "v2", "labels", "intervals", "programme_reading", "achieved_half_width"):
+            self.assertNotIn(key, result)
+        self.assertTrue(result["seed_block_burnt"])
+        self.assertEqual(result["seed_block"], {"lineage": "confirmatory", "first": 7500, "last": 7531, "count": 32})
+        self.assertEqual(result["protocol_sha256"], protocol_identity()["protocol_sha256"])
+        self.assertFalse(any(name.startswith(("tcool-", "modules-", "retune-")) for name in cluster.names()))
+
+    def test_an_unavailable_required_arm_holds_at_aggregation_and_drops_no_anchor(self) -> None:
+        code, root, cluster = self.launch(self.certificate(), unavailable={7510: frozenset(("M-small",))})
+        self.assertEqual(code, 2)
+        result = read_record(root / "confirmatory-result.json")
+        self.assertEqual((result["verdict"], result["stage"]), ("instrument-failed", "aggregation"))
+        self.assertIn("7510", result["error"])
+        self.assertIn("M-small", result["error"])
+        self.assertNotIn("v1", result)
+        launched = set(cluster.names())
+        self.assertTrue(all(f"modules-{seed}" in launched for seed in range(7500, 7532)))
 
 
 class SupervisionTests(unittest.TestCase):

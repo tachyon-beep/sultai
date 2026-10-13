@@ -79,14 +79,15 @@ def v1(d1_lower: float, d1_upper: float, maff_certified_fraction: float, msq_cer
 
 
 def labels(
-    delta_acc_lower: float, d3_lower: float, d3_upper: float, d1prime_lower: float, d4_lower: float
+    delta_acc_lower: float, d3_lower: float, d3_upper: float, d1prime_lower: float, d4_lower: float | None
 ) -> list[str]:
+    """`d4_lower` is None where M-sq-fresh did not run (the §10 confirmatory set): no "fresh-data effect" label."""
     for name, value in (
         ("delta_acc_lower", delta_acc_lower),
         ("d3_lower", d3_lower),
         ("d3_upper", d3_upper),
         ("d1prime_lower", d1prime_lower),
-        ("d4_lower", d4_lower),
+        *(() if d4_lower is None else (("d4_lower", d4_lower),)),
     ):
         _finite(name, value)
     result: list[str] = []
@@ -98,7 +99,7 @@ def labels(
         result.append("harvests undertraining")
     if d1prime_lower > 0:
         result.append("beats every named re-tune")
-    if d4_lower > 0:
+    if d4_lower is not None and d4_lower > 0:
         result.append("fresh-data effect")
     return result
 

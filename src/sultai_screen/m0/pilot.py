@@ -311,8 +311,11 @@ class Run:
 # --- stage 1 -----------------------------------------------------------------------------------------------------
 
 
-def stage_replay(run: Run) -> Record:
-    """Six anchors replayed against attempt 4 (3000 on both cards), the acceptance matrix (i-iv) and timing."""
+def stage_replay(run: Run, *, timed: bool = True) -> Record:
+    """Six anchors replayed against attempt 4 (3000 on both cards), the acceptance matrix (i-iv) and timing.
+
+    The confirmatory passes `timed=False`: its kernels are the pilot's committed measurement, so no timing child runs.
+    """
     replays = [
         job("replay-3000-gpu0", "replay", ANCHORS[0], "anchor"),
         job("replay-3000-gpu1", "replay", ANCHORS[0], "anchor"),
@@ -335,7 +338,8 @@ def stage_replay(run: Run) -> Record:
         for card in (0, 1)
     ]
     timing = [
-        job(f"timing-{i}", "timing", ANCHORS[0], "anchor", training=run.path(anchor_host(ANCHORS[0]))) for i in range(3)
+        job(f"timing-{i}", "timing", ANCHORS[0], "anchor", training=run.path(anchor_host(ANCHORS[0])))
+        for i in range(3 if timed else 0)
     ]
     run.run(checks + timing)
     accepted = [run.payload(item.name, "acceptance", ANCHORS[0], "anchor") for item in checks]
@@ -358,15 +362,17 @@ def stage_replay(run: Run) -> Record:
 # --- stage 2 -----------------------------------------------------------------------------------------------------
 
 
-def fold_check(run: Run, name: str, modules: str) -> Record:
-    """Acceptance (v), rulings R13/R16: the first anchor's selected M-aff fold residual recomputed on card."""
-    seed = ANCHORS[0]
+def fold_check(run: Run, name: str, modules: str, *, seed: int = ANCHORS[0], lineage: Lineage = "anchor") -> Record:
+    """Acceptance (v), rulings R13/R16: the first anchor's selected M-aff fold residual recomputed on card.
+
+    The confirmatory names its own first anchor and lineage; the pilot keeps the defaults.
+    """
     flags = ("--noop-root", str(run.path(f"noop-{seed}")), "--modules-root", str(run.path(modules)))
-    run.run([job(name, "fold-check", seed, "anchor", *flags)])
-    payload = run.payload(name, "fold-check", seed, "anchor")
+    run.run([job(name, "fold-check", seed, lineage, *flags)])
+    payload = run.payload(name, "fold-check", seed, lineage)
     if (
         payload["fold_residual_matches_receipt"] is not True
-        or payload["receipt_r_aff"] != run.payload(modules, "modules", seed, "anchor")["r_aff"]
+        or payload["receipt_r_aff"] != run.payload(modules, "modules", seed, lineage)["r_aff"]
     ):
         raise InstrumentHold(f"GPU acceptance (v): the M-aff fold residual recomputed on card differs from {modules}")
     return payload

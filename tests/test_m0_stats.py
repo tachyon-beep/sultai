@@ -485,6 +485,9 @@ class VerdictTests(unittest.TestCase):
         self.assertNotIn("beats every named re-tune", labels(0.1, 0.0, 0.5, 0.0, 0.0))
         self.assertIn("fresh-data effect", labels(0.1, 0.0, 0.5, 0.0, 0.001))
         self.assertNotIn("fresh-data effect", labels(0.1, 0.0, 0.5, 0.0, 0.0))
+        self.assertEqual(labels(0.0, 0.02, 0.5, 0.001, None), labels(0.0, 0.02, 0.5, 0.001, 0.0))
+        with self.assertRaises(ContractViolation):
+            labels(0.1, 0.0, 0.5, 0.0, math.nan)
         before = v1(0.02, 0.05, 0.75, 0.75)
         labels(0.0, 0.03, 0.05, 0.1, 0.1)
         self.assertEqual(v1(0.02, 0.05, 0.75, 0.75), before)
