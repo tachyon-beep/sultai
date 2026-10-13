@@ -53,23 +53,29 @@ def _block(inside: int, outside: int, kernel: int = 3) -> list[nn.Module]:
     return [nn.Conv2d(inside, outside, kernel, padding=kernel // 2), nn.BatchNorm2d(outside), nn.ReLU()]
 
 
+REFERENCE_WIDTHS = (64, 64, 128, 128)
+
+
 class Host(nn.Module):
-    def __init__(self, width: int = 0) -> None:
+    def __init__(self, width: int = 0, widths: tuple[int, int, int, int] = REFERENCE_WIDTHS) -> None:
         super().__init__()
         if width not in (0, 2, 4, 8):
             raise ContractViolation("registered host width required")
+        if len(widths) != 4 or any(type(w) is not int or w <= 0 for w in widths):
+            raise ContractViolation("tail widths must be four positive integers")
         self.front = nn.Sequential(*_block(3, 32), *_block(32, 32), nn.MaxPool2d(2), *_block(32, 16))
         self.bottleneck = nn.Sequential(*_block(16, width, 1), *_block(width, 16, 1)) if width else nn.Identity()
         self.tail = nn.Sequential(
-            *_block(16, 64),
-            *_block(64, 64),
+            *_block(16, widths[0]),
+            *_block(widths[0], widths[1]),
             nn.MaxPool2d(2),
-            *_block(64, 128),
-            *_block(128, 128),
+            *_block(widths[1], widths[2]),
+            *_block(widths[2], widths[3]),
             nn.MaxPool2d(2),
         )
-        self.classifier = nn.Linear(128, 10)
+        self.classifier = nn.Linear(widths[3], 10)
         self.width = width
+        self.widths = widths
 
     def classify(self, site: Tensor) -> Tensor:
         return as_tensor(self.classifier(as_tensor(self.tail(site)).mean(dim=(2, 3))))
@@ -78,12 +84,18 @@ class Host(nn.Module):
         return self.classify(as_tensor(self.bottleneck(as_tensor(self.front(images)))))
 
 
-def make_host(seed: int, width: int, device: torch.device) -> Host:
+def make_host(
+    seed: int, width: int, device: torch.device, *, widths: tuple[int, int, int, int] = REFERENCE_WIDTHS
+) -> Host:
     # nn initialization uses the explicitly derived CPU global RNG only.
     with torch.random.fork_rng(devices=[]):
         torch.manual_seed(derive(seed, "host-init"))
-        host = Host(width)
+        host = Host(width, widths)
     return host.to(device)
+
+
+def parameter_count(host: Host) -> int:
+    return sum(p.numel() for p in host.parameters())
 
 
 def state_hash(host: Host) -> str:
