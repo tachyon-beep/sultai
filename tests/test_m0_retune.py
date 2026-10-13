@@ -4,9 +4,10 @@ import unittest
 
 import torch
 from torch import Tensor
+from torch.nn import functional as F
 
 from sultai.trust import ContractViolation
-from sultai_screen.data import Dataset
+from sultai_screen.data import Dataset, generator, normalized
 from sultai_screen.host import Host, freeze, make_host, state_hash
 from sultai_screen.m0.retune import (
     R272S,
@@ -49,10 +50,38 @@ def buffers(host: Host) -> dict[str, Tensor]:
     return {name: b.detach().clone() for name, b in host.named_buffers()}
 
 
+def first_step_gradients(host: Host, data: Dataset, subset: Subset, seed: int) -> dict[str, Tensor]:
+    """Gradients of fit_retune's first minibatch loss on an unfrozen eval-mode clone, for every subset tensor."""
+    clone = make_host(3000, 0, CPU)
+    clone.load_state_dict(host.state_dict())
+    clone.eval()
+    named = dict(clone.named_parameters())
+    order = torch.randperm(len(FIT), generator=generator(seed, "oracle-order"))
+    ids = FIT[order[:256]]
+    loss = F.cross_entropy(clone(normalized(data.images[ids])), data.labels[ids])
+    gradients = torch.autograd.grad(loss, [named[name] for name in subset])
+    return dict(zip(subset, gradients, strict=True))
+
+
 class RetuneTests(unittest.TestCase):
     def setUp(self) -> None:
         self.data = dataset()
         self.host = frozen_host()
+
+    def assert_movable_entries_moved(self, subset: Subset, before: dict[str, Tensor], after: dict[str, Tensor]) -> None:
+        """Every declared entry moved unless its first step could not move it in float32.
+
+        On the random fixture dead ReLUs give exact-zero gradients and some gradients are ~1e-8, so 0.1 * g is
+        below half an ulp of the weight; any other unmoved entry fails.
+        """
+        gradients = first_step_gradients(self.host, self.data, subset, 11)
+        moved = 0
+        for name, mask in subset.items():
+            changed = after[name] != before[name]
+            stuck = mask & ~changed
+            self.assertTrue(torch.equal((before[name] - 0.1 * gradients[name])[stuck], before[name][stuck]), name)
+            moved += int((mask & changed).sum())
+        self.assertGreater(moved, count(subset) // 2)
 
     def run_arm(self, subset: Subset, *, from_images: bool, steps: int = 3, rate: float = 0.1) -> RetuneCandidate:
         return fit_retune(
@@ -114,9 +143,7 @@ class RetuneTests(unittest.TestCase):
         self.assertEqual(candidate.complement, complement_hash(self.host, subset))
         self.assertEqual(complement_hash(candidate.host, subset), complement_hash(self.host, subset))
         after = parameters(candidate.host)
-        for name, mask in subset.items():
-            # Not every entry: on random images some site channels and tail.0 output channels are dead ReLUs.
-            self.assertFalse(torch.equal(after[name][mask], before[name][mask]), name)
+        self.assert_movable_entries_moved(subset, before, after)
         self.assertEqual(candidate.parameter_steps, 272 * 3)
         self.assertEqual(candidate.example_passes, 32 * 3)
         self.assertEqual(len(candidate.training_losses), 3)
@@ -134,12 +161,24 @@ class RetuneTests(unittest.TestCase):
         after = parameters(candidate.host)
         for name in AFFINE:
             self.assertFalse(torch.equal(after[name], before[name]), name)
+        self.assert_movable_entries_moved(subset, before, after)
         for name, value in before.items():
             if value.ndim == 4 or name == "classifier.weight":
                 self.assertTrue(torch.equal(after[name], value), name)
         for name, value in before_buffers.items():
             self.assertTrue(torch.equal(buffers(candidate.host)[name], value), name)
         self.assertEqual(candidate.parameter_steps, 170 * 3)
+
+    def test_one_step_is_independent_masked_sgd(self) -> None:
+        for subset, from_images in ((R272S(self.host), False), (RAFF(self.host), True)):
+            before = parameters(self.host)
+            gradients = first_step_gradients(self.host, self.data, subset, 11)
+            after = parameters(self.run_arm(subset, from_images=from_images, steps=1).host)
+            for name, value in before.items():
+                expected = value
+                if name in subset:
+                    expected = torch.where(subset[name], value - 0.1 * gradients[name], value)
+                self.assertTrue(torch.equal(after[name], expected), name)
 
     def test_cached_site_equals_from_images_for_one_step(self) -> None:
         subset = R272S(self.host)
