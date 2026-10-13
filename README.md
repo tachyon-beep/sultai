@@ -24,6 +24,7 @@ John subsequently authorized the bounded correction PR and normal merge workflow
 - [Strict contracts and local gates](docs/TYPING_CONTRACTS.md): successor hardening and ELSPETH conventions.
 - [Reviewed correction protocol](docs/plans/2026-10-09-correction-protocol.md): missing scientific controls and HTTYE gate meanings.
 - [Gate-ladder amendment 1](docs/plans/2026-10-13-gate-ladder-amendment.md): prospective restatement of gates 3–7 under the efficient-capacity objective (accepted 2026-10-13).
+- [M0 freeze certificate](docs/certificates/2026-10-13-m0-freeze.md): the capacity frontier screen v3, STEERING.md and the amendment pinned by SHA-256 (2026-10-13); authorises no execution.
 - [Correction evidence certificate](docs/certificates/2026-10-09-hybrid-correction.md): measured negatives and gate verdicts.
 - [Nyx confirmation handover](docs/NYX_CORRECTION_HANDOVER.md): exact source, checks, commands and stop rules.
 - [Nyx transfer recommendation](docs/plans/2026-10-09-nyx-transfer-proposal.md): distinct future experiment and unresolved owner choices.

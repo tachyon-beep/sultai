@@ -1,7 +1,11 @@
 # Capacity frontier screen on the CIFAR-10 host — DRAFT PREREGISTRATION v3 (programme rung M0)
 
-Status: **draft v3; decisions J0–J9 taken on 2026-10-13; authorises no
-execution.** v1 was committed at `5aeee56` and reviewed by three independent
+Status: **v3, frozen 2026-10-13 after merge to `main` (J10, merge commit
+`ae35dfe`); decisions J0–J10 taken; authorises no execution.** The freeze is
+recorded by pinning this file's SHA-256, with STEERING.md's and the
+gate-ladder amendment's, in
+[the M0 freeze certificate](../certificates/2026-10-13-m0-freeze.md); any
+later change to this file is version v4 with its own hash. v1 was committed at `5aeee56` and reviewed by three independent
 readers; v2 (`20dee97`, `fdef5fc`) adopted every finding. On 2026-10-13
 twelve agents each took one of John's decisions and wrote a recommendation
 with the case for and against; a synthesizer reconciled them against source
@@ -10,8 +14,7 @@ John then said "ok go with the recommendations, recut the draft to v3". This
 is that recut: §12 records each decision as taken, with its source report,
 and §2 and §8 absorb the sixteen draft defects the synthesis listed. John
 accepted the [gate-ladder amendment](2026-10-13-gate-ladder-amendment.md)
-text on 2026-10-13; the freeze (SHA pin) and J10 (merge) follow his merge
-go. Written by `sultai-claude-nyx` under the
+text on 2026-10-13 and approved the merge the same day. Written by `sultai-claude-nyx` under the
 [steering statement](../STEERING.md). Values marked [taken] were fixed by
 John's instruction; [proposed] remain the author's; [measured] come from
 Gate 3 attempt-4 receipts; [pilot-fill] are filled by the pilot under §9.
@@ -578,8 +581,9 @@ Gate 3 checkpoint is loaded.
 Each row names the decision as taken and the report it came from
 (`docs/reviews/m0-capacity/j-recommendations/`). Rows marked *author's
 resolution* record a point the reports split on, resolved by the author
-under John's own words; he can reverse any of them in one line before the
-freeze.
+under John's own words; he could reverse any of them in one line before
+the freeze, and did not. After the freeze a reversal is amendment 2 to this
+study with its own date and hash.
 
 | ID | Taken | Source | Note |
 |---|---|---|---|
@@ -596,7 +600,7 @@ freeze.
 | J-retire | Retired as §2; mechanism is a code carve-out (P1-only workers, checks, cost projection, tests), not prose; reversal triggers recorded | shaping architect; plan-review reality | The two reports disagreed on mechanism; source settled it for the reality reading |
 | J-D02 | Principle fixed now: rung M2 starts near-empty in the sense of D02; the 0.5 host is not that start and becomes it only by John's explicit, recorded relaxation of D02; near-empty in this family means s ≤ 0.25; the number is fixed at the M2 draft. M0 records: a reserved M2 seed block, the burn rule for 6000–6005, an explicit width-tuple constructor, published frontier hashes, and that slicing is module-only | shaping architect | F(0.25) added to the extended set; flagged as the reviewer's addition |
 | J9 | The gate reading in STEERING §6 becomes a separate, dated, SHA-pinned, prospective amendment to the frozen correction protocol, bound into the M0 identity; the protocol's bytes stay untouched | J9 critic; Codex (independent model, same substance) | Form taken 2026-10-13; the seven-row text accepted by John the same day ("Accepted") after the v3 report |
-| J10 | Merge of the steering package to `main` | — | Pending John. Nothing in this package is durable for the repository until then |
+| J10 | Merge of the steering package to `main` | — | Taken 2026-10-13 ("yes #1 approved, and merge"): PR #3 merged by merge commit `ae35dfe`, branch retained. The merge authorises no execution |
 
 Seed blocks and the 0.5-host anchor count are the author's and live in the
 implementation plan.
@@ -605,8 +609,9 @@ implementation plan.
 
 v3 checked once more in a targeted pass against the synthesis table and
 the recut checklist, the report preserved and dispositioned (done, `da2768f`);
-John accepts the gate-ladder amendment text (done, 2026-10-13); the file's
-SHA-256 pinned in the package at the freeze;
+John accepts the gate-ladder amendment text (done, 2026-10-13); merge to
+`main` (done, `ae35dfe`); the file's SHA-256 pinned in the package at the
+freeze (done, [certificate](../certificates/2026-10-13-m0-freeze.md));
 then the implementation plan with exact-source reviews for every item in
 §2; then the pilot go.
 

@@ -2,9 +2,12 @@
 
 Status: programme steering record, written 2026-10-13 by `sultai-claude-nyx`
 under John's instruction. It governs how every later preregistration states
-its primary endpoint. It authorises no execution. It becomes durable for the
-repository when the branch carrying it is merged to `main`; until then it is
-a committed proposal on `codex/gate3-screen`.
+its primary endpoint. It authorises no execution. It became durable for the
+repository on 2026-10-13 when PR #3 was merged to `main` (merge commit
+`ae35dfe`). Its SHA-256 is part of the M0 study identity
+([freeze certificate](certificates/2026-10-13-m0-freeze.md)), so any later
+edit to this file is a dated steering amendment with its own hash and
+changes the M0 identity.
 
 ## 1. The objective, in John's words
 
@@ -86,9 +89,10 @@ exactly the controls the recut study puts between the module and a
    clarification: mean development cross-entropy is the sole primary unit,
    because it is what every arm optimises and what the instrument measures
    with paired-bootstrap intervals; development accuracy is reported beside
-   every loss as a labelled secondary that conditions no verdict. John can
-   reverse this in one line before the M0 freeze (the recommendations are
-   under `reviews/m0-capacity/j-recommendations/`).
+   every loss as a labelled secondary that conditions no verdict. John could
+   reverse this in one line before the M0 freeze and did not; after the
+   freeze (2026-10-13) a reversal is a dated amendment (the recommendations
+   are under `reviews/m0-capacity/j-recommendations/`).
 2. **"Efficient" is a comparison against named cheaper routes to the same
    loss**, never against zero: re-tuning an equal count of the host's own
    parameters on the same data; more training of the host; the same
