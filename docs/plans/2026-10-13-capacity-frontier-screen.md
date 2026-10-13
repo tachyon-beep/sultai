@@ -121,8 +121,10 @@ Nothing retired feeds the P1 numbers.
 *Supervision.* New worker actions, identity pins and tests; the M0 pilot
 ceiling as a **new constant** (`PILOT_SECONDS` stays, because the Gate 3
 ledgers are checked against it); a confirmatory ceiling constant with its
-own supervisor instance (nothing enforces a confirmatory ceiling today; the
-sizing receipt only reports `within_ceiling`); a one-process-per-card
+own supervisor instance (today the only confirmatory ceiling is a pre-run
+feasibility check: the sizing step raises `FeasibilityHold` above 16
+GPU-hours or 200 anchors; no supervisor charges or stops the confirmatory
+run itself); a one-process-per-card
 scheduling constraint; the anchor-bootstrap, sign-test and verdict
 aggregation. A stage that depends on new code reads nothing until that
 code's review is preserved.
@@ -151,7 +153,7 @@ CPU by the reality review.
 
 | s | Tail widths | Parameters | Set |
 |---|---|---:|---|
-| 0.25 | 16, 16, 32, 32 | 33,978 | extended; the first halving outside the 25–40 percent band D02 rejected, so the frontier reaches below rung M2's near-empty start |
+| 0.25 | 16, 16, 32, 32 | 33,978 | extended; the first halving outside the 25–40 percent band D02 rejected, so the frontier reaches rung M2's near-empty start |
 | 0.5 | 32, 32, 64, 64 | 85,274 | core; the starved host of the fallback screen. At 30 percent of the reference it is **not** near-empty in the sense of D02 (J-D02) |
 | 0.75 | 48, 48, 96, 96 | 168,826 | extended; a linearity check on the slope |
 | 1.0 | 64, 64, 128, 128 | 284,634 | core; the six reference anchors are these points |
@@ -310,7 +312,7 @@ ceiling (§8), each descriptive with no verdict role:
 4. Lottery cut, the surviving 8 units' initial weights retrained with the
    module grid.
 5. The 20-epoch cooled F(1.0) (§3).
-6. F(0.25), six seeds, so the frontier reaches below rung M2's near-empty
+6. F(0.25), six seeds, so the frontier reaches rung M2's near-empty
    start. *Provenance*: added by the J-D02 shaping review; same flag as
    item 1.
 7. F(0.75), the linearity check.
@@ -410,7 +412,8 @@ sampling error]; the frontier fraction is descriptive.
 
 - **overgrow-then-cut helps** if the lower bound of the median D2 ≥ X₂
   [taken, J2: X₂ = 0.01 nats, about three half-widths at the measured
-  correlation of the closest attempt-4 analogue] and M-small-B is certified
+  correlation of the closest attempt-4 analogue] (matched optimiser steps
+  and example passes, §4) and M-small-B is certified
   on ≥ 75 percent of anchors;
 - **hurts** if the upper bound of the median D2 < 0 and the refit is
   certified on ≥ 75 percent of anchors;
@@ -462,8 +465,9 @@ cost is lower; booked at the 1.0 figures); (2) R-all about 900 s (one
 seed, five rates, 4,000 steps, at the scientific review's 3 to 5 × per-step
 estimate for a full forward and backward, plus recalibration and
 evaluations; booked high on purpose); (3) M-exp 360 s; (4) lottery 360 s;
-(5) 20-epoch cooled F(1.0) 570 s; (6) F(0.25) 150 s; (7) F(0.75) 210 s;
-about 4,200 s in all. Core plus extended is about 13,250 s at nominal.
+(5) 20-epoch cooled F(1.0) 570 s; (6) F(0.25) 210 s (launch-bound, as
+the 0.5 host); (7) F(0.75) 210 s; about 4,260 s in all. Core plus
+extended is about 13,300 s at nominal.
 
 **Overrun rule**, read strictly: extended arms run in that order only while
 the measured charge projects to finish under the ceiling, and the pilot
@@ -475,21 +479,21 @@ hard and nothing resumes, so a stop costs the whole core again.
 **Ceiling** [taken, J6: option B]: 4 GPU-hours, 14,400 process-seconds, as
 a **new M0 constant**; `PILOT_SECONDS` (3 GPU-hours) is left untouched
 because the Gate 3 ledgers are checked against it. The program-design
-review's arithmetic: under 3 hours the core alone survives only a 1.23 ×
-kernel overrun and core plus R-all a 1.11 ×, and a late overrun found in
-step 5 burns the whole charge; under 4 hours the core survives 1.64 × and
-at a 1.3 × stress the pilot still delivers the core, the 0.5-host pair and
-part of the rest. The 4,593 s left in the Gate 3 cap belong to a closed
+review's arithmetic (recomputed on the v3 ledger): under 3 hours the core
+alone survives only a 1.19 × kernel overrun and core plus R-all a 1.09 ×,
+and a late overrun found in step 5 burns the whole charge; under 4 hours
+the core survives 1.59 × and at a 1.3 × stress the pilot still delivers
+the core and the 0.5-host pair, stopping at R-all by the rule. The 4,593 s left in the Gate 3 cap belong to a closed
 study and are not carried.
 
 **Confirmatory** (§10): about 1,010 s per anchor for the confirmatory arm
-set (host 45, T-cool 25, N0 and calibrations 30, five nonlinear module
-grids 300, M-aff 100, two M-wide→8 refits 120, M-small-B 120, R-272s 80,
+set (host 45, T-cool 25, N0 and calibrations 30, four nonlinear module
+grids 240 (M-sq, M-sq | T-cool, M-wide, M-small), M-aff 100, two M-wide→8 refits 120, M-small-B 120, R-272s 80,
 R-aff 250, summed from the lines above), plus a **fixed V0 term** of 300 to
 1,500 s depending on whether the development hosts and P1 instrument are
 re-run; n = 32 costs about 9.4 GPU-hours with the larger fixed term, and
 survives about a 1.28 × overrun under the 12-hour ceiling. Adding S-static
-costs 110 s more per anchor and leaves only a 1.2 × margin, so S-static
+costs 110 s more per anchor and leaves about a 1.16 × margin, so S-static
 enters the confirmatory set only under a 14-hour ceiling (§10). The
 projection is made from the pilot's measured one-per-card maxima in the
 existing `costs.py` style, not from these bookings.
@@ -535,8 +539,9 @@ M-sq-fresh and every extended arm are pilot-only descriptives. S-static
 joins only if the pilot's SD(D5) rule admits it **and** John raises the
 confirmatory ceiling to 14 GPU-hours; under the 12-hour ceiling it stays
 out. The ceiling, **12 GPU-hours as a new hard-stop constant with its own
-supervisor instance** [taken, J7; nothing enforces a confirmatory ceiling
-today], has no automatic extension. V0 then V1 and V2 read once. A V0
+supervisor instance** [taken, J7; today the only confirmatory ceiling is
+the pre-run `FeasibilityHold` at 16 GPU-hours or 200 anchors, and nothing
+stops the run itself], has no automatic extension. V0 then V1 and V2 read once. A V0
 failure ends the attempt and burns its seeds. Any change to host, fit,
 slicing, re-tune or calibration code after the freeze is a new version
 with a new hash, a disposition and a fresh seed block.

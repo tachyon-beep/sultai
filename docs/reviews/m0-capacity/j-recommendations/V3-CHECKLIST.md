@@ -42,3 +42,7 @@
 - [ ] tracker comment, memory (J0) — after the re-review
 - [x] RESUME
 - [ ] fresh targeted re-review of v3 against this checklist, preserved and dispositioned
+
+## Targeted re-review of v3 (5c664a1) and dispositions
+Report: `v3-targeted-re-review.md` (plan-review-reality, fresh reader). All 14 decisions and 16 defects found implemented; links, seeds, identity documents and J0 consistency clean. Eight findings, all adopted in the commit that follows: confirmatory itemisation (four nonlinear grids, 240 s, so the 1,010 s per anchor holds); overrun multipliers recomputed on the v3 ledger (1.19×, 1.09×, 1.59×) and "part of the rest" replaced by the stop at R-all; the confirmatory-ceiling source claim corrected (a pre-run `FeasibilityHold` at 16 h / 200 anchors exists; no supervisor stops the run); amendment row 2 now cites the Nyx final certificate ("complete with retained execution qualification") and notes the development certificate's "partial"; F(0.25) booked launch-bound at 210 s (extended ≈ 4,260 s, combined ≈ 13,300 s); S-static margin 1.16×; "reaches" rather than "reaches below"; V2 names its budget unit. Verdict after the edits: ready to freeze pending John's acceptance of the amendment and J10.
+- [x] fresh targeted re-review of v3 against this checklist, preserved and dispositioned
