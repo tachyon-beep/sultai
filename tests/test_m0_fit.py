@@ -57,18 +57,8 @@ ORACLE_BEST_SHAS = (
     "c1b26d05d259b9eb7354f47e632f57c8469c54d9505cd041618498fd973c850d",
     "c6e94e9cfb4607b01f9cab4ff6429649a654c765a0d32b79a7669996016f498b",
 )
-# SHA-256 of the oracle report restricted to the pre-Task-6 candidate keys, wall_seconds excluded.
+# SHA-256 of the full oracle report with only wall_seconds excluded (key set included).
 ORACLE_REPORT_SHA = "baeb09439fb0e8176705f5031578b2c5358365ed1d722e4769b32c955b902393"
-PRE_TASK6_KEYS = (
-    "rate",
-    "seed",
-    "steps",
-    "selection_loss",
-    "finite",
-    "training_losses",
-    "example_passes",
-    "parameter_steps",
-)
 
 
 def fixture_features(n: int = 129) -> Features:
@@ -93,8 +83,8 @@ def same_weights(a: Adapter, b: Adapter) -> bool:
     )
 
 
-def pre_task6(report: Record) -> Record:
-    return {key: report[key] for key in PRE_TASK6_KEYS}
+def without_wall(report: Record) -> Record:
+    return {key: value for key, value in report.items() if key != "wall_seconds"}
 
 
 def frozen_host() -> Host:
@@ -181,13 +171,11 @@ class FitTests(unittest.TestCase):
         report = result.report()
         best, candidates = report["best"], report["candidates"]
         assert isinstance(best, dict) and isinstance(candidates, list)
+        self.assertTrue(all(isinstance(c, dict) for c in candidates))
         pinned: Record = {
-            "best": pre_task6(best),
-            "candidates": [pre_task6(c) for c in candidates if isinstance(c, dict)],
-            "plateau_certified": report["plateau_certified"],
-            "selection_paired_bootstrap_se": report["selection_paired_bootstrap_se"],
-            "training_tail_se": report["training_tail_se"],
-            "plateau_evidence": report["plateau_evidence"],
+            **report,
+            "best": without_wall(best),
+            "candidates": [without_wall(c) for c in candidates if isinstance(c, dict)],
         }
         digest = hashlib.sha256(json.dumps(pinned, sort_keys=True).encode()).hexdigest()
         self.assertEqual(digest, ORACLE_REPORT_SHA)
@@ -302,6 +290,20 @@ class FitTests(unittest.TestCase):
         # The first update starts from the given tensors, not from a fresh oracle-init draw.
         cold = fit_sgd(host, data, data, seed=3000, rate=0.3, steps=2, minibatch=True, hidden=8)
         self.assertIsNone(cold.step0_selection)
+        # Gate 3-shaped candidates (no snapshots, no warm start) report exactly the pre-M0 key set.
+        gate3_keys = (
+            "rate",
+            "seed",
+            "steps",
+            "selection_loss",
+            "finite",
+            "training_losses",
+            "wall_seconds",
+            "example_passes",
+            "parameter_steps",
+        )
+        self.assertEqual(tuple(cold.report()), gate3_keys)
+        self.assertNotIn("snapshots", warm.report())
         self.assertFalse(same_weights(warm.adapter, cold.adapter))
         self.assertTrue(
             same_weights(

@@ -190,7 +190,7 @@ class Candidate:
     step0_selection: float | None = None
 
     def report(self) -> Record:
-        return {
+        result: Record = {
             "rate": self.rate,
             "seed": self.seed,
             "steps": self.steps,
@@ -200,9 +200,13 @@ class Candidate:
             "wall_seconds": self.wall_seconds,
             "example_passes": self.example_passes,
             "parameter_steps": self.parameter_steps,
-            "snapshots": [{"step": step, "selection_loss": loss} for step, _, loss in self.snapshots],
-            "step0_selection_loss": self.step0_selection,
         }
+        # M0-only keys appear only when set, so Gate 3 candidate receipts keep their bytes.
+        if self.snapshots:
+            result["snapshots"] = [{"step": step, "selection_loss": loss} for step, _, loss in self.snapshots]
+        if self.step0_selection is not None:
+            result["step0_selection_loss"] = self.step0_selection
+        return result
 
 
 def gradient_step(host: Host, data: Features, adapter: Adapter, rate: float, indices: Tensor) -> tuple[Adapter, Tensor]:
