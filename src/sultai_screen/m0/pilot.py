@@ -49,6 +49,7 @@ from sultai_screen.m0.costs import (
     extended_fits,
     extended_limit,
     measured_confirmatory,
+    per_anchor,
     project_confirmatory,
     project_pilot,
     stage_seconds,
@@ -492,7 +493,7 @@ def stage_instrument(run: Run) -> Record:
         # M3: the recorded V0 flags spreads() passes to verdicts.v0.
         "a1_within_1e-4": a1,
         "b3_fraction_every_anchor": b3,
-        "zero_module_identity": True,
+        "zero_module_identity": all(value is True for flags in identity.values() for value in mapping(flags).values()),
         "zero_module_identity_flags": identity,
         "zero_module_identity_evidence": "every anchor's noop child compared losses(N0, development, zero module) with "
         "losses(N0, development, None) bitwise for every module form (ruling R25); every instrument child's "
@@ -591,7 +592,7 @@ def stage_hosts(run: Run, reference: list[tuple[int, int, float]]) -> tuple[Reco
         "tcool_final_state_sha256": tcool,
         "static_sha256": static,
         "static_step0": step0,
-        "static_step0_matches": True,
+        "static_step0_matches": all(mapping(entry)["matches"] is True for entry in step0.values()),
         "frontier_slope": slope.report(),
         "bootstrap_seed": BOOTSTRAP_SEED,
         "charged_gpu_process_seconds": run.supervisor.charged,
@@ -708,9 +709,14 @@ def recorded_v0(replay: Record, instrument: Record, hosts: Record) -> Record:
         "both_cards_bitwise": replay["both_cards_bitwise"] is True,
         "a1_within_1e-4": instrument["a1_within_1e-4"] is True,
         "b3_fraction_every_anchor": instrument["b3_fraction_every_anchor"] is True,
-        "zero_module_identity": instrument["zero_module_identity"] is True,
+        # R28 minor 2: the per-anchor records themselves, not the summary flags beside them.
+        "zero_module_identity": all(
+            value is True
+            for flags in mapping(instrument["zero_module_identity_flags"]).values()
+            for value in mapping(flags).values()
+        ),
         "static_step0": all(record["static_step0_bitwise"] is True for record in acceptance)
-        and hosts["static_step0_matches"] is True,
+        and all(mapping(entry)["matches"] is True for entry in mapping(hosts["static_step0"]).values()),
         "known_answer": mapping(instrument["slicing"])["known_answer"] is True,
     }
 
@@ -877,25 +883,64 @@ def stage_extended(
 # --- stages 6 and 7 ----------------------------------------------------------------------------------------------
 
 
-def measured_charges(run: Run) -> Record:
-    """I3 and M7: from the ledger, each development anchor's whole children of the confirmatory's per-anchor work
-    (a superset: the pilot's modules and retune children run more arms) and the fixed V0 term the confirmatory
-    re-runs (the replays, acceptance (i)-(iv) and the fold-check), not the pilot's whole stage 1-2 charge."""
-    children = ("train", "noop", "maff", "tcool", "modules", "retune")
-    base: dict[str, float] = {}
-    static: dict[str, float] = {}
+def scaled_anchor(w: Workloads, ran: tuple[str, ...], whole: float, grids: float, static: float) -> Record:
+    """Ruling R28: one development anchor's measured confirmatory term. `whole` (its host, N0, M-aff and T-cool
+    children) stays as measured; `grids` (its modules and retune children, which ran the arms `ran`, a superset of
+    §10) is scaled by the §10 set's share of the kernel workload of what they ran. `static` is the S-static host."""
+    ran_seconds = per_anchor(w, ran)
+    scale = per_anchor(w, stats.CONFIRMATORY_ARMS) / ran_seconds
+    static_scale = per_anchor(w, stats.CONFIRMATORY_ARMS | STATIC_ARMS) / ran_seconds
+    return {
+        "arms_run": list(ran),
+        "scale": scale,
+        "static_scale": static_scale,
+        "raw": whole + grids,
+        "scaled": whole + scale * grids,
+        "static_raw": whole + grids + static,
+        "static_scaled": whole + static_scale * grids + static,
+    }
+
+
+def measured_charges(run: Run, w: Workloads) -> Record:
+    """I3, M7 and R28: from the ledger, each development anchor's whole N0, M-aff and T-cool children plus its modules
+    and retune children scaled to the §10 arm set, and the fixed V0 term the confirmatory re-runs (the replays,
+    acceptance (i)-(iv) and the fold-check). No replay is in the per-anchor term: the anchor's own host is the measured
+    host:1.0 kernel (the one-per-card maximum of the replay children)."""
+    children = ("noop", "maff", "tcool", "modules", "retune")
+    terms: dict[str, Record] = {}
     for s in ANCHORS:
-        names = [anchor_host(s), *(f"{kind}-{s}" for kind in children[1:])]
-        base[str(s)] = sum(run.charges(names))
-        static[str(s)] = base[str(s)] + sum(run.charges([f"static-{s}"]))
+        ran = tuple(
+            text(name)
+            for kind in ("modules", "retune")
+            for name in sequence(run.payload(f"{kind}-{s}", kind, s, "anchor")["arms_run"])
+        )
+        whole = w.host[1.0] + sum(run.charges([f"{kind}-{s}" for kind in children[:3]]))
+        grids = sum(run.charges([f"{kind}-{s}" for kind in children[3:]]))
+        terms[str(s)] = scaled_anchor(w, ran, whole, grids, sum(run.charges([f"static-{s}"])))
+
+    def column(key: str) -> dict[str, float]:
+        return {seed: number(record[key]) for seed, record in terms.items()}
+
     fixed = ["replay-3000-gpu0", "replay-3000-gpu1", *(f"replay-{s}" for s in ANCHORS[1:])]
     fixed += ["acceptance-0", "acceptance-1", f"fold-check-{ANCHORS[0]}"]
+    scaled, raw = column("scaled"), column("raw")
+    static_scaled, static_raw = column("static_scaled"), column("static_raw")
     return {
         "per_anchor_children": list(children),
-        "per_anchor": dict(base),
-        "static_per_anchor": dict(static),
-        "per_anchor_gpu_process_seconds": max(base.values()),
-        "static_per_anchor_gpu_process_seconds": max(static.values()),
+        "train_gpu_process_seconds": w.host[1.0],
+        "train": "the measured host:1.0 kernel for the anchor's own train child; the replays are the fixed term",
+        "scale_rule": "modules + retune children x per_anchor(§10 arms) / per_anchor(arms_run) (ruling R28)",
+        "scale": dict(column("scale")),
+        "static_scale": dict(column("static_scale")),
+        "arms_run": {seed: record["arms_run"] for seed, record in terms.items()},
+        "per_anchor": dict(scaled),
+        "per_anchor_raw": dict(raw),
+        "static_per_anchor": dict(static_scaled),
+        "static_per_anchor_raw": dict(static_raw),
+        "per_anchor_gpu_process_seconds": max(scaled.values()),
+        "per_anchor_raw_gpu_process_seconds": max(raw.values()),
+        "static_per_anchor_gpu_process_seconds": max(static_scaled.values()),
+        "static_per_anchor_raw_gpu_process_seconds": max(static_raw.values()),
         "fixed_v0_children": list(fixed),
         "fixed_v0_gpu_process_seconds": sum(run.charges(fixed)),
     }
@@ -913,8 +958,13 @@ def confirmatory_count(quantities: list[Record], w: Workloads, static_admitted: 
     required, n = stats.confirmatory_count(sd_d1)
     fixed = number(measured["fixed_v0_gpu_process_seconds"])
     projection = project_confirmatory(n, w, stats.CONFIRMATORY_ARMS, fixed)
-    per_anchor = number(measured["per_anchor_gpu_process_seconds"])
-    observed = measured_confirmatory(n, per_anchor, fixed, M0_CONFIRMATORY_SECONDS)
+    observed = measured_confirmatory(
+        n, number(measured["per_anchor_gpu_process_seconds"]), fixed, M0_CONFIRMATORY_SECONDS
+    )
+    # R28: the unscaled sum, for the record only (the pilot's children ran a superset of the §10 arms).
+    unscaled = measured_confirmatory(
+        n, number(measured["per_anchor_raw_gpu_process_seconds"]), fixed, M0_CONFIRMATORY_SECONDS
+    )
     kernel_total = number(projection["projected_gpu_process_seconds"])
     measured_total = number(observed["projected_gpu_process_seconds"])
     larger = max(kernel_total, measured_total)
@@ -930,6 +980,7 @@ def confirmatory_count(quantities: list[Record], w: Workloads, static_admitted: 
         "sd_d1": sd_d1,
         "projection": projection,
         "measured_projection": observed,
+        "measured_projection_unscaled": unscaled,
         "measured_charges": measured,
         "projected_gpu_process_seconds": larger,
         "projection_used": "measured" if measured_total > kernel_total else "kernel",
@@ -1083,7 +1134,7 @@ def pilot(root: Path, data: Path, certificate: Path) -> int:
         extended = stage_extended(run, admitted, (checkpoints, checkpoints_b), w)
         publish(root / "05-extended.json", extended)
         stage = "confirmatory-count"
-        count = confirmatory_count(quantities, w, spread["static_admitted"] is True, measured_charges(run))
+        count = confirmatory_count(quantities, w, spread["static_admitted"] is True, measured_charges(run, w))
         publish(root / "06-confirmatory-count.json", count)
         if count["within_ceiling"] is not True:
             raise FeasibilityHold("the confirmatory count projects over its ceiling; stop before freeze, John's choice")

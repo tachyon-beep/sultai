@@ -186,7 +186,7 @@ def workloads_of(record: Record) -> Workloads:
 
 def source_binding(approved: Record, identity: Record, pilot: Record) -> Record:
     """Ruling R27 (§10): the confirmatory runs the pilot's implementation source, or a hash-listed disposition in its
-    certificate (`source_change_disposition`) names the new version."""
+    certificate (`source_change_disposition`) names the new version by its source hash (R28)."""
     pilot_source = text(field(pilot, "implementation_source_sha256", "the pilot result"))
     current = text(identity["source_sha256"])
     record: Record = {
@@ -203,6 +203,9 @@ def source_binding(approved: Record, identity: Record, pilot: Record) -> Record:
             )
         disposition = REPO / text(approved["source_change_disposition"])
         record["source_change_disposition"] = evidenced(approved, disposition, "the source-change disposition")
+        # R28 minor 1: the disposition names the version it admits by its source hash.
+        if current not in disposition.read_text():
+            raise PilotHold(f"the source-change disposition does not name the confirmatory's source_sha256 {current}")
     return record
 
 

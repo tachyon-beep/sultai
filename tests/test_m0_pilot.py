@@ -39,8 +39,11 @@ from sultai_screen.m0.costs import (
     M0_CONFIRMATORY_STATIC_SECONDS,
     STATIC_ARMS,
     Workloads,
+    admit_extended,
     extended_cost,
     extended_limit,
+    measured_confirmatory,
+    per_anchor,
     stage_seconds,
 )
 from sultai_screen.m0.identity import (
@@ -66,7 +69,7 @@ from sultai_screen.m0.pilot import (
 )
 from sultai_screen.m0.receipts import Source, anchor, arm_vectors, derive_workloads, receipt, workloads_record
 from sultai_screen.m0.stats import CONFIRMATORY_ARMS, KNOWN_ARMS, PILOT_ARMS, quantities
-from sultai_screen.m0.worker import ATTEMPT4_FINAL_STATE, ZERO_MODULE_KINDS
+from sultai_screen.m0.worker import ATTEMPT4_FINAL_STATE, MODULE_ARMS, RETUNE_ARMS, ZERO_MODULE_KINDS
 from sultai_screen.pilot import GPU_UUIDS, Job, Supervisor
 
 REAL_POPEN = subprocess.Popen
@@ -178,6 +181,7 @@ class FakeCluster:
         self.module_seconds = scenario.pop("module_seconds", 10.0)
         self.unavailable = scenario.pop("unavailable", {})
         self.fold_mismatch = scenario.pop("fold_mismatch", False)
+        self.failing = scenario.pop("failing", frozenset())
         self.acceptance_failed = scenario.pop("acceptance_failed", frozenset())
         self.boost = scenario.pop("boost", {})
         self.zero_identity_failed = scenario.pop("zero_identity_failed", frozenset())
@@ -203,6 +207,9 @@ class FakeCluster:
             self.violations.append(f"{output.name} launched before {self.ordered}")
         self.launched.append((output.name, action, gpu, flags, module))
         output.mkdir()
+        if output.name in self.failing:
+            # A child that exits nonzero and publishes no receipt (not a ceiling stop).
+            return REAL_POPEN(["/bin/false"], **kwargs)
         envelope = {
             "action": action,
             "software_valid": True,
@@ -308,6 +315,7 @@ class FakeCluster:
                 **base,
                 **schedule,
                 "noop_sha256": f"noop-{seed}",
+                "arms_run": flags["--arms"].split(","),
                 "arms": records,
                 "unavailable_arms": [],
                 "n0": {"development_loss": float(n0.double().mean())},
@@ -493,8 +501,15 @@ class PilotRunTests(unittest.TestCase):
         fixed = sum(entries[name] for name in measured["fixed_v0_children"])
         self.assertAlmostEqual(measured["fixed_v0_gpu_process_seconds"], fixed)
         self.assertAlmostEqual(count["projection"]["fixed_v0_gpu_process_seconds"], fixed)
-        children = ["replay-3000-gpu0", "noop-3000", "maff-3000", "tcool-3000", "modules-3000", "retune-3000"]
-        self.assertAlmostEqual(measured["per_anchor"]["3000"], sum(entries[name] for name in children))
+        # R28: no replay in the per-anchor term (replays are the fixed term); the anchor's own host is the kernel
+        # host:1.0; the modules and retune children are scaled to the §10 arm set from their receipts' arms_run.
+        self.assertNotIn("train", measured["per_anchor_children"])
+        whole = workload["host"]["1.0"] + sum(entries[f"{kind}-3000"] for kind in ("noop", "maff", "tcool"))
+        grids = sum(entries[f"{kind}-3000"] for kind in ("modules", "retune"))
+        scale = measured["scale"]["3000"]
+        self.assertLess(scale, 1.0)
+        self.assertAlmostEqual(measured["per_anchor_raw"]["3000"], whole + grids)
+        self.assertAlmostEqual(measured["per_anchor"]["3000"], whole + scale * grids)
         larger = max(
             count["projection"]["projected_gpu_process_seconds"],
             count["measured_projection"]["projected_gpu_process_seconds"],
@@ -589,6 +604,16 @@ class PilotRunTests(unittest.TestCase):
         self.assertIs(result["extended_truncated"], True)
         self.assertTrue((root / "06-confirmatory-count.json").is_file())
         self.assertTrue((root / "07-development-medians.json").is_file())
+
+    def test_a_child_failure_inside_an_extended_item_still_stops_the_pilot(self) -> None:
+        # R23 catches only the Supervisor's three ceiling stops: a child exiting nonzero is execution-invalid.
+        code, root, cluster, _ = self.launch(failing=frozenset(("cooled-20-6018",)))
+        self.assertEqual(code, 2)
+        result = self.assert_stop(root, "extended", "execution-invalid")
+        self.assertIn("cooled-20-6018", result["error"])
+        self.assertIn("cooled-20-6018", cluster.names())
+        for name in ("05-extended.json", "06-confirmatory-count.json", "07-development-medians.json"):
+            self.assertFalse((root / name).exists(), name)
 
     def test_only_the_supervisors_ceiling_stops_are_caught_in_the_extended_stage(self) -> None:
         for message in m0_pilot.CEILING_STOPS:
@@ -802,6 +827,34 @@ def anchor_sources(seed: int, arms: frozenset[str]) -> tuple[dict[str, Record], 
     return records, vectors
 
 
+class MeasuredProjectionTests(unittest.TestCase):
+    def test_the_measured_term_is_scaled_to_the_confirmatory_arm_set_at_section_8_magnitudes(self) -> None:
+        # R28: at the §8 bookings (the workloads() fixture: 1,010 s per anchor for the §10 set), the pilot's modules
+        # and retune children run every pilot arm plus S-static and the admitted extended arms (M-exp, lottery,
+        # R-all): about 1.33 x the §10 set. Unscaled, n = 32 would project over 43,200 s; scaled, it fits.
+        w = workloads()
+        wanted = PILOT_ARMS | STATIC_ARMS | {"M-exp", "lottery", "R-all"}
+        modules = tuple(name for name in MODULE_ARMS if name in wanted - {"M-aff"})
+        retune = tuple(name for name in RETUNE_ARMS if name in wanted)
+        self.assertEqual(admit_extended(0.0, 0.0, w, 1e9), list(EXTENDED_ORDER))
+        grids = per_anchor(w, modules) + per_anchor(w, retune) - 2 * per_anchor(w, ())
+        whole = w.host[1.0] + w.fold_and_calibrations + w.grid["aff"] + w.tcool
+        terms = m0_pilot.scaled_anchor(w, modules + retune, whole, grids, w.static)
+        self.assertAlmostEqual(terms["scale"], per_anchor(w, CONFIRMATORY_ARMS) / per_anchor(w, modules + retune))
+        self.assertGreater(1 / terms["scale"], 1.3)
+        self.assertAlmostEqual(terms["raw"], whole + grids)
+        self.assertAlmostEqual(terms["scaled"], whole + terms["scale"] * grids)
+        fixed = 7 * w.host[1.0] + 2 * 60.0 + 20.0  # seven replays, two acceptance children, the fold-check
+        scaled = measured_confirmatory(32, terms["scaled"], fixed, M0_CONFIRMATORY_SECONDS)
+        raw = measured_confirmatory(32, terms["raw"], fixed, M0_CONFIRMATORY_SECONDS)
+        self.assertIs(scaled["within_ceiling"], True)
+        self.assertIs(raw["within_ceiling"], False)
+        static = STATIC_ARMS | CONFIRMATORY_ARMS
+        self.assertAlmostEqual(
+            terms["static_scaled"], whole + w.static + grids * per_anchor(w, static) / per_anchor(w, modules + retune)
+        )
+
+
 class ReceiptTests(unittest.TestCase):
     def test_a_receipt_of_another_implementation_source_is_refused(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -818,6 +871,25 @@ class ReceiptTests(unittest.TestCase):
             self.assertEqual(receipt(root, "noop-3000", "noop", 3000, "anchor", certified)["seed"], 3000)
             with self.assertRaisesRegex(PilotHold, "another implementation source"):
                 receipt(root, "noop-3000", "noop", 3000, "anchor", "2" * 64)
+
+    def test_recorded_v0_reads_the_per_anchor_identity_flags_and_step_zero_comparisons(self) -> None:
+        replay: Record = {"both_cards_bitwise": True, "acceptance": [{"static_step0_bitwise": True}] * 2}
+        flags = {str(seed): dict.fromkeys(ZERO_MODULE_KINDS, True) for seed in ANCHORS}
+        instrument: Record = {
+            "a1_within_1e-4": True,
+            "b3_fraction_every_anchor": True,
+            "zero_module_identity": True,
+            "zero_module_identity_flags": flags,
+            "slicing": {"known_answer": True},
+        }
+        step0 = {str(seed): {"static": "s", "anchor": "s", "matches": True} for seed in ANCHORS}
+        hosts: Record = {"static_step0_matches": True, "static_step0": step0}
+        self.assertTrue(all(m0_pilot.recorded_v0(replay, instrument, hosts).values()))
+        flags["3003"]["hidden-64"] = False
+        self.assertIs(m0_pilot.recorded_v0(replay, instrument, hosts)["zero_module_identity"], False)
+        flags["3003"]["hidden-64"] = True
+        step0["3001"]["matches"] = False
+        self.assertIs(m0_pilot.recorded_v0(replay, instrument, hosts)["static_step0"], False)
 
     def test_a_recorded_false_v0_flag_fails_v0_at_aggregation(self) -> None:
         anchors = []
@@ -1075,6 +1147,10 @@ class ConfirmatoryTests(unittest.TestCase):
         self.pilot_result.write_text(json.dumps(missing))
         self.assert_refused(self.certificate(), "lacks 'implementation_source_sha256'")
         self.write_pilot(implementation_source_sha256="2" * 64)
+        # Listed, but the disposition does not name the confirmatory's source hash: refused (R28 minor 1).
+        self.assert_refused(self.certificate(source_change="listed"), "does not name the confirmatory's source")
+        source = str(IDENTITY["source_sha256"])
+        self.source_disposition.write_text(f"John: the confirmatory runs implementation source {source} (§10).\n")
         code, root, _ = self.launch(self.certificate(source_change="listed"))
         self.assertEqual(code, 0, read_record(root / "confirmatory-result.json"))
         binding = read_record(self.repo / CONFIRMATORY_CUSTODY)["identity"]["implementation_source"]
