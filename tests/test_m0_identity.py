@@ -14,16 +14,24 @@ from sultai_screen.m0.identity import (
     AMENDMENT_2_SHA,
     AMENDMENT_PATH,
     AMENDMENT_SHA,
+    CERTIFIED_FRACTION,
+    CHECKPOINTS,
+    CHECKPOINTS_B,
     FOLD_TOLERANCE,
     HARM,
     M0_CONFIRMATORY_SECONDS,
+    M0_CONFIRMATORY_STATIC_SECONDS,
     M0_PILOT_SECONDS,
     M_S,
+    MODULE_RATES,
     PREREG_PATH,
     PREREG_SHA,
     PROTOCOL_SHA,
     PROTOCOL_VERSION,
+    RALL_CHECKPOINTS,
+    RETUNE_RATES,
     RHO,
+    S_STATIC_SD_LIMIT,
     STEERING_PATH,
     STEERING_SHA,
     X2,
@@ -88,7 +96,17 @@ class IdentityTests(unittest.TestCase):
     def test_margins_and_ceilings_are_the_frozen_values(self) -> None:
         self.assertEqual((X, X2, M_S, RHO, HARM, FOLD_TOLERANCE), (0.02, 0.01, 0.02, 0.8, 0.01, 0.005))
         self.assertEqual((M0_PILOT_SECONDS, M0_CONFIRMATORY_SECONDS), (14_400, 43_200))
+        # §10: S-static joins the confirmatory only under John's 14 GPU-hour ceiling (B7: beside the other ceilings).
+        self.assertEqual(M0_CONFIRMATORY_STATIC_SECONDS, 50_400)
         self.assertEqual(PILOT_SECONDS, 3 * 3600)  # Gate 3 constant untouched
+        # C1: the certification rule, the S-static admission limit, both rate grids and every checkpoint axis (§4, §7).
+        self.assertEqual((CERTIFIED_FRACTION, S_STATIC_SD_LIMIT), (0.75, 0.0275))
+        self.assertEqual(MODULE_RATES, (1.0, 0.3, 0.1))
+        self.assertEqual(RETUNE_RATES, (1.0, 0.3, 0.1, 0.03, 0.01))
+        self.assertEqual(CHECKPOINTS, (200, 800, 3200))
+        self.assertEqual(CHECKPOINTS_B, (400, 1600, 6400))
+        self.assertEqual(RALL_CHECKPOINTS, tuple(range(40, 801, 40)))
+        self.assertEqual((len(RALL_CHECKPOINTS), RALL_CHECKPOINTS[0], RALL_CHECKPOINTS[-1]), (20, 40, 800))
 
     def test_source_identity_names_the_changed_document(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

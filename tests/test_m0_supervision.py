@@ -14,6 +14,7 @@ from sultai.trust import ContractViolation
 from sultai_screen.contracts import PILOT_SECONDS, PilotHold, read_record
 from sultai_screen.m0.costs import (
     ARM_UNITS,
+    CORE_CASE_ARMS,
     EXTENDED_ORDER,
     EXTENDED_RESERVE,
     R_ALL_EVALUATIONS,
@@ -27,6 +28,7 @@ from sultai_screen.m0.costs import (
     per_anchor,
     project_confirmatory,
     project_pilot,
+    stage_seconds,
     with_static,
 )
 from sultai_screen.m0.identity import M0_CONFIRMATORY_SECONDS
@@ -109,7 +111,11 @@ class SupervisionTests(unittest.TestCase):
             self.assertEqual(supervisor.ceiling, PILOT_SECONDS)
             self.assertEqual(supervisor.per_card, 3)
             supervisor.run(tuple(Job(f"g-{i}", "train", 3000, 0, i % 2) for i in range(6)))
-            self.assertEqual(read_record(root / "ledger-000.json")["ceiling_gpu_process_seconds"], 10_800)
+            ceiling = read_record(root / "ledger-000.json")["ceiling_gpu_process_seconds"]
+            self.assertEqual(ceiling, 10_800)
+            # C11: the Gate 3 ledger bytes keep the int 10800, never a coerced 10800.0.
+            self.assertIs(type(ceiling), int)
+            self.assertIn('"ceiling_gpu_process_seconds":10800,', (root / "ledger-000.json").read_text())
             with self.assertRaisesRegex(PilotHold, "reviewed maximum three processes/card required"):
                 supervisor.run(tuple(Job(f"x-{i}", "train", 3000, 0, 0) for i in range(4)))
         with tempfile.TemporaryDirectory() as temporary, patch("sultai_screen.pilot.PILOT_SECONDS", 10.15):
@@ -270,19 +276,67 @@ class SupervisionTests(unittest.TestCase):
             with_static(32, w, CONFIRMATORY_ARMS | {"S-static"}, 1500)
 
     def test_pilot_projection_is_charged_plus_remaining(self) -> None:
-        # Two remaining stages of 1,000 s each: the fixed V0 stage and the F(0.25) frontier item (6 x (host + its
-        # noop and evaluate children, measured at the 0.5 width)).
-        w = dataclasses.replace(workloads(), fixed_v0=1000.0, host={0.25: 1000.0 / 6 - 40.0, 1.0: 45.0})
-        record = project_pilot(3000.0, ("V0", "F(0.25)"), w)
-        self.assertAlmostEqual(record["projected_gpu_process_seconds"], 5000.0, places=9)
+        # Two remaining stages: the core (6,540 s at the bookings) and the F(0.25) frontier item, 1,000 s (6 x (host +
+        # its noop and evaluate children, measured at the 0.5 width)).
+        w = dataclasses.replace(workloads(), host={0.25: 1000.0 / 6 - 40.0, 1.0: 45.0})
+        record = project_pilot(3000.0, ("core", "F(0.25)"), w)
+        self.assertAlmostEqual(record["projected_gpu_process_seconds"], 3000.0 + 6540.0 + 1000.0, places=9)
         self.assertEqual(record["charged"], 3000.0)
-        self.assertEqual(set(record["remaining_lines"]), {"V0", "F(0.25)"})
+        self.assertEqual(set(record["remaining_lines"]), {"core", "F(0.25)"})
         self.assertEqual(project_pilot(3000.0, (), w)["projected_gpu_process_seconds"], 3000.0)
-        self.assertTrue({"V0", "hosts", "core"} <= set(STAGE_WORKLOADS))
+        # B6: stages 1-3 are charged before stage 4 projects (R19); only the core is a projected stage.
+        self.assertEqual(set(STAGE_WORKLOADS), {"core"})
+        for charged_before in ("V0", "hosts"):
+            with self.assertRaises(ContractViolation):
+                project_pilot(3000.0, (charged_before,), w)
         with self.assertRaises(ContractViolation):
-            project_pilot(3000.0, ("V0", "V0"), w)
+            project_pilot(3000.0, ("core", "core"), w)
         with self.assertRaises(ContractViolation):
             project_pilot(3000.0, ("medians",), w)
+
+    def test_core_stage_is_the_section_8_core_table(self) -> None:
+        # C10: §8's stage-5 core lines at the bookings (DEVELOPMENT_ANCHORS = 6): module-grid cases M-sq, M-sq-fresh,
+        # M-sq | T-cool, M-wide, M-small and the S-static refit 6 x 6 x 60 = 2,160; M-aff 6 x 100 = 600; M-small-B
+        # 6 x 120 = 720; the two M-wide→8 refit grids 6 x 2 x 60 = 720; R-272s 6 x 80 = 480; R-aff 6 x 250 = 1,500;
+        # cuts, folds, leave-one-out, calibrations and evaluations 6 x 30 = 180; together 6,360 s. §5 adds the three
+        # single 800-step M-wide→{16, 4, 2} refits (R17: the refit-single unit, 10 s): 6 x 3 x 10 = 180. Total 6,540 s.
+        self.assertEqual(stage_seconds("core", workloads()), 6_540.0)
+        # The §8 core cases: every pilot arm but T-cool (its resume is a stage-3 host child) plus the S-static refit.
+        self.assertEqual(
+            CORE_CASE_ARMS,
+            frozenset(
+                (
+                    "M-sq",
+                    "M-sq-fresh",
+                    "M-sq|T-cool",
+                    "M-wide",
+                    "M-small",
+                    "S-static:refit",
+                    "M-aff",
+                    "M-small-B",
+                    "M-wide→8:rank:refit",
+                    "M-wide→8:random:refit",
+                    "R-272s",
+                    "R-aff",
+                    "M-wide→16:refit",
+                    "M-wide→4:refit",
+                    "M-wide→2:refit",
+                    "M-wide→8:rank:sliced",
+                    "M-wide→8:random:sliced",
+                    "M-wide→16:sliced",
+                    "M-wide→4:sliced",
+                    "M-wide→2:sliced",
+                    "M-wide→8:ablation",
+                    "R-temp",
+                    "R-cal",
+                )
+            ),
+        )
+        module_grid_cases = ("M-sq", "M-sq-fresh", "M-sq|T-cool", "M-wide", "M-small", "S-static:refit")
+        self.assertTrue(all(ARM_UNITS[name] == ("grid:module",) for name in module_grid_cases))
+        # Every other core case is costed inside the 30 s cuts-and-calibrations line (no unit of its own).
+        free = ("M-wide→8:rank:sliced", "M-wide→8:random:sliced", "M-wide→8:ablation", "R-temp", "R-cal")
+        self.assertTrue(all(ARM_UNITS[name] == () for name in free))
 
     def test_extended_admission_stops_at_the_first_miss(self) -> None:
         w = workloads()

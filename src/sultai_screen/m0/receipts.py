@@ -29,11 +29,12 @@ from sultai_screen.contracts import (
 )
 from sultai_screen.m0.costs import Workloads
 from sultai_screen.m0.identity import CHECKPOINTS, CHECKPOINTS_B, MODULE_RATES, RETUNE_RATES, protocol_identity
+from sultai_screen.m0.stats import BOOTSTRAP_SEED as BOOTSTRAP_SEED
 from sultai_screen.m0.stats import AnchorResult, ArmResult
 from sultai_screen.m0.worker import SURVIVAL_REFIT_STEPS, VECTORS
 
-# The anchor-bootstrap and frontier-bootstrap seed of every pilot statistic (ruling R18 f): the first anchor.
-BOOTSTRAP_SEED: Final = 3000
+# BOOTSTRAP_SEED (ruling R18 f, the first anchor) lives in m0.stats beside the per-anchor paired SEs that use it (A4);
+# it is re-exported here for the pilot and confirmatory supervisors.
 TRAINING_FILES: Final = {
     "host.pt": "checkpoint_sha256",
     "optimizer.pt": "optimizer_sha256",
@@ -169,11 +170,14 @@ def candidate_rate(label: str) -> float:
     return float(rate)
 
 
-def inventory(record: Record) -> Record:
-    """An arm's labelled raw candidates; an unavailable arm lists its nonfinite candidates (no inventory exists)."""
+def inventory(name: str, record: Record) -> Record:
+    """An arm's labelled raw candidates; an unavailable arm lists its nonfinite candidates (no inventory exists) only
+    when its own fit failed (F5: `cause` is the arm itself), never another fit's, such as M-wide's for a dependent."""
     if record["status"] == "available":
         return mapping(record["harm_inventory"])
     labelled: Record = {}
+    if record["cause"] != name:
+        return labelled
     for entry in sequence(record["candidates"]):
         candidate = mapping(entry)
         if candidate["finite"] is False:
@@ -240,7 +244,7 @@ def anchor(seed: int, sources: tuple[Source, ...], required: frozenset[str]) -> 
                 unfolded[name] = loss
             else:
                 nonfinite.append(name)
-    labelled = {name: inventory(record) for name, record in records.items()}
+    labelled = {name: inventory(name, record) for name, record in records.items()}
     raw = {
         name: tuple(
             (candidate_rate(label), math.nan if value is None else number(value)) for label, value in items.items()

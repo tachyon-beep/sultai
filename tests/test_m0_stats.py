@@ -6,6 +6,7 @@ import subprocess
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import torch
 
@@ -17,12 +18,16 @@ from sultai_screen.fit import paired_se
 from sultai_screen.host import Host, parameter_count
 from sultai_screen.m0 import identity
 from sultai_screen.m0.stats import (
+    BOOTSTRAP_SAMPLES,
+    BOOTSTRAP_SEED,
     CONFIRMATORY_ARMS,
     CORE_ARMS,
     CORE_PARAMETERS,
+    PAIRED_SE_KEYS,
     PILOT_ARMS,
     REFERENCE_PARAMETERS,
     STARVED_PAIR_ARMS,
+    SURVIVAL_WIDTHS,
     AnchorResult,
     ArmResult,
     achieved_half_width,
@@ -175,6 +180,43 @@ class StatsTests(unittest.TestCase):
         self.assertEqual(mapping(record["survivors"])["M-wide→8:rank"], [1, 5, 9, 12, 20, 33, 40, 63])
         self.assertEqual(record["harm"], [])
 
+    def test_per_anchor_paired_bootstrap_se_for_every_two_arm_quantity(self) -> None:
+        # A4 (§6): every two-arm quantity carries its per-example paired-bootstrap SE for loss (`<key>_se`) and, as a
+        # secondary, for 0/1 correctness (`<key>_acc_se`), each fit.paired_se under the fixed seed BOOTSTRAP_SEED.
+        gains = default_gains()
+        gains.update({"M-sq": 0.05, "M-aff": 0.02, "R-272s": 0.01, "R-aff": 0.03})
+        result = anchor(gains)
+        sq_loss = torch.tensor([1.90, 2.05, 1.93, 2.01], dtype=torch.float64)
+        aff_loss = torch.tensor([1.97, 2.02, 1.99, 1.98], dtype=torch.float64)
+        sq_correct, aff_correct = torch.tensor([1.0, 1.0, 0.0, 1.0]), torch.tensor([1.0, 0.0, 0.0, 1.0])
+        result.arms["M-sq"] = ArmResult(sq_loss, sq_correct, True, 0.3, False)
+        result.arms["M-aff"] = ArmResult(aff_loss, aff_correct, True, 0.3, False)
+        record = quantities(result)
+        self.assertEqual(BOOTSTRAP_SEED, 3000)
+        # D1 = G(M-sq) - G(M-aff): per example, L(M-aff) - L(M-sq); accuracy, acc(M-sq) - acc(M-aff).
+        self.assertEqual(record["D1_se"], paired_se(aff_loss - sq_loss, 3000))
+        self.assertEqual(record["D1_acc_se"], paired_se(sq_correct - aff_correct, 3000))
+        self.assertGreater(float(record["D1_se"]), 0.0)
+        self.assertGreater(float(record["D1_acc_se"]), 0.0)
+        # D1': against the per-anchor maximum re-tune arm (R-aff here, gain 0.03 > R-272s 0.01).
+        self.assertEqual(record["D1prime_se"], paired_se(result.arms["R-aff"].loss - sq_loss, 3000))
+        # D3: against the T-cool host's own N0 (accuracy: the T-cool arm, which is that N0 evaluated).
+        tcool = result.arms["M-sq|T-cool"]
+        self.assertEqual(record["D3_se"], paired_se(result.tcool_noop_loss - tcool.loss, 3000))
+        self.assertEqual(record["D3_acc_se"], paired_se(tcool.correct - result.arms["T-cool"].correct, 3000))
+        self.assertEqual(
+            PAIRED_SE_KEYS, ("D1", "D1prime", "D2", "D2s", "D2_random", "D2s_random", "D3", "D4", "D5", "D5_norefit")
+        )
+        for key in PAIRED_SE_KEYS:
+            self.assertIsInstance(record[f"{key}_se"], float, key)
+            self.assertIsInstance(record[f"{key}_acc_se"], float, key)
+        # An absent arm: the quantity, its SE and its accuracy SE are all None.
+        reduced = quantities(anchor(dict.fromkeys(CORE_ARMS, 0.01)))
+        for key in ("D5", "D5_norefit"):
+            self.assertIsNone(reduced[key])
+            self.assertIsNone(reduced[f"{key}_se"])
+            self.assertIsNone(reduced[f"{key}_acc_se"])
+
     def test_retune_fraction_and_survival_none_on_zero_denominator(self) -> None:
         gains = default_gains()
         gains.update({"R-all": 0.0, "M-wide": 0.0})
@@ -270,6 +312,8 @@ class StatsTests(unittest.TestCase):
         self.assertEqual(PILOT_ARMS - CONFIRMATORY_ARMS, excluded)
         with self.assertRaises(ContractViolation):
             quantities(anchor(default_gains()), frozenset({"M-sq", "not-an-arm"}))
+        # G3: the survival curve's widths are §5's 16/8/4/2.
+        self.assertEqual(SURVIVAL_WIDTHS, (16, 8, 4, 2))
 
     def test_harm_lists_candidates_beyond_harm_margin(self) -> None:
         raw = {
@@ -313,6 +357,52 @@ class StatsTests(unittest.TestCase):
         medians.sort()
         self.assertEqual(medians[499], SAMPLE_LOWER)
         self.assertEqual(medians[9499], SAMPLE_UPPER)
+
+    def test_anchor_bounds_are_the_500th_and_9500th_of_one_10000_by_n_draw(self) -> None:
+        # C4: the plan (g) convention, 10,000 resamples in one (samples, n) draw under generator(seed,
+        # "anchor-bootstrap") and the 1-based 500th / 9,500th order statistics. A bootstrap MEDIAN cannot have distinct
+        # neighbours at those ranks (an odd-n median is a sample element; an even-n one is mostly the mean of two
+        # adjacent order statistics, so each value repeats far more than once in 10,000), so the ranks and the draw
+        # are pinned with the statistic replaced by the resample mean, whose replicates are all distinct.
+        self.assertEqual(BOOTSTRAP_SAMPLES, 10_000)
+        values = [math.sqrt(p) for p in (2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71)]
+        data = torch.tensor(values, dtype=torch.float64)
+        draw = torch.randint(len(values), (10_000, len(values)), generator=generator(7, "anchor-bootstrap"))
+        replicates = sorted(float(v) for v in data[draw].mean(dim=1))
+        with patch("sultai_screen.m0.stats._row_medians", lambda rows: rows.mean(dim=1)):
+            lower = anchor_bound(values, 7, lower=True)
+            upper = anchor_bound(values, 7, lower=False)
+            self.assertEqual(anchor_bound(values, 7, lower=True, samples=10_000), lower)
+        self.assertEqual(lower, replicates[499])  # the 500th smallest, 1-based
+        self.assertEqual(upper, replicates[9499])  # the 9,500th smallest
+        self.assertEqual(len({replicates[498], replicates[499], replicates[500]}), 3)
+        self.assertEqual(len({replicates[9498], replicates[9499], replicates[9500]}), 3)
+        # And with the real median: the default sample count is 10,000.
+        self.assertEqual(anchor_bound(SAMPLE, 0, lower=True), anchor_bound(SAMPLE, 0, lower=True, samples=10_000))
+
+    def test_frontier_bounds_are_the_500th_and_9500th_replicate_slopes(self) -> None:
+        # C4: the frontier bootstrap with seed spread at every core width: one (10,000, m) draw per width in ascending
+        # parameter order from generator(seed, "frontier-bootstrap"); the 500th / 9,500th replicate slopes.
+        spread = (0.0, 0.0071, -0.0043, 0.0122, -0.0098, 0.0031)
+        points = {p: tuple(1.5 - 0.1 * k + d * (1 + k) for d in spread) for k, p in enumerate(CORE_PARAMETERS)}
+        result = frontier_slope(points, 11)
+        rng = generator(11, "frontier-bootstrap")
+        x = [math.log2(p) for p in CORE_PARAMETERS]
+        centre = sum(x) / 3
+        means = []
+        for p in CORE_PARAMETERS:
+            seeds = torch.tensor(points[p], dtype=torch.float64)
+            means.append(seeds[torch.randint(6, (10_000, 6), generator=rng)].mean(dim=1).tolist())
+        slopes = sorted(
+            -sum((xi - centre) * m[r] for xi, m in zip(x, means, strict=True)) / sum((xi - centre) ** 2 for xi in x)
+            for r in range(10_000)
+        )
+        self.assertAlmostEqual(result.lower, slopes[499], places=12)
+        self.assertAlmostEqual(result.upper, slopes[9499], places=12)
+        for rank in (499, 9499):
+            self.assertGreater(slopes[rank] - slopes[rank - 1], 1e-10)
+            self.assertGreater(slopes[rank + 1] - slopes[rank], 1e-10)
+        self.assertEqual(result.samples, 10_000)
 
     def test_achieved_half_width(self) -> None:
         expected = max(0.035 - SAMPLE_LOWER, SAMPLE_UPPER - 0.035)
@@ -496,6 +586,18 @@ class VerdictTests(unittest.TestCase):
         labels(0.0, 0.03, 0.05, 0.1, 0.1)
         self.assertEqual(v1(0.02, 0.05, 0.75, 0.75), before)
 
+    def test_bounds_must_be_ordered(self) -> None:
+        # B2: a swapped lower and upper bound is a contract violation, never a reading from the wrong side.
+        with self.assertRaisesRegex(ContractViolation, "d1_lower"):
+            v1(0.05, 0.02, 0.75, 0.75)
+        with self.assertRaisesRegex(ContractViolation, "d2_lower"):
+            v2(0.05, 0.01, 0.75, 0.75)
+        with self.assertRaisesRegex(ContractViolation, "d3_lower"):
+            labels(0.1, 0.03, 0.02, 0.0, None)
+        self.assertEqual(v1(0.02, 0.02, 0.75, 0.75), "present")
+        self.assertEqual(v2(0.01, 0.01, 0.75, 0.75), "helps")
+        self.assertIn("survives finishing", labels(0.1, 0.02, 0.02, 0.0, None))
+
     def test_static_reading(self) -> None:
         self.assertIsNone(static_reading(0.5, True, 6))
         self.assertIsNone(static_reading(0.5, False, 32))
@@ -524,6 +626,16 @@ class VerdictTests(unittest.TestCase):
             self.assertEqual(plain["rank"], graded["rank"])
         with self.assertRaises(ContractViolation):
             programme_reading("maybe", [])
+
+    def test_programme_reading_routes_the_next_screen_to_the_starved_host(self) -> None:
+        # B1 (§7): V1 re-tuning-equivalent or "harvests undertraining" sends the next screen to the starved 0.5 host.
+        starved = "starved 0.5 host"
+        self.assertEqual(programme_reading("re-tuning equivalent", [])["next_screen"], starved)
+        self.assertEqual(programme_reading("indeterminate", ["harvests undertraining"])["next_screen"], starved)
+        self.assertEqual(programme_reading("present", ["harvests undertraining"])["next_screen"], starved)
+        self.assertIsNone(programme_reading("present", [])["next_screen"])
+        self.assertIsNone(programme_reading("present", ["survives finishing"])["next_screen"])
+        self.assertIsNone(programme_reading("indeterminate", ["beats every named re-tune"])["next_screen"])
 
     def test_non_finite_and_fraction_range(self) -> None:
         with self.assertRaises(ContractViolation):

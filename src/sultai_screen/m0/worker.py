@@ -119,7 +119,7 @@ Widths = tuple[int, int, int, int]
 REPO: Final = Path(__file__).resolve().parents[3]
 DEV_ARTIFACT: Final = REPO / "docs/results/gate3-split-2026-10-11/dev-indices-int32-le.bin"
 # Attempt 4's intact hosts: payload.final_state_sha256 of
-# docs/results/gate3-pilot-2026-10-13-linked-3/intact-<seed>/result.json, replayed on GPU in pilot V0 only.
+# docs/results/gate3-pilot-2026-10-13-linked-3/intact-<seed>/result.json, replayed on GPU in V0 (pilot and confirmatory).
 ATTEMPT4_FINAL_STATE: Final[dict[int, str]] = {
     3000: "f607728bff91b9cab9241c039addbc93d62f2edea70303e1f89e39dd30f1e607",
     3001: "b955026325e2c0fddfc4a1d677fb3795c77b5c200bc3b70ed175782f95750b91",
@@ -158,6 +158,8 @@ MODULE_ARMS: Final = (
     "S-static",
     "S-static:refit",
 )
+# The sliced record whose survivors the lottery retrains (R31: read from the core receipt by an extended child).
+RANK8: Final = "M-wide→8:rank:sliced"
 # Arms that need the M-wide grid, and the one that needs the rank-8 survivors.
 WIDE_DEPENDENTS: Final = frozenset(name for name in MODULE_ARMS if name.startswith("M-wide") or name == "lottery")
 TCOOL_ARMS: Final = frozenset(("T-cool", "M-sq|T-cool"))
@@ -256,7 +258,8 @@ def _receipt(
 
 def _bound(root: Path, payload: Record, files: dict[str, str]) -> None:
     for name, key in files.items():
-        if key not in payload or file_sha(root / name) != text(payload[key]):
+        # F2: a missing bound file holds like a changed one (receipts.bound's rule), never a FileNotFoundError.
+        if key not in payload or not (root / name).is_file() or file_sha(root / name) != text(payload[key]):
             raise PilotHold(f"{root / name} changed after publication or is unbound")
 
 
@@ -806,9 +809,29 @@ def modules_action(request: Request, data: Dataset, device: torch.device) -> Rec
     for name in ("M-sq", "M-aff", "M-sq-fresh"):
         if name in wanted:
             collect.attempt((name,), plain[name])
-    dependents = tuple(name for name in MODULE_ARMS if name in wanted & WIDE_DEPENDENTS)
+    # R31: with --modules-root the lottery is an extended child that reads the core receipt's rank-8 survivors; only
+    # without it (every arm in one child) does it follow the in-process M-wide grid.
+    from_receipt = "lottery" in wanted and request.modules_root is not None
+    dependents = tuple(
+        name for name in MODULE_ARMS if name in wanted & WIDE_DEPENDENTS and not (from_receipt and name == "lottery")
+    )
     if dependents:
         collect.attempt(dependents, lambda: _wide_arms(site, wanted, collect, device), cause="M-wide")
+    if from_receipt:
+        survivors, vectors_sha = rank8_survivors(request, host)
+
+        def lottery() -> None:
+            fitted = site.grid(start=lottery_start(request.seed, survivors, device), hidden=SMALL)
+            record = collect.fitted("lottery", host, development, fitted)
+            record.update(
+                {
+                    "survivors": _ints(survivors),
+                    "survivors_source": RANK8,
+                    "survivors_receipt_vectors_sha256": vectors_sha,
+                }
+            )
+
+        collect.attempt(("lottery",), lottery)
     for name in ("M-small", "M-small-B", "M-exp"):
         if name in wanted:
             collect.attempt((name,), plain[name])
@@ -833,6 +856,24 @@ def modules_action(request: Request, data: Dataset, device: torch.device) -> Rec
         }
     )
     return payload
+
+
+def rank8_survivors(request: Request, host: Host) -> tuple[tuple[int, ...], str]:
+    """R31: the rank-8 survivors of the anchor's core M-wide grid, read from its published modules receipt (bound by its
+    vectors.pt and fitted on this N0), never re-fitted; a receipt without them holds."""
+    root = _required(request.modules_root, "the lottery (the core modules child's output, --modules-root)")
+    receipt = _request_receipt(request, root, frozenset(("modules",)))
+    _bound(root, receipt, {VECTORS: "vectors_sha256"})
+    if "noop_sha256" not in receipt or receipt["noop_sha256"] != state_hash(host):
+        raise PilotHold("the core modules receipt was fitted on another N0 than the loaded noop.pt")
+    arms = mapping(receipt["arms"]) if "arms" in receipt else {}
+    record = mapping(arms[RANK8]) if RANK8 in arms else {}
+    if "status" not in record or record["status"] != "available" or "survivors" not in record:
+        raise PilotHold(f"the core modules receipt holds no available {RANK8} record with its survivors")
+    survivors = tuple(integer(unit) for unit in sequence(record["survivors"]))
+    if len(survivors) != SMALL:
+        raise PilotHold(f"the core receipt's {RANK8} survivors are not {SMALL} units")
+    return survivors, text(receipt["vectors_sha256"])
 
 
 def _wide_arms(site: Site, wanted: set[str], collect: Collector, device: torch.device) -> None:
@@ -1045,6 +1086,7 @@ def retune_action(request: Request, data: Dataset, device: torch.device) -> Reco
             rates=RETUNE_RATES,
             checkpoints=checkpoints,
             from_images=images,
+            certify=name != "R-all",
         )
         record = _retune_record(fit, subset, host, evaluate)
         record["checkpoints"] = _ints(checkpoints)
@@ -1148,7 +1190,7 @@ def acceptance_action(request: Request, data: Dataset, device: torch.device) -> 
     """The §9 stage-1 GPU acceptance matrix (rulings R10, R13), one child per card; four booleans and their evidence.
 
     (i) resume versus uninterrupted, (ii) checkpointed grid versus separate runs, (iii) static step zero versus the
-    plain host, (iv) logits/losses/accuracy agreement. The M-aff fold check is the separate `fold-check` child,
+    plain host, (iv) the padded evaluator's losses against its logits and its accuracy against an unpadded forward. The M-aff fold check is the separate `fold-check` child,
     which compares against the modules receipt's r_aff on the same N0.
     """
     seed, widths, output = request.seed, request.widths, request.output
@@ -1209,14 +1251,16 @@ def acceptance_action(request: Request, data: Dataset, device: torch.device) -> 
     with torch.no_grad():
         images = normalized(data.images[data.train[:8].to(device)])
         static_step0_bitwise = torch.equal(as_tensor(static(images)), as_tensor(plain(images)))
-    # (iv) logits, losses and accuracy on development agree with each other.
+    # (iv) the shared padded evaluator's losses agree with its logits, and its accuracy with an independent unpadded
+    # forward of the whole development site (F6: never the same logits call on both sides).
     development = cache.development
     raw = logits(host, development, None)
     reference = F.cross_entropy(raw, development.labels, reduction="none")
     loss_difference = float((losses(host, development, None) - reference).abs().max())
-    argmax = (raw.argmax(1) == development.labels).float()
+    with torch.no_grad():
+        unpadded = (host.classify(development.base).argmax(1) == development.labels).float()
     evaluation_consistent = loss_difference <= ACCEPTANCE_TOLERANCE and torch.equal(
-        accuracy(host, development, None), argmax
+        accuracy(host, development, None), unpadded
     )
     _sync(device)
     return {
@@ -1370,7 +1414,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--noop-root", type=Path)
     parser.add_argument("--tcool-root", type=Path)
     parser.add_argument("--static-root", type=Path)
-    parser.add_argument("--modules-root", type=Path, help="fold-check: the modules child's output")
+    parser.add_argument(
+        "--modules-root", type=Path, help="fold-check and the extended lottery: the core modules child's output"
+    )
     parser.add_argument("--epochs", type=int, default=10, help="training actions: 20 for cooled-20, else 10")
     parser.add_argument("--checkpoints", type=_checkpoints, default=CHECKPOINTS, help="module and re-tune axis")
     parser.add_argument("--checkpoints-b", type=_checkpoints, default=CHECKPOINTS_B, help="M-small-B axis")

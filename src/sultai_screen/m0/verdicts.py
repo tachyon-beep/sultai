@@ -35,6 +35,12 @@ def _fraction(name: str, value: float) -> float:
     return value
 
 
+def _ordered(name: str, lower: float, upper: float) -> None:
+    """B2: a lower bound above its upper bound is a swapped call, never read."""
+    if lower > upper:
+        raise ContractViolation(f"{name}_lower {lower} exceeds {name}_upper {upper}")
+
+
 def _flag(record: Record, record_name: str, key: str) -> bool:
     if key not in record:
         raise ContractViolation(f"{record_name} is missing {key!r}")
@@ -69,6 +75,7 @@ def v0(
 def v1(d1_lower: float, d1_upper: float, maff_certified_fraction: float, msq_certified_fraction: float) -> str:
     _finite("d1_lower", d1_lower)
     _finite("d1_upper", d1_upper)
+    _ordered("d1", d1_lower, d1_upper)
     _fraction("maff_certified_fraction", maff_certified_fraction)
     _fraction("msq_certified_fraction", msq_certified_fraction)
     if d1_lower >= X and maff_certified_fraction >= CERTIFIED_FRACTION:
@@ -90,6 +97,7 @@ def labels(
         *(() if d4_lower is None else (("d4_lower", d4_lower),)),
     ):
         _finite(name, value)
+    _ordered("d3", d3_lower, d3_upper)
     result: list[str] = []
     if delta_acc_lower <= 0:
         result.append("loss gain without accuracy movement")
@@ -107,6 +115,7 @@ def labels(
 def v2(d2_lower: float, d2_upper: float, msmallb_certified: float, refit_certified: float) -> str:
     _finite("d2_lower", d2_lower)
     _finite("d2_upper", d2_upper)
+    _ordered("d2", d2_lower, d2_upper)
     _fraction("msmallb_certified", msmallb_certified)
     _fraction("refit_certified", refit_certified)
     if d2_lower >= X2 and msmallb_certified >= CERTIFIED_FRACTION:
@@ -124,21 +133,15 @@ def static_reading(d5_lower: float, in_confirmatory_set: bool, n: int) -> str | 
 
 
 def programme_reading(v1_verdict: str, label_list: list[str]) -> Record:
+    """§7: the ranked V1 outcome, D1prime as a grade, and the routing rule: V1 re-tuning-equivalent or "harvests
+    undertraining" sends the next screen to the starved 0.5 host (B1); it decides nothing inside M0."""
     beats = "beats every named re-tune" in label_list
+    starved = v1_verdict == "re-tuning equivalent" or "harvests undertraining" in label_list
+    route: Record = {"beats_named_retunes": beats, "next_screen": "starved 0.5 host" if starved else None}
     if v1_verdict == "present":
-        return {
-            "rank": 1,
-            "outcome": "more capacity at a small parameter cost",
-            "opens_m1": True,
-            "beats_named_retunes": beats,
-        }
+        return {"rank": 1, "outcome": "more capacity at a small parameter cost", "opens_m1": True, **route}
     if v1_verdict == "re-tuning equivalent":
-        return {
-            "rank": 2,
-            "outcome": "same loss with fewer retained parameters",
-            "opens_m1": False,
-            "beats_named_retunes": beats,
-        }
+        return {"rank": 2, "outcome": "same loss with fewer retained parameters", "opens_m1": False, **route}
     if v1_verdict == "indeterminate":
-        return {"rank": 3, "outcome": "no substantial change", "opens_m1": False, "beats_named_retunes": beats}
+        return {"rank": 3, "outcome": "no substantial change", "opens_m1": False, **route}
     raise ContractViolation(f"unknown V1 verdict {v1_verdict!r}")

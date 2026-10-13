@@ -30,6 +30,9 @@ class Adapter:
             w, b = self.weights
             features = torch.tanh(read) if self.nonlinear else read
             return base + torch.einsum("ij,bjhw->bihw", w, features) + b[None, :, None, None]
+        if not self.nonlinear and len(self.weights) in (3, 4):
+            # E6: adapter_shapes refuses affine M-exp and hidden modules; a hand-built one never applies tanh silently.
+            raise ContractViolation("the affine path exists only for the two-tensor adapter")
         if len(self.weights) == 3:
             # base + (w1 @ w2) tanh(read) + b, without forming the 16x16 product.
             w1, w2, b = self.weights
@@ -188,6 +191,9 @@ class Candidate:
     parameter_steps: int
     snapshots: tuple[tuple[int, Adapter, float | None], ...] = ()
     step0_selection: float | None = None
+    # E2 (ruling R33): a grid checkpoint a run reached before it diverged keeps its weights and selection loss but no
+    # trace (fit_sgd reports none for a failed run, Gate 3's contract).
+    trace_truncated: bool = False
 
     def report(self) -> Record:
         result: Record = {
@@ -206,6 +212,8 @@ class Candidate:
             result["snapshots"] = [{"step": step, "selection_loss": loss} for step, _, loss in self.snapshots]
         if self.step0_selection is not None:
             result["step0_selection_loss"] = self.step0_selection
+        if self.trace_truncated:
+            result["trace_truncated"] = True
         return result
 
 
@@ -390,11 +398,23 @@ def plateau(early: Candidate, late: Candidate, selection: Features, seed: int, h
     if len(late.training_losses) < 2 * PLATEAU_WINDOW:
         raise ContractViolation("late schedule must hold two training-loss windows")
     difference = losses(host, selection, early.adapter) - losses(host, selection, late.adapter)
+    return table_b(early.selection, late.selection, difference, late.training_losses, seed)
+
+
+def table_b(
+    early_selection: float, late_selection: float, difference: Tensor, late_training: tuple[float, ...], seed: int
+) -> tuple[bool, float, float]:
+    """plateau()'s v4 Table B arithmetic on any two selected schedules (M0's re-tune arms share it, ruling R32).
+
+    `difference` is the per-example early-minus-late selection loss; `late_training` the late run's step losses.
+    """
+    if len(late_training) < 2 * PLATEAU_WINDOW:
+        raise ContractViolation("late schedule must hold two training-loss windows")
     se = paired_se(difference, seed)
-    tail = torch.tensor(late.training_losses[-2 * PLATEAU_WINDOW :], dtype=torch.float64)
+    tail = torch.tensor(late_training[-2 * PLATEAU_WINDOW :], dtype=torch.float64)
     tail_se = float(tail.std(unbiased=True) / math.sqrt(len(tail)))
     change = float((tail[:PLATEAU_WINDOW].mean() - tail[PLATEAU_WINDOW:].mean()).abs())
-    return early.selection - late.selection < 2 * se and change < 2 * tail_se, se, tail_se
+    return early_selection - late_selection < 2 * se and change < 2 * tail_se, se, tail_se
 
 
 def oracle(host: Host, conditioning: Features, selection: Features, seed: int, *, seeds: int = 3) -> Oracle:
@@ -468,8 +488,10 @@ def grid(
 
     Each run's wall time is booked once, on its final-checkpoint candidate, so candidate times sum to the run
     times. A checkpoint a failed run never reached is a nonfinite candidate carrying what the run spent; a
-    checkpoint it did reach keeps its snapshot but no training trace (fit_sgd reports none for a failed run),
-    which never matters to plateau(): the late comparator is the final checkpoint, reached only by a finite run.
+    checkpoint it did reach keeps its snapshot (weights and selection loss, bitwise a separate run of that length)
+    but no training trace, since fit_sgd reports none for a failed run (ruling R33), and is reported with
+    `trace_truncated: true`. That never matters to plateau(): the late comparator is the final checkpoint, reached
+    only by a finite run.
     """
     if not rates or not checkpoints:
         raise ContractViolation("nonempty rate set and checkpoints required")
@@ -493,16 +515,29 @@ def grid(
         reached = {step: (adapter, loss) for step, adapter, loss in run.snapshots}
         for step in checkpoints:
             wall = run.wall_seconds if step == checkpoints[-1] else 0.0
+            truncated = False
             if step in reached:
                 adapter, loss = reached[step]
                 trace = run.training_losses[:step] if run.training_losses else ()
+                truncated = not run.training_losses
                 passes, parameter_steps = _passes(n, step, True), adapter.count() * step
             else:
                 adapter, loss, trace = run.adapter, None, ()
                 passes, parameter_steps = run.example_passes, run.parameter_steps
             candidates.append(
                 Candidate(
-                    adapter, rate, seed, step, loss, trace, wall, passes, parameter_steps, (), run.step0_selection
+                    adapter,
+                    rate,
+                    seed,
+                    step,
+                    loss,
+                    trace,
+                    wall,
+                    passes,
+                    parameter_steps,
+                    (),
+                    run.step0_selection,
+                    truncated,
                 )
             )
     bank = tuple(candidates)

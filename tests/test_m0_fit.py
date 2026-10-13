@@ -16,10 +16,12 @@ from sultai_screen.data import Dataset, generator, partitions
 from sultai_screen.fit import (
     Adapter,
     Candidate,
+    _passes,
     accuracy,
     at_edge,
     choose,
     fit_sgd,
+    gradient_step,
     grid,
     initial_adapter,
     logits,
@@ -71,6 +73,13 @@ def fit_features() -> Features:
     rng = torch.Generator().manual_seed(11)
     read = torch.randn((64, 16, 8, 8), generator=rng)
     return Features(read, read * 0.3, torch.arange(64) % 10)
+
+
+def many_features(n: int) -> Features:
+    """More than one 256-row batch per permutation (E3, E4)."""
+    rng = torch.Generator().manual_seed(13)
+    read = torch.randn((n, 16, 8, 8), generator=rng)
+    return Features(read, read * 0.3, torch.arange(n) % 10)
 
 
 def tensor_shas(adapter: Adapter) -> tuple[str, ...]:
@@ -362,6 +371,96 @@ class FitTests(unittest.TestCase):
         self.assertFalse(plateau(make(early.adapter, 2.0, flat[:40]), make(moved, 1.0, flat), data, 3000, host)[0])
         with self.assertRaises(ContractViolation):  # the late schedule must hold two 40-step windows
             plateau(early, make(moved, 1.0, flat[:79]), data, 3000, host)
+
+    def test_grid_plateau_compares_the_last_two_checkpoints_never_the_first(self) -> None:
+        # E1: with three checkpoints the comparator is checkpoints[-2] vs [-1] (800 vs 3,200 in production); the first
+        # checkpoint's candidates never enter it.
+        host, data = frozen_host(), fit_features()
+        result = grid(host, data, data, 3000, rates=(1.0, 0.3, 0.1), checkpoints=(20, 40, 80))
+
+        def best(step: int) -> Candidate:
+            return choose(tuple(c for c in result.candidates if c.steps == step and c.selection is not None))
+
+        def se(early: Candidate, late: Candidate) -> float:
+            return paired_se(losses(host, data, early.adapter) - losses(host, data, late.adapter), 3000)
+
+        self.assertEqual(result.selection_se, se(best(40), best(80)))
+        self.assertNotEqual(result.selection_se, se(best(20), best(80)))
+        self.assertEqual(result.plateau, plateau(best(40), best(80), data, 3000, host)[0])
+
+    def test_a_diverged_runs_reached_checkpoint_is_a_separate_run_without_its_trace(self) -> None:
+        # E2 (ruling R33): fit_sgd's divergence contract (an empty trace) is Gate 3's and stays. The M-exp product
+        # w1 w2 grows geometrically at rate 1e5 on this fixture: checkpoint 2 is reached, the run diverges at step 10.
+        host, data = frozen_host(), fit_features()
+        result = grid(host, data, data, 3000, rates=(1e5,), checkpoints=(2, 12), expanded=True)
+        reached, lost = (next(c for c in result.candidates if c.steps == step) for step in (2, 12))
+        separate = fit_sgd(host, data, data, seed=3000, rate=1e5, steps=2, minibatch=True, expanded=True)
+        self.assertTrue(same_weights(reached.adapter, separate.adapter))
+        self.assertEqual(reached.selection, separate.selection)
+        self.assertIsNotNone(reached.selection)
+        self.assertEqual((reached.training_losses, len(separate.training_losses)), ((), 2))
+        self.assertTrue(reached.trace_truncated)
+        self.assertIs(reached.report()["trace_truncated"], True)
+        self.assertIsNone(lost.selection)
+        self.assertNotIn("trace_truncated", lost.report())
+        self.assertIs(result.best, reached)
+        self.assertIn("unavailable", result.plateau_evidence)
+        # A finite run's candidates never carry the key (Gate 3 candidate bytes unchanged).
+        with patch("sultai_screen.fit.PLATEAU_WINDOW", 1):  # two one-step windows in a four-step run
+            finite = grid(host, data, data, 3000, rates=(0.3,), checkpoints=(2, 4))
+        self.assertTrue(all("trace_truncated" not in c.report() for c in finite.candidates))
+
+    def test_example_passes_follow_the_250_per_step_v4_count(self) -> None:
+        # E3: 2,000 fit examples are seven batches of 256 and one of 208 per pass (§4: 250 a step on average).
+        self.assertEqual(_passes(2000, 3200, True), 800_000)
+        self.assertEqual(_passes(2000, 8, True), 2000)
+        self.assertEqual(_passes(2000, 9, True), 2256)
+        self.assertEqual(_passes(64, 5, False), 320)
+        host, data = frozen_host(), many_features(600)
+        with patch("sultai_screen.fit.PLATEAU_WINDOW", 1):  # two one-step windows in a five-step run
+            result = grid(host, data, data, 3000, rates=(0.3,), checkpoints=(2, 5))
+        run = fit_sgd(host, data, data, seed=3000, rate=0.3, steps=5, minibatch=True)
+        final = next(c for c in result.candidates if c.steps == 5)
+        self.assertEqual(final.example_passes, run.example_passes)
+        self.assertEqual(final.example_passes, 256 + 256 + 88 + 256 + 256)
+
+    def test_checkpoints_off_the_cycle_boundary_are_bitwise_separate_runs(self) -> None:
+        # E4: 600 examples are three batches per permutation (256, 256, 88); checkpoints 2 and 4 fall mid-cycle.
+        host, data = frozen_host(), many_features(600)
+        one = fit_sgd(host, data, data, seed=3000, rate=0.3, steps=7, minibatch=True, checkpoints=(2, 4, 7))
+        for step, adapter, selection in one.snapshots:
+            separate = fit_sgd(host, data, data, seed=3000, rate=0.3, steps=step, minibatch=True)
+            self.assertTrue(same_weights(adapter, separate.adapter), step)
+            self.assertEqual(selection, separate.selection, step)
+            self.assertEqual(one.training_losses[:step], separate.training_losses, step)
+
+    def test_a_cold_affine_run_starts_from_the_oracle_init_draw(self) -> None:
+        # E5: M-aff's cold start is initial_adapter(seed, nonlinear=False), N(0, 1e-3), never zeros.
+        host, data = frozen_host(), fit_features()
+        seen: list[Adapter] = []
+        real = gradient_step
+
+        def spy(
+            host: Host, data: Features, adapter: Adapter, rate: float, indices: torch.Tensor
+        ) -> tuple[Adapter, torch.Tensor]:
+            seen.append(adapter.detached())
+            return real(host, data, adapter, rate, indices)
+
+        with patch("sultai_screen.fit.gradient_step", side_effect=spy):
+            fit_sgd(host, data, data, seed=3000, rate=0.1, steps=2, minibatch=True, nonlinear=False)
+        expected = initial_adapter(3000, hidden=None, nonlinear=False, expanded=False, device=torch.device("cpu"))
+        self.assertTrue(same_weights(seen[0], expected))
+        self.assertFalse(seen[0].nonlinear)
+        self.assertGreater(float(seen[0].weights[0].abs().max()), 0.0)
+
+    def test_three_and_four_tensor_adapters_are_nonlinear_only(self) -> None:
+        # E6: the affine path exists only for the two-tensor adapter; a hand-built affine M-exp or hidden module raises.
+        read = torch.randn((2, 16, 4, 4))
+        for hidden, expanded in ((None, True), (8, False)):
+            adapter = initial_adapter(3, hidden=hidden, nonlinear=True, expanded=expanded, device=torch.device("cpu"))
+            adapter.apply(read, read)
+            with self.assertRaisesRegex(ContractViolation, "two-tensor"):
+                Adapter(adapter.weights, nonlinear=False).apply(read, read)
 
     def test_grid_comparator_unavailable_keeps_finite_winner(self) -> None:
         host, data = frozen_host(), fit_features()

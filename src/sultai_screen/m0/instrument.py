@@ -40,7 +40,8 @@ def materiality(host: Host, cache: Cached, seed: int) -> Record:
         restored = Features(data.read, operator.undo(data.base), data.labels)
         inverse_loss = mean_loss(host, restored, None)
         if abs(inverse_loss - original) > INVERSE_TOLERANCE:
-            raise PilotHold(f"exact inverse failed 1e-4 nats: P1/{seed}")
+            # D1 (R21): at alpha = 0.1 this is A1 itself, and on every rung an instrument clause, never execution.
+            raise InstrumentHold(f"exact inverse failed 1e-4 nats: P1/{seed}")
         gains[str(magnitude)] = no_op - inverse_loss
     return {"seed": seed, "intact_loss": original, "rungs": {"P1": gains}}
 
@@ -105,6 +106,8 @@ def posthoc(host: Host, cache: Cached, seed: int, output: Path) -> Record:
 def check_instrument(records: tuple[Record, ...]) -> None:
     _distinct_seeds(records)
     for record in records:
+        if "alpha" not in record or record["alpha"] != ALPHA:
+            raise PilotHold(f"the P1 known answer is read at alpha {ALPHA} only (§2)")
         arms = mapping(record["arm_losses"])
         a1 = number(arms["A1"])
         if number(record["noop_loss"]) - a1 < MATERIALITY_FLOOR:

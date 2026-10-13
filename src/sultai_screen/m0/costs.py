@@ -13,13 +13,17 @@ from typing import Final
 
 from sultai.trust import ContractViolation
 from sultai_screen.contracts import Record, json_value
-from sultai_screen.m0.identity import CHECKPOINTS, M0_CONFIRMATORY_SECONDS, RALL_CHECKPOINTS, RETUNE_RATES
+from sultai_screen.m0.identity import (
+    CHECKPOINTS,
+    M0_CONFIRMATORY_SECONDS,
+    M0_CONFIRMATORY_STATIC_SECONDS,
+    RALL_CHECKPOINTS,
+    RETUNE_RATES,
+)
 from sultai_screen.m0.stats import CONFIRMATORY_ARMS, KNOWN_ARMS, PILOT_ARMS, STARVED_PAIR_ARMS
 
 DEVELOPMENT_ANCHORS: Final = 6
 CONFIRMATORY_MINIMUM: Final = 32
-# §10: S-static joins the confirmatory set only when John raises its ceiling to 14 GPU-hours.
-M0_CONFIRMATORY_STATIC_SECONDS: Final = 50_400
 GRID_KINDS: Final = frozenset(("module", "module-B", "aff", "retune", "refit", "refit-single"))
 STATIC_ARMS: Final = frozenset(("S-static", "S-static:refit"))
 
@@ -137,11 +141,10 @@ class Stage:
 
 
 # Pilot stage name -> its measured workload. Extended items (EXTENDED_ORDER) are stages too, costed by extended_cost.
+# §9 stages 1-3 are never projected: stage 4 projects from the charge so far (R19), which already holds the replay,
+# timing, acceptance and instrument children (the six s = 1.0 reference hosts among them, inside fixed_v0, R17) and
+# the stage-3 frontier, T-cool and S-static host children (B6).
 STAGE_WORKLOADS: Final[dict[str, Stage]] = {
-    # §9 stages 1-2: replay, timing, the GPU acceptance matrix and the P1 instrument, measured as one total.
-    "V0": Stage(1, ("fixed_v0",)),
-    # §9 stage 3: the 0.5 and 1.5 frontier hosts with their evaluations, the T-cool resume and the S-static host.
-    "hosts": Stage(DEVELOPMENT_ANCHORS, ("host:0.5", "evaluation", "host:1.5", "evaluation", "tcool", "static")),
     # §9 stage 5: every core case on the anchor's already-trained hosts.
     "core": Stage(
         DEVELOPMENT_ANCHORS,
@@ -175,7 +178,9 @@ def unit_seconds(w: Workloads, unit: str) -> float:
     return scalars[unit]
 
 
-def _arm_seconds(w: Workloads, arms: Arms) -> float:
+def arm_seconds(w: Workloads, arms: Arms) -> float:
+    """The named arms' measured units only (no anchor host, N0 or calibrations line): what a child running them costs
+    beyond the anchor's own work (ruling R30 scales the measured confirmatory term by these)."""
     names = tuple(arms)
     if len(set(names)) != len(names):
         raise ContractViolation("an arm may be named once per anchor")
@@ -187,7 +192,7 @@ def _arm_seconds(w: Workloads, arms: Arms) -> float:
 
 def per_anchor(w: Workloads, arms: Arms) -> float:
     """One reference-host anchor: its host, N0 and calibrations line, plus each named arm's measured units."""
-    return sum(unit_seconds(w, unit) for unit in ANCHOR_UNITS) + _arm_seconds(w, arms)
+    return sum(unit_seconds(w, unit) for unit in ANCHOR_UNITS) + arm_seconds(w, arms)
 
 
 def _noop_evaluate(w: Workloads, scale: float) -> float:
@@ -201,13 +206,13 @@ def extended_cost(item: str, w: Workloads) -> float:
     if item == "starved-pair":
         # Six 0.5 hosts x (N0 and calibrations + T-cool + M-sq grid + M-aff grid + M-sq | T-cool grid). The 0.5 hosts
         # are the core frontier hosts already trained and charged in stage 3, so no host term (R9).
-        return DEVELOPMENT_ANCHORS * (unit_seconds(w, "fold_and_calibrations") + _arm_seconds(w, STARVED_PAIR_ARMS))
+        return DEVELOPMENT_ANCHORS * (unit_seconds(w, "fold_and_calibrations") + arm_seconds(w, STARVED_PAIR_ARMS))
     if item == "R-all":
         # Six anchors x (4 front re-run units (R9) + 100 from-images evaluations (R23)).
-        return DEVELOPMENT_ANCHORS * _arm_seconds(w, ("R-all",))
+        return DEVELOPMENT_ANCHORS * arm_seconds(w, ("R-all",))
     if item in ("M-exp", "lottery"):
         # Six anchors x one grid: M-exp a module grid; the lottery retrain the h = 8 refit grid.
-        return DEVELOPMENT_ANCHORS * _arm_seconds(w, (item,))
+        return DEVELOPMENT_ANCHORS * arm_seconds(w, (item,))
     if item == "cooled-20":
         # Six 20-epoch F(1.0) hosts as whole children (R23): twice the measured 10-epoch train child, plus the noop
         # and evaluate children that follow every trained host.

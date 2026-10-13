@@ -3,8 +3,9 @@
 A supervisor process with its own custody receipt and its own `Supervisor` instance (one process per card). It reads a
 clean pilot result hash-listed in the admission certificate, draws n anchors from the confirmatory block (the restart
 block only under a listed disposition), runs V0 and then the §10 arm set on every anchor, reads V1 and V2 once and
-publishes `confirmatory-result.json`. Like the pilot it never imports `sultai_screen.screen`, `former_bridge` or
-`alignment`; the data root goes to the `sultai_screen.m0.worker` children, which keep the seal.
+publishes `confirmatory-result.json`. Like the pilot it never itself imports `sultai_screen.screen`, `former_bridge` or
+`alignment` (they reach the supervisor's process only through the reused Gate 3 `sultai_screen.pilot`); the data root
+goes to the `sultai_screen.m0.worker` children, which keep the seal.
 """
 
 from __future__ import annotations
@@ -35,7 +36,6 @@ from sultai_screen.contracts import (
 )
 from sultai_screen.m0 import stats, verdicts
 from sultai_screen.m0.costs import (
-    M0_CONFIRMATORY_STATIC_SECONDS,
     STATIC_ARMS,
     Workloads,
     measured_confirmatory,
@@ -48,6 +48,7 @@ from sultai_screen.m0.identity import (
     CHECKPOINTS_B,
     FOLD_TOLERANCE,
     M0_CONFIRMATORY_SECONDS,
+    M0_CONFIRMATORY_STATIC_SECONDS,
     protocol_identity,
 )
 from sultai_screen.m0.identity import REPO as M0_REPO
@@ -58,6 +59,7 @@ from sultai_screen.m0.pilot import (
     check_cards,
     check_certificate,
     fold_check,
+    implementation,
     job,
     m0_stop_report,
     raise_only,
@@ -286,10 +288,12 @@ def stage_v0(run: Run, plan: Plan) -> Record:
     run.run([job(f"noop-{s}", "noop", s, lineage, training=run.path(f"train-{s}")) for s in seeds])
     # R25: every fresh anchor's noop child checked the zero module of every form against N0, bitwise.
     failed: list[str] = []
+    recorded: Record = {}
     for s in seeds:
         flags = mapping(run.payload(f"noop-{s}", "noop", s, lineage)["zero_module_identity"])
         if set(flags) != set(ZERO_MODULE_KINDS):
             raise InstrumentHold(f"anchor {s}'s noop child did not check every module form for zero-module identity")
+        recorded[str(s)] = flags
         failed.extend(f"{s}:{kind}" for kind, value in flags.items() if value is not True)
     if failed:
         raise InstrumentHold(f"V0 zero-module identity (bitwise, every module form) failed on {failed}")
@@ -314,6 +318,8 @@ def stage_v0(run: Run, plan: Plan) -> Record:
     return {
         "slicing": slicing,
         "zero_module_identity": True,
+        # B3: the per-anchor flags the clause was read from (pilot M3/R25), not the literal beside them.
+        "zero_module_identity_flags": recorded,
         "fold_residuals": residuals,
         "fold_tolerance": FOLD_TOLERANCE,
         "fold_check": checked,
@@ -536,6 +542,8 @@ def confirmatory(
                 "arms": json_value(sorted(plan.arms)),
                 "ceiling_gpu_process_seconds": plan.ceiling,
                 "charged_gpu_process_seconds": run.supervisor.charged,
+                # B4 (R27): the certified implementation source this reading was produced by.
+                **implementation(identity),
                 **protocol_identity(),
             },
         )

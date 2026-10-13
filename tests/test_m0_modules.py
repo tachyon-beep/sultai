@@ -10,6 +10,7 @@ from torch import Tensor, nn
 from torch.nn import functional as F
 
 from sultai.trust import ContractViolation
+from sultai_screen import fit as fit_module
 from sultai_screen.contracts import PilotHold
 from sultai_screen.data import Dataset, as_tensor, generator, normalized
 from sultai_screen.fit import Adapter, initial_adapter, losses, mean_loss
@@ -145,6 +146,15 @@ class ModuleTests(unittest.TestCase):
             self.assertTrue(torch.equal(result.folded.weights[0], adapter.weights[0][list(result.survivors)]))
         expected = torch.argsort(-ablation, stable=True)[:8]
         self.assertEqual(cuts[2].survivors, tuple(sorted(expected.tolist())))
+        # G1: every cut (rank, random, ablation) folds the removed units' means into d; its unfolded twin keeps d.
+        means = activation_means(adapter, read)
+        outside, bias = adapter.weights[2].double(), adapter.weights[3]
+        for result in cuts:
+            removed = [unit for unit in range(64) if unit not in result.survivors]
+            folded = bias.double() + (outside[:, removed] * means[removed][None, :]).sum(dim=1)
+            self.assertGreater(float((folded - bias.double()).abs().max()), 1e-3)
+            self.assertLessEqual(float((result.folded.weights[3].double() - folded).abs().max()), 1e-6)
+            self.assertTrue(torch.equal(result.unfolded.weights[3], bias))
 
     def test_ties_resolve_to_lower_index(self) -> None:
         inside, bias_in, outside, bias_out = random_module(4, 8).weights
@@ -206,6 +216,29 @@ class ModuleTests(unittest.TestCase):
             lottery_start(21, (5, 2), CPU)
         with self.assertRaises(ContractViolation):
             lottery_start(21, (1, 64), CPU)
+
+    def test_lottery_start_is_the_step_zero_adapter_of_the_wide_grid(self) -> None:
+        # G2: the lottery's "initial weights" are bitwise the h = 64 adapter fit_sgd (and so grid) starts M-wide from.
+        host = Host()
+        freeze(host)
+        read = torch.randn((32, 16, 4, 4), generator=torch.Generator().manual_seed(3))
+        data = Features(read, read * 0.3, torch.arange(32) % 10)
+        starts: list[Adapter] = []
+        real = fit_module.gradient_step
+
+        def spy(host: Host, data: Features, adapter: Adapter, rate: float, indices: Tensor) -> tuple[Adapter, Tensor]:
+            starts.append(adapter.detached())
+            return real(host, data, adapter, rate, indices)
+
+        # One step each: the single gradient step of a fit_sgd run and of a one-checkpoint grid run.
+        with patch("sultai_screen.fit.gradient_step", side_effect=spy):
+            fit_module.fit_sgd(host, data, data, seed=21, rate=0.1, steps=1, minibatch=True, hidden=64)
+            fit_module.grid(host, data, data, 21, rates=(0.1,), checkpoints=(1,), hidden=64)
+        full = lottery_start(21, tuple(range(64)), CPU)
+        self.assertEqual(len(starts), 2)
+        for start in starts:
+            self.assertTrue(all(torch.equal(a, b) for a, b in zip(start.weights, full.weights, strict=True)))
+            self.assertEqual(start.nonlinear, full.nonlinear)
 
     def test_leave_one_out_shape_and_zero_for_silent_unit(self) -> None:
         inside, bias_in, outside, bias_out = random_module(4, 16, scale=1.0).weights

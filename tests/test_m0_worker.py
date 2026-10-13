@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import io
 import math
 import re
@@ -17,9 +18,13 @@ from unittest.mock import patch
 
 import torch
 from torch import Tensor
+from torch.nn import functional as F
 
+from sultai_screen import fit as fit_module
 from sultai_screen.contracts import (
+    InstrumentHold,
     Json,
+    OracleUnavailable,
     PilotHold,
     Record,
     encode,
@@ -32,12 +37,13 @@ from sultai_screen.contracts import (
 )
 from sultai_screen.data import Dataset, Seal
 from sultai_screen.fit import Adapter, Candidate, Grid, fit_sgd, grid
-from sultai_screen.host import REFERENCE_WIDTHS, Features, Host, make_host, state_hash
+from sultai_screen.host import REFERENCE_WIDTHS, Features, Host, make_host, recipe_optimizer, state_hash
 from sultai_screen.m0 import receipts, worker
 from sultai_screen.m0.calibrate import load_noop
 from sultai_screen.m0.identity import protocol_identity
 from sultai_screen.m0.retune import RetuneGrid, Subset, retune_grid
-from sultai_screen.m0.stats import CORE_ARMS, PILOT_ARMS, AnchorResult, ArmResult, quantities
+from sultai_screen.m0.static import StaticHost
+from sultai_screen.m0.stats import CORE_ARMS, PILOT_ARMS, SURVIVAL_WIDTHS, AnchorResult, ArmResult, quantities
 
 REPO = Path(__file__).resolve().parents[1]
 CPU = torch.device("cpu")
@@ -128,6 +134,7 @@ def overflowing_retune(
     rates: tuple[float, ...],
     checkpoints: tuple[int, ...],
     from_images: bool,
+    certify: bool,
 ) -> RetuneGrid:
     return retune_grid(
         host,
@@ -139,6 +146,7 @@ def overflowing_retune(
         rates=OVERFLOW if from_images else rates,
         checkpoints=checkpoints,
         from_images=from_images,
+        certify=certify,
     )
 
 
@@ -151,7 +159,8 @@ def fixture() -> Dataset:
 
 
 @contextmanager
-def patched() -> Iterator[None]:
+def patched(rates: tuple[tuple[float, ...], tuple[float, ...]] = ((0.1,), (0.1,))) -> Iterator[None]:
+    """The CPU fixture; `rates` are the (MODULE_RATES, RETUNE_RATES) the child sees."""
     data = fixture()
     with ExitStack() as stack:
         for target, value in (
@@ -165,8 +174,8 @@ def patched() -> Iterator[None]:
         for target, constant in (
             ("CHECKPOINTS", (1, 2)),
             ("CHECKPOINTS_B", (2, 4)),
-            ("MODULE_RATES", (0.1,)),
-            ("RETUNE_RATES", (0.1,)),
+            ("MODULE_RATES", rates[0]),
+            ("RETUNE_RATES", rates[1]),
             ("RALL_CHECKPOINTS", (1, 2)),
             ("SURVIVAL_REFIT_STEPS", 3),
         ):
@@ -175,11 +184,18 @@ def patched() -> Iterator[None]:
         yield
 
 
-def run(action: str, output: Path, seed: int = 3000, lineage: str = "anchor", *extra: str) -> Record:
+def run(
+    action: str,
+    output: Path,
+    seed: int = 3000,
+    lineage: str = "anchor",
+    *extra: str,
+    rates: tuple[tuple[float, ...], tuple[float, ...]] = ((0.1,), (0.1,)),
+) -> Record:
     scale = {"anchor": "1.0", "frontier-0.5": "0.5", "cooled-20": "1.0"}[lineage]
     argv = [action, "--output", str(output), "--data-root", "/nonexistent", "--seed", str(seed)]
     argv += ["--width", "0", "--lineage", lineage, "--scale", scale, *extra]
-    with patched():
+    with patched(rates):
         if worker.main(argv) != 0:
             raise AssertionError(f"{action} child failed")
     return read_record(output / "result.json")
@@ -530,6 +546,65 @@ class WorkerTests(unittest.TestCase):
         with self.assertRaisesRegex(PilotHold, "implementation source"):
             receipts.source(root, "modules-3000", "modules", 3000, "anchor", "0" * 64)
 
+    def test_lottery_reads_the_rank8_survivors_from_the_core_modules_receipt(self) -> None:
+        # R31: the extended lottery child never re-fits M-wide; it reads the survivors of the anchor's core receipt
+        # (its M-wide→8:rank:sliced record) and retrains those units from their initial weights on the module grid.
+        noop = ("--noop-root", str(self.root / "noop"))
+        core = self.root / "lottery-core"
+        run("modules", core, 3000, "anchor", "--arms", "M-wide,M-wide→8:rank:sliced", *noop)
+        sliced = mapping(mapping(payload_of(read_record(core / "result.json"))["arms"])["M-wide→8:rank:sliced"])
+        planted = [8, 9, 10, 11, 12, 13, 14, 15] if sliced["survivors"] != list(range(8, 16)) else list(range(8))
+        moved = self.root / "lottery-core-moved"
+        shutil.copytree(core, moved)
+        rewrite(moved, lambda p: mapping(mapping(p["arms"])["M-wide→8:rank:sliced"]).update({"survivors": planted}))
+        widths: list[int | None] = []
+
+        def spy(
+            host: Host,
+            conditioning: Features,
+            selection: Features,
+            seed: int,
+            *,
+            rates: tuple[float, ...],
+            checkpoints: tuple[int, ...],
+            start: Adapter | None = None,
+            hidden: int | None = None,
+            expanded: bool = False,
+        ) -> Grid:
+            widths.append(hidden)
+            return grid(
+                host, conditioning, selection, seed, rates=rates, checkpoints=checkpoints, start=start, hidden=hidden,
+                expanded=expanded,
+            )  # fmt: skip
+
+        with patch("sultai_screen.m0.worker.grid", side_effect=spy):
+            payload = payload_of(
+                run("modules", self.root / "lottery-1", 3000, "anchor", "--arms", "lottery", *noop,
+                    "--modules-root", str(moved))
+            )  # fmt: skip
+        record = mapping(mapping(payload["arms"])["lottery"])
+        self.assertEqual(record["status"], "available")
+        self.assertEqual(record["survivors"], planted)
+        self.assertEqual(record["survivors_source"], "M-wide→8:rank:sliced")
+        self.assertEqual(record["survivors_receipt_vectors_sha256"], file_sha(moved / "vectors.pt"))
+        # One lottery grid at h = 8 and no M-wide (h = 64) grid.
+        self.assertEqual(widths, [8])
+        bare = self.root / "lottery-core-bare"
+        shutil.copytree(core, bare)
+        rewrite(bare, lambda p: mapping(p["arms"]).pop("M-wide→8:rank:sliced"))
+        with self.assertRaisesRegex(PilotHold, "survivors"):
+            run(
+                "modules",
+                self.root / "lottery-2",
+                3000,
+                "anchor",
+                "--arms",
+                "lottery",
+                *noop,
+                "--modules-root",
+                str(bare),
+            )
+
     def test_modules_arm_list_restricts_the_child(self) -> None:
         out = self.root / "modules-two"
         payload = payload_of(run("modules", out, 3000, "anchor", "--arms", "M-sq,M-aff", *self.roots()))
@@ -545,6 +620,12 @@ class WorkerTests(unittest.TestCase):
         self.assertEqual(set(arms), {"R-272s", "R-aff"})
         for name in ("R-272s", "R-aff"):
             arm = mapping(arms[name])
+            # R32: R-272s and R-aff carry the Table B certification (a bool) and its paired SE.
+            self.assertIsInstance(arm["certified"], bool, name)
+            report = mapping(arm["report"])
+            self.assertEqual(report["plateau_certified"], arm["certified"])
+            self.assertEqual(report["plateau_evidence"], "both finite schedule comparators available")
+            self.assertIsInstance(report["selection_paired_bootstrap_se"], float)
             self.assertIs(arm["complement_unchanged"], True)
             self.assertGreater(int(str(arm["parameter_steps"])), 0)
             self.assertGreater(int(str(arm["example_passes"])), 0)
@@ -555,6 +636,8 @@ class WorkerTests(unittest.TestCase):
             run("retune", out, 3000, "anchor", "--arms", "R-all", "--noop-root", str(self.root / "noop"))
         )
         everything = mapping(mapping(extended["arms"])["R-all"])
+        self.assertIsNone(everything["certified"])
+        self.assertEqual(mapping(everything["report"])["plateau_evidence"], "R-all is never plateau-certified (§4)")
         self.assertIs(everything["complement_unchanged"], True)
         self.assertIn("pre_recalibration_development_loss", everything)
         self.assertIn("development_loss", everything)
@@ -766,6 +849,276 @@ class WorkerTests(unittest.TestCase):
         publish(bad / "result.json", {"identity": IDENTITY, "action": "train", "payload": {"seed": 3000}})
         with patched(), self.assertRaises(PilotHold):
             worker.load_training(bad, 3000, "anchor", REFERENCE_WIDTHS, CPU, frozen=True)
+
+    def test_train_and_replay_children_are_the_gate3_training_recipe(self) -> None:
+        # C2 (attempt-4 F1): the worker's inline recipe (kept to save the momentum buffers) is bitwise host.train_host
+        # on the fixture, and its probe is attempt 4's Gate 3 training_worker probe.
+        from sultai_screen import screen  # Gate 3, in this test process only (the worker never imports it)
+        from sultai_screen.host import train_host
+
+        host = make_host(3000, 0, CPU)
+        hashes, stream, _ = train_host(host, fixture(), 3000)
+        with tempfile.TemporaryDirectory() as temporary:
+            gate3 = screen.training_worker(fixture(), 3000, 0, Path(temporary))
+        for action in ("train", "replay"):
+            payload = payload_of(run(action, self.root / f"recipe-{action}"))
+            self.assertEqual(payload["final_state_sha256"], state_hash(host), action)
+            self.assertEqual(payload["epoch_state_sha256"], list(hashes), action)
+            self.assertEqual(payload["loss_stream_sha256"], worker.tensor_sha(stream), action)
+            self.assertEqual(payload["forward_backward"], gate3["forward_backward"], action)
+            for key in ("final_state_sha256", "epoch_state_sha256", "loss_stream_sha256", "checkpoint_sha256"):
+                self.assertEqual(payload[key], gate3[key], f"{action} {key}")
+
+    def test_replay_refuses_any_lineage_but_the_attempt4_anchors(self) -> None:
+        # C3 (attempt-4 F2): the guard names itself, never a KeyError on the pin table.
+        request = worker.Request(
+            action="replay",
+            output=self.root / "replay-frontier",
+            data_root=Path("/nonexistent"),
+            seed=6000,
+            lineage="frontier-0.5",
+            widths=HALF,
+            epochs=10,
+            checkpoints=(1, 2),
+            checkpoints_b=(2, 4),
+            arms=None,
+            training_root=None,
+            noop_root=None,
+            tcool_root=None,
+            static_root=None,
+        )
+        with self.assertRaisesRegex(PilotHold, "attempt-4 anchors"):
+            worker.replay_action(request, fixture(), CPU)
+
+    def test_the_worker_shell_seals_pins_and_never_reuses_an_output(self) -> None:
+        # F1 (I-1): the seal is installed before the card is configured, the output created and the data loaded;
+        # configure asks for CUDA; a second child into an existing output raises before any receipt.
+        output = self.root / "shell"
+        order: list[tuple[str, bool]] = []
+        data = fixture()
+
+        def seal() -> Seal:
+            order.append(("seal", output.exists()))
+            return Seal()
+
+        def configure(*, cuda: bool) -> torch.device:
+            order.append((f"configure cuda={cuda}", output.exists()))
+            return CPU
+
+        def load(root: Path, artifact: Path, device: torch.device) -> Dataset:
+            order.append(("load", output.exists()))
+            return data
+
+        argv = ["train", "--output", str(output), "--data-root", "/nonexistent", "--seed", "3000"]
+        argv += ["--lineage", "anchor", "--scale", "1.0"]
+        with (
+            patched(),
+            patch("sultai_screen.m0.worker.install_seal", side_effect=seal),
+            patch("sultai_screen.m0.worker.configure", side_effect=configure),
+            patch("sultai_screen.m0.worker.load_dataset", side_effect=load),
+        ):
+            self.assertEqual(worker.main(argv), 0)
+        self.assertEqual(order, [("seal", False), ("configure cuda=True", False), ("load", True)])
+        reused = self.root / "shell-reused"
+        reused.mkdir()
+        with patched(), self.assertRaises(FileExistsError):
+            worker.main([*argv[:2], str(reused), *argv[3:]])
+        self.assertEqual(list(reused.iterdir()), [])
+
+    def test_instrument_class_failures_publish_software_valid_receipts(self) -> None:
+        # F1 (I-1) and D1: InstrumentHold and OracleUnavailable are instrument failures (software valid), so the
+        # Supervisor reads instrument_valid: false; OracleUnavailable carries its candidates.
+        def raising(error: Exception) -> Callable[[worker.Request, Dataset, torch.device], Record]:
+            def action(request: worker.Request, data: Dataset, device: torch.device) -> Record:
+                raise error
+
+            return action
+
+        candidates: tuple[Record, ...] = ({"rate": 1.0, "steps": 2, "finite": False},)
+        cases = (
+            (InstrumentHold("held"), None),
+            (OracleUnavailable("no finite candidate", candidates=candidates), [dict(c) for c in candidates]),
+        )
+        for index, (error, unavailable) in enumerate(cases):
+            out = self.root / f"instrument-class-{index}"
+            with patch.dict(worker.ACTIONS, {"noop": raising(error)}), self.assertRaises(type(error)):
+                run("noop", out, 3000, "anchor", "--training-root", str(self.root / "train"))
+            failure = read_record(out / "failure.json")
+            self.assertIs(failure["software_valid"], True)
+            self.assertIs(failure["instrument_valid"], False)
+            self.assertEqual(failure["unavailable_candidates"], unavailable)
+            self.assertFalse((out / "result.json").exists())
+        # D1: materiality's exact-inverse failure through the real instrument child (mean_loss order: intact, no-op,
+        # inverse) publishes instrument_valid: false.
+        out = self.root / "instrument-inverse"
+        with (
+            patch("sultai_screen.m0.instrument.mean_loss", side_effect=(1.0, 1.5, 1.2)),
+            self.assertRaisesRegex(InstrumentHold, "exact inverse failed"),
+        ):
+            run("instrument", out, 3000, "anchor", "--training-root", str(self.root / "train"))
+        failure = read_record(out / "failure.json")
+        self.assertEqual((failure["software_valid"], failure["instrument_valid"]), (True, False))
+        self.assertEqual(failure["error_type"], "InstrumentHold")
+
+    def test_every_sha_binder_refuses_a_file_changed_or_missing_after_publication(self) -> None:
+        # F2 (I-2): vectors.pt (receipts.source), host.pt and optimizer.pt (receipts.bound, worker.load_training).
+        certified = str(IDENTITY["source_sha256"])
+        root = self.root / "binders"
+        root.mkdir()
+        run("modules", root / "modules-3000", 3000, "anchor", "--arms", "M-sq", "--noop-root", str(self.root / "noop"))
+        receipts.source(root, "modules-3000", "modules", 3000, "anchor", certified)
+        for damage in ("rewrite", "remove"):
+            tampered = root / f"modules-{damage}"
+            shutil.copytree(root / "modules-3000", tampered)
+            if damage == "rewrite":
+                flip(tampered / "vectors.pt")
+            else:
+                (tampered / "vectors.pt").unlink()
+            with self.assertRaisesRegex(PilotHold, "unbound or changed after publication"):
+                receipts.source(root, tampered.name, "modules", 3000, "anchor", certified)
+        payload = payload_of(read_record(self.root / "train/result.json"))
+        receipts.bound(self.root / "train", payload, receipts.TRAINING_FILES)
+        for name in ("host.pt", "optimizer.pt"):
+            for damage in ("rewrite", "remove"):
+                tampered = self.root / f"train-{damage}-{name}"
+                shutil.copytree(self.root / "train", tampered)
+                if damage == "rewrite":
+                    flip(tampered / name)
+                else:
+                    (tampered / name).unlink()
+                with self.assertRaisesRegex(PilotHold, "unbound or changed after publication"):
+                    receipts.bound(tampered, payload, receipts.TRAINING_FILES)
+                with patched(), self.assertRaisesRegex(PilotHold, "changed after publication or is unbound"):
+                    worker.load_training(tampered, 3000, "anchor", REFERENCE_WIDTHS, CPU, frozen=True)
+
+    def test_each_arm_fits_on_its_own_frozen_rate_set(self) -> None:
+        # F3 (I-3): distinct module and re-tune grids; M-aff and every re-tune arm on the re-tune set, every other grid
+        # arm on the module set; each h = 16/4/2 survival refit at M-wide's SELECTED rate, which the patched selection
+        # makes the second module rate, not MODULE_RATES[0].
+        module_rates, retune_rates = (0.1, 0.05), (0.2, 0.1, 0.03)
+
+        def second_rate_wide(
+            host: Host,
+            conditioning: Features,
+            selection: Features,
+            seed: int,
+            *,
+            rates: tuple[float, ...],
+            checkpoints: tuple[int, ...],
+            start: Adapter | None = None,
+            hidden: int | None = None,
+            nonlinear: bool = True,
+            expanded: bool = False,
+        ) -> Grid:
+            result = grid(
+                host, conditioning, selection, seed, rates=rates, checkpoints=checkpoints, start=start, hidden=hidden,
+                nonlinear=nonlinear, expanded=expanded,
+            )  # fmt: skip
+            if hidden != 64 or start is not None:
+                return result
+            chosen = [c for c in result.candidates if c.rate == rates[1] and c.selection is not None]
+            return dataclasses.replace(result, best=min(chosen, key=lambda c: number(c.selection)))
+
+        out = self.root / "modules-rates"
+        with patch("sultai_screen.m0.worker.grid", side_effect=second_rate_wide):
+            payload = payload_of(run("modules", out, 3000, "anchor", *self.roots(), rates=(module_rates, retune_rates)))
+        arms = mapping(payload["arms"])
+        noop = ("--noop-root", str(self.root / "noop"))
+        retuned = mapping(
+            payload_of(
+                run("retune", self.root / "retune-rates", 3000, "anchor", "--arms", "R-272s,R-aff,R-all", *noop,
+                    rates=(module_rates, retune_rates))
+            )["arms"]
+        )  # fmt: skip
+
+        def rates_of(record: Json) -> set[float]:
+            return {number(mapping(c)["rate"]) for c in sequence(mapping(mapping(record)["report"])["candidates"])}
+
+        for name in ("R-272s", "R-aff", "R-all"):
+            self.assertEqual(rates_of(retuned[name]), set(retune_rates), name)
+        self.assertEqual(rates_of(arms["M-aff"]), set(retune_rates))
+        grids = ("M-sq", "M-sq-fresh", "M-wide", "M-wide→8:rank:refit", "M-wide→8:random:refit", "M-small",
+                 "M-small-B", "M-exp", "lottery", "M-sq|T-cool", "S-static:refit")  # fmt: skip
+        for name in grids:
+            self.assertEqual(rates_of(arms[name]), set(module_rates), name)
+        wide = number(mapping(arms["M-wide"])["rate"])
+        self.assertEqual(wide, module_rates[1])
+        self.assertNotEqual(wide, module_rates[0])
+        for h in (16, 4, 2):
+            self.assertEqual(number(mapping(arms[f"M-wide→{h}:refit"])["rate"]), wide, h)
+
+    def test_each_acceptance_flag_turns_false_when_its_comparison_breaks(self) -> None:
+        # F4 (I-4): a negative control per flag (i)-(iv).
+        training = ("--training-root", str(self.root / "train"))
+
+        def accept(name: str) -> Record:
+            return payload_of(run("acceptance", self.root / f"acceptance-{name}", 3000, "anchor", *training))
+
+        def no_momentum(host: Host, path: Path, device: torch.device) -> torch.optim.SGD:
+            return recipe_optimizer(host.parameters())
+
+        def shifted_rate(*args: Host | Features, **kwargs: float | int | bool) -> Candidate:
+            return fit_sgd(*args, **{**kwargs, "rate": number(kwargs["rate"]) * 0.5})  # (ii): another rate
+
+        class Offset(StaticHost):
+            def __init__(self, host: Host) -> None:
+                super().__init__(host)
+                with torch.no_grad():
+                    self.b.fill_(0.5)
+
+        real = worker.losses
+        controls: tuple[tuple[str, str, object], ...] = (
+            ("resume_bitwise", "_optimizer", no_momentum),
+            ("checkpoint_bitwise", "fit_sgd", shifted_rate),
+            ("static_step0_bitwise", "StaticHost", Offset),
+            ("evaluation_consistent", "losses", lambda *a, **k: real(*a, **k) + 1e-3),
+        )
+        for flag, target, replacement in controls:
+            with self.subTest(flag=flag), patch(f"sultai_screen.m0.worker.{target}", replacement):
+                record = accept(flag)
+                self.assertIs(record[flag], False, flag)
+                for other in ("resume_bitwise", "checkpoint_bitwise", "static_step0_bitwise", "evaluation_consistent"):
+                    if other != flag:
+                        self.assertIs(record[other], True, f"{flag} broke {other}")
+
+    def test_acceptance_accuracy_is_checked_against_an_unpadded_forward(self) -> None:
+        # F6 (M-3): an evaluator that drifts coherently (its logits, the accuracy read from them and the losses all
+        # agree with each other) passed the old self-comparison; (iv) now compares the padded evaluator's accuracy with
+        # host.classify on the whole development site, an independent unpadded forward, and fails it.
+        real = fit_module.logits
+
+        def drifted(host: Host, data: Features, adapter: Adapter | None) -> Tensor:
+            # Every example "correct": the drifted evaluator scores 100 % on the random-label fixture.
+            return real(host, data, adapter) + 100.0 * F.one_hot(data.labels, 10).to(torch.float32)
+
+        def drifted_losses(host: Host, data: Features, adapter: Adapter | None, *, check_finite: bool = True) -> Tensor:
+            return F.cross_entropy(drifted(host, data, adapter), data.labels, reduction="none")
+
+        with (
+            patch("sultai_screen.fit.logits", drifted),
+            patch("sultai_screen.m0.worker.logits", drifted),
+            patch("sultai_screen.m0.worker.losses", drifted_losses),
+        ):
+            record = payload_of(
+                run("acceptance", self.root / "acceptance-argmax", 3000, "anchor", "--training-root",
+                    str(self.root / "train"))
+            )  # fmt: skip
+        self.assertEqual(number(record["loss_max_difference"]), 0.0)
+        self.assertIs(record["evaluation_consistent"], False)
+
+    def test_survival_widths_are_the_frozen_set(self) -> None:
+        # G3: the production survival widths, 16/8/4/2 (§5): three single refits plus the M-wide→8 grid arms.
+        self.assertEqual(worker.SURVIVAL_CUTS, (16, 4, 2))
+        self.assertEqual((worker.SMALL, worker.WIDE), (8, 64))
+        self.assertEqual(SURVIVAL_WIDTHS, (16, 8, 4, 2))
+        self.assertEqual(tuple(sorted((*worker.SURVIVAL_CUTS, worker.SMALL), reverse=True)), SURVIVAL_WIDTHS)
+
+
+def flip(path: Path) -> None:
+    """Rewrite one byte of a published file in place."""
+    data = bytearray(path.read_bytes())
+    data[len(data) // 2] ^= 0xFF
+    path.write_bytes(bytes(data))
 
 
 if __name__ == "__main__":

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import math
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import torch
 from torch import Tensor
@@ -11,7 +13,7 @@ from torch.nn import functional as F
 from sultai.trust import ContractViolation, InputDataError
 from sultai_screen.contracts import PilotHold
 from sultai_screen.data import Dataset, generator, normalized
-from sultai_screen.fit import fit_sgd, losses, mean_loss
+from sultai_screen.fit import fit_sgd, losses, mean_loss, paired_se
 from sultai_screen.host import (
     Host,
     cached,
@@ -23,11 +25,14 @@ from sultai_screen.host import (
     train_epochs,
     train_host,
 )
+from sultai_screen.m0.calibrate import recalibrate_bn
+from sultai_screen.m0.data import features_from_images
 from sultai_screen.m0.retune import (
     R272S,
     RAFF,
     RALL,
     RetuneCandidate,
+    RetuneGrid,
     Subset,
     complement_hash,
     count,
@@ -156,6 +161,15 @@ class RetuneTests(unittest.TestCase):
         self.assertEqual(complement_hash(inside, subset), before)
         self.assertNotEqual(complement_hash(outside, subset), before)
         self.assertNotEqual(complement_hash(self.host, subset), state_hash(self.host))
+        # C8: BatchNorm running statistics are in the complement: a leak during fitting changes the hash.
+        drifted = make_host(3000, 0, CPU)
+        with torch.no_grad():
+            dict(drifted.named_buffers())["front.1.running_mean"][0] += 1e-3
+        self.assertNotEqual(complement_hash(drifted, subset), before)
+        # Even when every parameter is in the subset (R-all), the buffers stay in the complement.
+        self.assertNotEqual(
+            complement_hash(drifted, RALL(drifted)), complement_hash(make_host(3000, 0, CPU), RALL(drifted))
+        )
 
     def test_r272s_changes_declared_entries_only(self) -> None:
         subset = R272S(self.host)
@@ -266,26 +280,98 @@ class RetuneTests(unittest.TestCase):
         self.assertEqual(report["pre_recalibration_selection_loss"], candidate.selection)
         self.assertNotIn("pre_recalibration_selection_loss", candidate.report())
 
+        # C9: R-bn re-estimates on the FIT examples (§4), never on selection.
+        def reference(indices: Tensor) -> dict[str, Tensor]:
+            unsealed = make_host(3000, 0, CPU)
+            unsealed.load_state_dict(candidate.host.state_dict())
+            return buffers(recalibrate_bn(unsealed, self.data.images, indices))
+
+        on_fit, on_selection = reference(FIT), reference(SELECTION)
+        for name, value in buffers(recalibrated.host).items():
+            self.assertTrue(torch.equal(value, on_fit[name]), name)
+        self.assertTrue(
+            any(not torch.equal(value, on_selection[name]) for name, value in buffers(recalibrated.host).items())
+        )
+
+    def reference_plateau(self, result: RetuneGrid, data: Dataset, selection: Tensor) -> tuple[bool, float]:
+        """Table B recomputed from the grid's own candidates: the 800- vs 3,200-step analogue is checkpoints[-2] vs [-1]."""
+        steps = sorted({c.steps for c in result.candidates})
+        early, late = (
+            min((c for c in result.candidates if c.steps == step and c.selection is not None),
+                key=lambda c: c.selection if c.selection is not None else float("inf"))
+            for step in steps[-2:]
+        )  # fmt: skip
+        assert early.selection is not None and late.selection is not None
+        difference = losses(early.host, features_from_images(early.host, data, selection), None) - losses(
+            late.host, features_from_images(late.host, data, selection), None
+        )
+        se = paired_se(difference, 11)
+        tail = torch.tensor(late.training_losses[-80:], dtype=torch.float64)
+        tail_se = float(tail.std(unbiased=True)) / math.sqrt(80)
+        change = abs(float(tail[:40].mean()) - float(tail[40:].mean()))
+        return early.selection - late.selection < 2 * se and change < 2 * tail_se, se
+
+    def test_retune_plateau_is_certified_by_table_b_at_the_last_two_checkpoints(self) -> None:
+        # R32: R-272s and R-aff are certified by the v4 Table B rule on the checkpoints[-2] and [-1] bests (800 vs
+        # 3,200 steps in production; 40 vs 80 here, with the real 40-step windows). Uncertified: on the 32-example
+        # fixture every step is one full batch, so the training loss still drifts down across the last two windows.
+        subset = R272S(self.host)
+        drifting = retune_grid(
+            self.host, subset, data=self.data, fit_indices=FIT, selection_indices=SELECTION, seed=11,
+            rates=(0.1,), checkpoints=(20, 40, 80), from_images=False,
+        )  # fmt: skip
+        expected, se = self.reference_plateau(drifting, self.data, SELECTION)
+        self.assertIs(drifting.plateau, False)
+        self.assertIs(expected, False)
+        self.assertEqual(drifting.selection_se, se)
+        self.assertEqual(drifting.plateau_evidence, "both finite schedule comparators available")
+        # Certified: 520 random-label fit examples give 256/256/8 minibatches, whose noise dominates the late windows,
+        # and the fit does not move held-out selection by 2 paired SEs.
+        rng = torch.Generator().manual_seed(12)
+        images = torch.randint(0, 256, (600, 3, 32, 32), generator=rng, dtype=torch.uint8)
+        ids = torch.arange(600)
+        noisy = Dataset(images, torch.randint(0, 10, (600,), generator=rng), ids, ids.clone(), ids.clone(), ids.clone())
+        fit, selection = torch.arange(520), torch.arange(520, 600)
+        flat = retune_grid(
+            self.host, subset, data=noisy, fit_indices=fit, selection_indices=selection, seed=11, rates=(0.1,),
+            checkpoints=(40, 80), from_images=False,
+        )  # fmt: skip
+        expected, se = self.reference_plateau(flat, noisy, selection)
+        self.assertIs(flat.plateau, True)
+        self.assertIs(expected, True)
+        self.assertEqual(flat.selection_se, se)
+        self.assertEqual(flat.report()["plateau_certified"], True)
+        # R-all (certify=False, the 40..800 axis) is never certified, whatever its traces.
+        never = retune_grid(
+            self.host, subset, data=noisy, fit_indices=fit, selection_indices=selection, seed=11, rates=(0.1,),
+            checkpoints=(40, 80), from_images=False, certify=False,
+        )  # fmt: skip
+        self.assertIsNone(never.plateau)
+        self.assertEqual(never.plateau_evidence, "R-all is never plateau-certified (§4)")
+        self.assertIsNone(never.report()["plateau_certified"])
+
     def test_retune_grid_best_and_edge(self) -> None:
         subset = R272S(self.host)
-        result = retune_grid(
-            self.host,
-            subset,
-            data=self.data,
-            fit_indices=FIT,
-            selection_indices=SELECTION,
-            seed=11,
-            rates=(0.3, 0.1),
-            checkpoints=(1, 2),
-            from_images=False,
-        )
+        # Two training losses at the last checkpoint: one-step windows let the Table B rule run on this fixture.
+        with patch("sultai_screen.fit.PLATEAU_WINDOW", 1):
+            result = retune_grid(
+                self.host,
+                subset,
+                data=self.data,
+                fit_indices=FIT,
+                selection_indices=SELECTION,
+                seed=11,
+                rates=(0.3, 0.1),
+                checkpoints=(1, 2),
+                from_images=False,
+            )
         self.assertEqual([(c.rate, c.steps) for c in result.candidates], [(0.3, 1), (0.3, 2), (0.1, 1), (0.1, 2)])
         finite = [c for c in result.candidates if c.selection is not None]
         best = min(finite, key=lambda c: c.selection if c.selection is not None else float("inf"))
         self.assertIs(result.best, best)
         self.assertTrue(result.edge_of_grid)
-        self.assertIsNone(result.plateau)
-        self.assertEqual(result.plateau_evidence, "not applied to re-tune arms")
+        self.assertIsInstance(result.plateau, bool)
+        self.assertEqual(result.plateau_evidence, "both finite schedule comparators available")
         for candidate in result.candidates:
             self.assertEqual(candidate.parameter_steps, 272 * candidate.steps)
             self.assertEqual(candidate.complement, complement_hash(self.host, subset))
@@ -296,21 +382,24 @@ class RetuneTests(unittest.TestCase):
         self.assertEqual(result.candidates[0].selection, separate.selection)
         self.assertEqual(result.candidates[0].wall_seconds, 0.0)
         report = result.report()
-        self.assertIsNone(report["plateau_certified"])
+        self.assertEqual(report["plateau_certified"], result.plateau)
+        self.assertEqual(report["selection_paired_bootstrap_se"], result.selection_se)
         self.assertEqual(len(report["candidates"]), 4)
 
     def test_retune_grid_retains_failed_run_unselected(self) -> None:
-        result = retune_grid(
-            self.host,
-            R272S(self.host),
-            data=self.data,
-            fit_indices=FIT,
-            selection_indices=SELECTION,
-            seed=11,
-            rates=(1e300, 0.1),
-            checkpoints=(1, 2),
-            from_images=False,
-        )
+        # One-step plateau windows (R32's Table B needs two windows of the late run's two step losses).
+        with patch("sultai_screen.fit.PLATEAU_WINDOW", 1):
+            result = retune_grid(
+                self.host,
+                R272S(self.host),
+                data=self.data,
+                fit_indices=FIT,
+                selection_indices=SELECTION,
+                seed=11,
+                rates=(1e300, 0.1),
+                checkpoints=(1, 2),
+                from_images=False,
+            )
         failed = [c for c in result.candidates if c.rate == 1e300]
         self.assertEqual([c.steps for c in failed], [1, 2])
         self.assertTrue(all(c.selection is None for c in failed))

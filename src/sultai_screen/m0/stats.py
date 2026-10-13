@@ -25,6 +25,10 @@ from sultai_screen.m0.identity import HARM
 
 Z_ONE_SIDED_95: Final = 1.645
 BOOTSTRAP_SAMPLES: Final = 10_000
+# The anchor-bootstrap, frontier-bootstrap and per-example paired-bootstrap seed of every M0 statistic (ruling R18 f):
+# the first development anchor. Every per-anchor SE in `quantities` is fit.paired_se(difference, BOOTSTRAP_SEED), so
+# each key and anchor draws the same 10,000 index resamples (generator(BOOTSTRAP_SEED, "paired-bootstrap")).
+BOOTSTRAP_SEED: Final = 3000
 SIGN_TEST_MINIMUM: Final = 6
 # Parameter counts of the three core frontier widths s = 0.5, 1.0, 1.5; the reference host is s = 1.0.
 CORE_PARAMETERS: Final = (85_274, 284_634, 613_018)
@@ -87,6 +91,19 @@ CONFIRMATORY_ARMS: Final = frozenset(
 # §5 extended item 1: the starved 0.5-host pair reports D1 and D3 only.
 STARVED_PAIR_ARMS: Final = frozenset(("M-sq", "M-aff", "T-cool", "M-sq|T-cool", "R-temp", "R-cal"))
 DENOMINATOR_REASON: Final = "denominator ≤ 0"
+# §6: the two-arm quantities, each reported per anchor with its per-example paired-bootstrap SE (loss and accuracy).
+PAIRED_SE_KEYS: Final = ("D1", "D1prime", "D2", "D2s", "D2_random", "D2s_random", "D3", "D4", "D5", "D5_norefit")
+# key -> (the arm whose gain is added, the comparator arm whose gain is subtracted); D1prime and D3 are built apart.
+PAIRS: Final[dict[str, tuple[str, str]]] = {
+    "D1": ("M-sq", "M-aff"),
+    "D2": ("M-wide→8:rank:refit", "M-small-B"),
+    "D2s": ("M-wide→8:rank:sliced", "M-small"),
+    "D2_random": ("M-wide→8:random:refit", "M-small-B"),
+    "D2s_random": ("M-wide→8:random:sliced", "M-small"),
+    "D4": ("M-sq-fresh", "M-sq"),
+    "D5": ("S-static:refit", "M-sq"),
+    "D5_norefit": ("S-static", "M-sq"),
+}
 
 
 def _vector(tensor: Tensor, name: str) -> Tensor:
@@ -250,6 +267,38 @@ def quantities(result: AnchorResult, required: frozenset[str] = PILOT_ARMS) -> R
     else:
         put("survival", curve_arms, lambda: _survival(gain))
     record["harm"] = _harm(result, noop)
+    record.update(_paired_ses(result, gain))
+    return record
+
+
+def _paired_ses(result: AnchorResult, gain: Callable[[str], float]) -> Record:
+    """§6 (A4): per-anchor per-example paired-bootstrap SEs of every two-arm quantity, oriented as the quantity: loss
+    difference L(comparator) - L(arm) and accuracy difference acc(arm) - acc(comparator). D1prime uses the anchor's
+    larger re-tune gain (R-272s on a tie, as max() does); D3 the T-cool host's own N0 (its accuracy is the T-cool arm,
+    that N0 evaluated). None where an arm is absent. Reporting only: no verdict reads these."""
+    arms = result.arms
+    pairs: dict[str, tuple[Tensor, Tensor | None] | None] = {}
+    for key, (name, comparator) in PAIRS.items():
+        present = name in arms and comparator in arms
+        pairs[key] = (
+            (arms[comparator].loss - arms[name].loss, arms[name].correct - arms[comparator].correct)
+            if present
+            else None
+        )
+    pairs["D1prime"] = None
+    if all(name in arms for name in ("M-sq", "R-272s", "R-aff")):
+        retune = "R-272s" if gain("R-272s") >= gain("R-aff") else "R-aff"
+        pairs["D1prime"] = (arms[retune].loss - arms["M-sq"].loss, arms["M-sq"].correct - arms[retune].correct)
+    pairs["D3"] = None
+    if "M-sq|T-cool" in arms:
+        finished = arms["M-sq|T-cool"]
+        accuracy = finished.correct - arms["T-cool"].correct if "T-cool" in arms else None
+        pairs["D3"] = (result.tcool_noop_loss - finished.loss, accuracy)
+    record: Record = {}
+    for key in PAIRED_SE_KEYS:
+        pair = pairs[key]
+        record[f"{key}_se"] = None if pair is None else paired_se(pair[0], BOOTSTRAP_SEED)
+        record[f"{key}_acc_se"] = None if pair is None or pair[1] is None else paired_se(pair[1], BOOTSTRAP_SEED)
     return record
 
 

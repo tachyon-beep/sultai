@@ -17,7 +17,7 @@ from torch.nn import functional as F
 from sultai.trust import ContractViolation
 from sultai_screen.contracts import OracleUnavailable, Record
 from sultai_screen.data import Dataset, as_tensor, generator, normalized
-from sultai_screen.fit import _passes, at_edge, losses
+from sultai_screen.fit import _passes, at_edge, losses, table_b
 from sultai_screen.host import Host, assert_frozen, freeze, make_host, state_hash
 from sultai_screen.m0.calibrate import recalibrate_bn
 from sultai_screen.m0.data import features_from_images
@@ -267,6 +267,8 @@ class RetuneGrid:
     edge_of_grid: bool
     plateau: bool | None
     plateau_evidence: str
+    selection_se: float | None = None
+    loss_tail_se: float | None = None
 
     def report(self) -> Record:
         return {
@@ -274,6 +276,8 @@ class RetuneGrid:
             "candidates": [c.report() for c in self.candidates],
             "edge_of_grid": self.edge_of_grid,
             "plateau_certified": self.plateau,
+            "selection_paired_bootstrap_se": self.selection_se,
+            "training_tail_se": self.loss_tail_se,
             "plateau_evidence": self.plateau_evidence,
         }
 
@@ -299,12 +303,16 @@ def retune_grid(
     rates: tuple[float, ...] = RETUNE_RATES,
     checkpoints: tuple[int, ...] = CHECKPOINTS,
     from_images: bool,
+    certify: bool = True,
 ) -> RetuneGrid:
     """One run per rate to checkpoints[-1]; every (rate, checkpoint) snapshot is a candidate, best on selection.
 
     Bookkeeping follows fit.grid: each run's wall time is booked once, on its final-checkpoint candidate; a
-    checkpoint a failed run never reached is a nonfinite candidate carrying what the run spent. The plateau rule
-    needs per-example traces the snapshot hashes do not carry, so it is not applied to re-tune arms.
+    checkpoint a failed run never reached is a nonfinite candidate carrying what the run spent. Ruling R32 (§4): the
+    plateau is certified by the v4 Table B rule on the checkpoints[-2] versus checkpoints[-1] bests (800 vs 3,200
+    steps), mirroring fit.grid: the paired per-example selection difference of the two snapshot hosts, each on
+    features recomputed from its own front, and the late run's last two training windows. `certify=False` is R-all
+    (the 40..800 axis), which §4 never certifies (plateau None).
     """
     if not rates or not checkpoints:
         raise ContractViolation("nonempty rate set and checkpoints required")
@@ -349,7 +357,28 @@ def retune_grid(
             candidates.append(candidate)
     bank = tuple(candidates)
     best = _choose(bank)
-    return RetuneGrid(best, bank, at_edge(best.rate, rates), None, "not applied to re-tune arms")
+    edge = at_edge(best.rate, rates)
+    if not certify:
+        return RetuneGrid(best, bank, edge, None, "R-all is never plateau-certified (§4)")
+    if len(checkpoints) < 2:
+        return RetuneGrid(best, bank, edge, False, "single checkpoint; no schedule comparator")
+    early = tuple(c for c in bank if c.steps == checkpoints[-2] and c.selection is not None)
+    late = tuple(c for c in bank if c.steps == checkpoints[-1] and c.selection is not None)
+    if not early or not late:
+        return RetuneGrid(best, bank, edge, False, "schedule comparator unavailable; finite overall winner retained")
+    certified, se, tail_se = plateau(_choose(early), _choose(late), data, selection_indices, seed)
+    return RetuneGrid(best, bank, edge, certified, "both finite schedule comparators available", se, tail_se)
+
+
+def plateau(
+    early: RetuneCandidate, late: RetuneCandidate, data: Dataset, selection_indices: Tensor, seed: int
+) -> tuple[bool, float, float]:
+    """R32: fit.table_b on two re-tune bests, each frozen snapshot evaluated on selection features from its own front."""
+    if early.selection is None or late.selection is None:
+        raise ContractViolation("selected candidates must be finite")
+    before = losses(early.host, features_from_images(early.host, data, selection_indices), None)
+    after = losses(late.host, features_from_images(late.host, data, selection_indices), None)
+    return table_b(early.selection, late.selection, before - after, late.training_losses, seed)
 
 
 def recalibrate_after(

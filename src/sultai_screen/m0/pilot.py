@@ -29,6 +29,7 @@ from sultai_screen.contracts import (
     Record,
     file_sha,
     integer,
+    json_value,
     mapping,
     number,
     publish,
@@ -39,17 +40,17 @@ from sultai_screen.contracts import (
 from sultai_screen.fit import Adapter
 from sultai_screen.m0 import stats, verdicts
 from sultai_screen.m0.costs import (
+    EXTENDED_ORDER,
     EXTENDED_RESERVE,
-    M0_CONFIRMATORY_STATIC_SECONDS,
     STATIC_ARMS,
     Workloads,
     admit_extended,
+    arm_seconds,
     core_over_ceiling,
     extended_cost,
     extended_fits,
     extended_limit,
     measured_confirmatory,
-    per_anchor,
     project_confirmatory,
     project_pilot,
     stage_seconds,
@@ -61,6 +62,7 @@ from sultai_screen.m0.identity import (
     CHECKPOINTS_B,
     FOLD_TOLERANCE,
     M0_CONFIRMATORY_SECONDS,
+    M0_CONFIRMATORY_STATIC_SECONDS,
     M0_PILOT_SECONDS,
     RHO,
     S_STATIC_SD_LIMIT,
@@ -132,6 +134,21 @@ EXTENDED_HOSTS: Final[tuple[tuple[str, Lineage], ...]] = (
     ("F(0.25)", "frontier-0.25"),
     ("F(0.75)", "frontier-0.75"),
 )
+# Ruling R31: §5 items 2-4, each its own child per development anchor after the core: (name prefix, action, arm).
+EXTENDED_ARMS: Final[dict[str, tuple[str, str, str]]] = {
+    "R-all": ("rall", "retune", "R-all"),
+    "M-exp": ("mexp", "modules", "M-exp"),
+    "lottery": ("lottery", "modules", "lottery"),
+}
+# The §6 quantities those arms carry, published per anchor in 05-extended.json (05-spreads.json stays core-only).
+EXTENDED_QUANTITIES: Final = (
+    "G_mexp",
+    "G_mexp_reason",
+    "G_lottery",
+    "G_lottery_reason",
+    "retune_fraction",
+    "retune_fraction_reason",
+)
 # The slicing known answer (§7 V0): the reviewed tests/test_m0_modules.py fixture, run in the supervisor on CPU (R18 b).
 SLICING_UNITS: Final = (3, 9, 17, 22, 30, 41, 50, 63)
 SLICING_WEIGHT_SEED: Final = 7
@@ -147,6 +164,9 @@ CEILING_STOPS: Final = (
 FRONTIER_CHILDREN: Final[tuple[tuple[float, Lineage], ...]] = ((0.5, "frontier-0.5"), (1.5, "frontier-1.5"))
 # M5: §4's disclosed parameter-step ratio of the two D2 routes, (M-wide + its rank-8 refit) over M-small-B.
 OVERGROW_ROUTE: Final = ("M-wide", "M-wide→8:rank:refit")
+# R30: arms whose measured units are charged by a child of their own (T-cool: its tcool resume; S-static: its static
+# host), never by the modules or retune children that only evaluate them.
+OWN_CHILD_ARMS: Final = frozenset(("T-cool", "S-static"))
 
 
 def check_cards() -> Record:
@@ -664,13 +684,22 @@ def stage_admission(
 # --- stage 5 -----------------------------------------------------------------------------------------------------
 
 
-def stage_core(
-    run: Run, schedule: tuple[tuple[int, ...], tuple[int, ...]], admitted: list[str], raised: bool
-) -> list[Anchor]:
-    """Every core case on the six anchors; the axis from 04-schedule.json; M-aff reused from stage 2 unless raised."""
+def core_sources(run: Run, s: int, raised: bool) -> list[Source]:
+    """One anchor's stage-5 modules and retune children, and its stage-2 M-aff child unless the axis was raised."""
+    sources = [run.source(f"modules-{s}", "modules", s, "anchor"), run.source(f"retune-{s}", "retune", s, "anchor")]
+    if not raised:
+        sources.append(run.source(f"maff-{s}", "modules", s, "anchor"))
+    return sources
+
+
+def stage_core(run: Run, schedule: tuple[tuple[int, ...], tuple[int, ...]], raised: bool) -> list[Anchor]:
+    """Every core case on the six anchors; the axis from 04-schedule.json; M-aff reused from stage 2 unless raised.
+
+    Ruling R31: the core children run PILOT_ARMS and the S-static arms only; no extended arm rides in them.
+    """
     checkpoints, checkpoints_b = schedule
     flags = ("--checkpoints", axis(checkpoints), "--checkpoints-b", axis(checkpoints_b))
-    wanted = stats.PILOT_ARMS | STATIC_ARMS | {item for item in ("M-exp", "lottery", "R-all") if item in admitted}
+    wanted = stats.PILOT_ARMS | STATIC_ARMS
     if not raised:
         wanted -= {"M-aff"}
     module_arms = ",".join(name for name in MODULE_ARMS if name in wanted)
@@ -692,12 +721,9 @@ def stage_core(
     run.run(modules[2:] + retunes)
     anchors: list[Anchor] = []
     for s in ANCHORS:
-        sources = [run.source(f"modules-{s}", "modules", s, "anchor")]
-        sources.append(run.source(f"retune-{s}", "retune", s, "anchor"))
-        for item in sources:
+        sources = core_sources(run, s, raised)
+        for item in sources[:2]:
             schedule_matches(item.name, item.payload, checkpoints, checkpoints_b)
-        if not raised:
-            sources.append(run.source(f"maff-{s}", "modules", s, "anchor"))
         anchors.append(anchor(s, tuple(sources), stats.PILOT_ARMS))
     return anchors
 
@@ -825,19 +851,61 @@ def starved_pair(run: Run, flags: tuple[str, ...]) -> list[Json]:
     return [starved_host(run.source(f"starved-{s}", "modules", s, lineage), s) for s in seeds]
 
 
+def extended_arm(run: Run, item: str, schedule: tuple[tuple[int, ...], tuple[int, ...]]) -> None:
+    """Ruling R31: one of §5 items 2-4 as its own child per development anchor, on the anchor's N0 and card. The lottery
+    child reads the rank-8 survivors from the anchor's core modules receipt (--modules-root), never re-fitting M-wide."""
+    prefix, action, arm = EXTENDED_ARMS[item]
+    flags = ("--checkpoints", axis(schedule[0]), "--checkpoints-b", axis(schedule[1]))
+
+    def roots(s: int) -> tuple[str, ...]:
+        noop = ("--noop-root", str(run.path(f"noop-{s}")))
+        return (*noop, "--modules-root", str(run.path(f"modules-{s}"))) if item == "lottery" else noop
+
+    run.run([job(f"{prefix}-{s}", action, s, "anchor", "--arms", arm, *roots(s), *flags) for s in ANCHORS])
+    for s in ANCHORS:
+        schedule_matches(f"{prefix}-{s}", run.payload(f"{prefix}-{s}", action, s, "anchor"), *schedule)
+
+
+def merged_anchors(run: Run, items: list[str], raised: bool) -> tuple[list[Json], list[Record]]:
+    """R31: each anchor's core sources joined with its completed extended-arm children (receipts.anchor checks the
+    shared N0), and the joined §6 quantities; the per-anchor record carries the extended arms only."""
+    names = [EXTENDED_ARMS[item][2] for item in items]
+    records: list[Json] = []
+    quantities: list[Record] = []
+    for s in ANCHORS:
+        extra = [run.source(f"{EXTENDED_ARMS[item][0]}-{s}", EXTENDED_ARMS[item][1], s, "anchor") for item in items]
+        joined = anchor(s, (*core_sources(run, s, raised), *extra), stats.PILOT_ARMS)
+        q = stats.quantities(joined.result, stats.PILOT_ARMS)
+        arms = mapping(q["arms"])
+        records.append(
+            {
+                "seed": s,
+                "sources": [item.name for item in extra],
+                "unavailable_arms": [name for name in sequence(joined.report["unavailable_arms"]) if name in names],
+                "arms": {name: arms[name] for name in names if name in arms},
+                "harm_inventory": {
+                    name: value for name, value in mapping(joined.report["harm_inventory"]).items() if name in names
+                },
+                **{key: q[key] for key in EXTENDED_QUANTITIES},
+            }
+        )
+        quantities.append(q)
+    return records, quantities
+
+
 def stage_extended(
-    run: Run, admitted: list[str], schedule: tuple[tuple[int, ...], tuple[int, ...]], w: Workloads
-) -> Record:
-    """The admitted §5 items that run here, the starved pair and then the host items in priority order (R-all, M-exp and
-    the lottery ran inside the anchors' stage-5 children). Ruling R23: each is re-projected from the measured charge
-    first and the stage stops at the first that does not fit; a ceiling stop inside an item truncates the extended
-    set and never the pilot, whose core is complete."""
+    run: Run, admitted: list[str], schedule: tuple[tuple[int, ...], tuple[int, ...]], w: Workloads, raised: bool
+) -> tuple[Record, list[Record] | None]:
+    """The admitted §5 items in EXTENDED_ORDER, each as its own children after the core (R31): the starved pair, R-all,
+    M-exp, the lottery, then the host items. Ruling R23: each is re-projected from the measured charge first and the
+    stage stops at the first that does not fit; a ceiling stop inside an item truncates the extended set and never
+    the pilot, whose core is complete. Returns the record and, when an extended arm ran, the joined quantities."""
     flags = ("--checkpoints", axis(schedule[0]), "--checkpoints-b", axis(schedule[1]))
     lineages = dict(EXTENDED_HOSTS)
-    items = [item for item in admitted if item == "starved-pair" or item in lineages]
+    items = [item for item in EXTENDED_ORDER if item in admitted]
     limit = extended_limit(M0_PILOT_SECONDS)
     record: Record = {"admitted": list(admitted), "run_here": list(items), "extended_limit_gpu_process_seconds": limit}
-    completed: list[Json] = []
+    completed: list[str] = []
     refused: list[Json] = []
     truncated: Record | None = None
     trained: dict[str, list[tuple[int, int, float]]] = {}
@@ -859,6 +927,8 @@ def stage_extended(
         try:
             if item == "starved-pair":
                 record["starved-pair"] = starved_pair(run, flags)
+            elif item in EXTENDED_ARMS:
+                extended_arm(run, item, schedule)
             else:
                 trained.update(train_hosts(run, (lineages[item],)))
         except PilotHold as error:
@@ -869,29 +939,40 @@ def stage_extended(
         completed.append(item)
     if trained:
         record["hosts"] = {key: [list(host) for host in hosts] for key, hosts in trained.items()}
+    arms_run = [item for item in completed if item in EXTENDED_ARMS]
+    joined: list[Record] | None = None
+    if arms_run:
+        record["anchors"], joined = merged_anchors(run, arms_run, raised)
     record.update(
         {
-            "completed": completed,
+            "completed": list(completed),
             "not_admitted_at_runtime": refused,
             "extended_truncated": truncated is not None,
             "truncated": truncated,
         }
     )
-    return record
+    return record, joined
 
 
 # --- stages 6 and 7 ----------------------------------------------------------------------------------------------
 
 
 def scaled_anchor(w: Workloads, ran: tuple[str, ...], whole: float, grids: float, static: float) -> Record:
-    """Ruling R28: one development anchor's measured confirmatory term. `whole` (its host, N0, M-aff and T-cool
-    children) stays as measured; `grids` (its modules and retune children, which ran the arms `ran`, a superset of
-    §10) is scaled by the §10 set's share of the kernel workload of what they ran. `static` is the S-static host."""
-    ran_seconds = per_anchor(w, ran)
-    scale = per_anchor(w, stats.CONFIRMATORY_ARMS) / ran_seconds
-    static_scale = per_anchor(w, stats.CONFIRMATORY_ARMS | STATIC_ARMS) / ran_seconds
+    """Ruling R30 (correcting R28): one development anchor's measured confirmatory term.
+
+    `whole` (the host:1.0 kernel and the anchor's noop and T-cool children, and its stage-2 M-aff child on the default
+    axis) stays as measured. `grids`, the measured charge of its modules and retune children (which ran the arms
+    `ran`), is scaled by the §10 set's share of the arm-seconds those children execute. Arms whose units another child
+    pays never enter either side: T-cool and S-static (their tcool and static children; the grid children only
+    evaluate them), and M-aff unless the grid children ran it (on the default axis it is the maff child in `whole`; on
+    a raised axis the modules child re-runs it). `static` is the S-static host child, added once."""
+    paid = OWN_CHILD_ARMS | (frozenset() if "M-aff" in ran else frozenset(("M-aff",)))
+    ran_seconds = arm_seconds(w, tuple(name for name in ran if name not in paid))
+    scale = arm_seconds(w, stats.CONFIRMATORY_ARMS - paid) / ran_seconds
+    static_scale = arm_seconds(w, (stats.CONFIRMATORY_ARMS | STATIC_ARMS) - paid) / ran_seconds
     return {
         "arms_run": list(ran),
+        "paid_by_other_children": json_value(sorted(paid)),
         "scale": scale,
         "static_scale": static_scale,
         "raw": whole + grids,
@@ -901,12 +982,14 @@ def scaled_anchor(w: Workloads, ran: tuple[str, ...], whole: float, grids: float
     }
 
 
-def measured_charges(run: Run, w: Workloads) -> Record:
-    """I3, M7 and R28: from the ledger, each development anchor's whole N0, M-aff and T-cool children plus its modules
-    and retune children scaled to the §10 arm set, and the fixed V0 term the confirmatory re-runs (the replays,
-    acceptance (i)-(iv) and the fold-check). No replay is in the per-anchor term: the anchor's own host is the measured
-    host:1.0 kernel (the one-per-card maximum of the replay children)."""
-    children = ("noop", "maff", "tcool", "modules", "retune")
+def measured_charges(run: Run, w: Workloads, raised: bool) -> Record:
+    """I3, M7, R28 and R30: from the ledger, each development anchor's whole noop and T-cool children (and its stage-2
+    M-aff child unless the axis was raised, when the modules child re-ran M-aff) plus its modules and retune children
+    scaled to the §10 arm set, and the fixed V0 term the confirmatory re-runs (the replays, acceptance (i)-(iv) and
+    the fold-check). No replay is in the per-anchor term: the anchor's own host is the measured host:1.0 kernel (the
+    one-per-card maximum of the replay children)."""
+    whole_children = ("noop", "tcool") if raised else ("noop", "maff", "tcool")
+    children = (*whole_children, "modules", "retune")
     terms: dict[str, Record] = {}
     for s in ANCHORS:
         ran = tuple(
@@ -914,8 +997,8 @@ def measured_charges(run: Run, w: Workloads) -> Record:
             for kind in ("modules", "retune")
             for name in sequence(run.payload(f"{kind}-{s}", kind, s, "anchor")["arms_run"])
         )
-        whole = w.host[1.0] + sum(run.charges([f"{kind}-{s}" for kind in children[:3]]))
-        grids = sum(run.charges([f"{kind}-{s}" for kind in children[3:]]))
+        whole = w.host[1.0] + sum(run.charges([f"{kind}-{s}" for kind in whole_children]))
+        grids = sum(run.charges([f"{kind}-{s}" for kind in ("modules", "retune")]))
         terms[str(s)] = scaled_anchor(w, ran, whole, grids, sum(run.charges([f"static-{s}"])))
 
     def column(key: str) -> dict[str, float]:
@@ -929,7 +1012,8 @@ def measured_charges(run: Run, w: Workloads) -> Record:
         "per_anchor_children": list(children),
         "train_gpu_process_seconds": w.host[1.0],
         "train": "the measured host:1.0 kernel for the anchor's own train child; the replays are the fixed term",
-        "scale_rule": "modules + retune children x per_anchor(§10 arms) / per_anchor(arms_run) (ruling R28)",
+        "scale_rule": "modules + retune children x arm_seconds(§10 arms) / arm_seconds(arms_run), both without the arms "
+        "another child pays (T-cool, S-static, and M-aff unless the modules child ran it) (ruling R30)",
         "scale": dict(column("scale")),
         "static_scale": dict(column("static_scale")),
         "arms_run": {seed: record["arms_run"] for seed, record in terms.items()},
@@ -1093,6 +1177,9 @@ def pilot(root: Path, data: Path, certificate: Path) -> int:
     stage = "opening"
     try:
         # Everything after custody is inside the attempt, so any failure publishes pilot-result.json.
+        if run.supervisor.per_card != 1:
+            # B5 (§4, §8): the ceiling counts one process per card; co-tenancy inflates every kernel.
+            raise PilotHold(f"the M0 pilot admits one process per card, not {run.supervisor.per_card}")
         publish(
             root / "00-opening.json",
             {
@@ -1102,7 +1189,7 @@ def pilot(root: Path, data: Path, certificate: Path) -> int:
                 "certificate_sha256": certificate_sha,
                 "custody": CUSTODY,
                 "pilot_gpu_process_seconds_ceiling": M0_PILOT_SECONDS,
-                "processes_per_card": 1,
+                "processes_per_card": run.supervisor.per_card,
                 "worker": WORKER,
                 **protocol_identity(),
             },
@@ -1126,20 +1213,22 @@ def pilot(root: Path, data: Path, certificate: Path) -> int:
         checkpoints, checkpoints_b, admitted, w = stage_admission(run, certified, timing, fixed_v0)
         raised = checkpoints != CHECKPOINTS
         stage = "core"
-        anchors = stage_core(run, (checkpoints, checkpoints_b), admitted, raised)
+        anchors = stage_core(run, (checkpoints, checkpoints_b), raised)
         quantities = [stats.quantities(item.result, stats.PILOT_ARMS) for item in anchors]
         spread = spreads(anchors, quantities, recorded_v0(replay, instrument, hosts))
         publish(root / "05-spreads.json", spread)
         stage = "extended"
-        extended = stage_extended(run, admitted, (checkpoints, checkpoints_b), w)
+        extended, joined = stage_extended(run, admitted, (checkpoints, checkpoints_b), w, raised)
         publish(root / "05-extended.json", extended)
         stage = "confirmatory-count"
-        count = confirmatory_count(quantities, w, spread["static_admitted"] is True, measured_charges(run, w))
+        count = confirmatory_count(quantities, w, spread["static_admitted"] is True, measured_charges(run, w, raised))
         publish(root / "06-confirmatory-count.json", count)
         if count["within_ceiling"] is not True:
             raise FeasibilityHold("the confirmatory count projects over its ceiling; stop before freeze, John's choice")
         stage = "development-medians"
-        publish(root / "07-development-medians.json", development_medians(quantities, points, extended))
+        # R31: the medians read the core quantities joined with the extended arms that ran (G_mexp, G_lottery, R-all).
+        medians = development_medians(quantities if joined is None else joined, points, extended)
+        publish(root / "07-development-medians.json", medians)
         publish(
             root / "pilot-result.json",
             {
