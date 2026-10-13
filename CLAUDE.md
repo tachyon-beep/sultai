@@ -25,5 +25,10 @@ Read `docs/STEERING.md` before proposing or running any experiment. The
 objective is accuracy per retained parameter (John, 2026-10-13); repair
 families are instrument validation only. The active draft study is
 `docs/plans/2026-10-13-capacity-frontier-screen.md`; `docs/RESUME.md` has the
-current state. Nothing runs on GPU, merges to `main` or closes in the tracker
-without John's explicit go.
+current state. Nothing runs on GPU without John's explicit go. Approvals are
+bundled into gates (John, 2026-10-13): gate A, John accepts an implementation
+plan (it then merges and implementation proceeds without further asks); gate
+B, the code PR is reviewed and ready (it then merges and the pilot go is
+requested); gate C, the pilot results are read (confirmatory go). Outside
+those gates nothing merges to `main` or closes in the tracker without his
+word. Merge with a merge commit only; never squash, rebase or delete a branch.

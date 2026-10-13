@@ -6,7 +6,11 @@ John restated the objective after the Gate 3 attempt-4 hold: build new, more
 efficient capacity, measured as accuracy per retained parameter; repair is
 not the goal; Sultai is the add-and-remove alternative to Esper-lite's
 plug-in modules. Delivered on `codex/gate3-screen`, merged to `main` 2026-10-13 (`ae35dfe`)
-and frozen the same day:
+and frozen the same day; v4 (three amendments John took on 2026-10-13 after
+the implementation plan's two reviews, §14) is frozen by
+[freeze certificate 2](certificates/2026-10-13-m0-freeze-2.md), identity
+`m0-v4`; the [implementation plan](plans/2026-10-13-m0-implementation.md)
+awaits gate A on PR #6:
 
 - [STEERING.md](STEERING.md): the objective verbatim, the drift diagnosis,
   measurement rules for every later preregistration, the progress ladder
