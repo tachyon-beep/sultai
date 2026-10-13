@@ -1,11 +1,12 @@
-# Capacity frontier screen on the CIFAR-10 host — DRAFT PREREGISTRATION v3 (programme rung M0)
+# Capacity frontier screen on the CIFAR-10 host — PREREGISTRATION v4 (programme rung M0)
 
-Status: **v3, frozen 2026-10-13 after merge to `main` (J10, merge commit
-`ae35dfe`); decisions J0–J10 taken; authorises no execution.** The freeze is
-recorded by pinning this file's SHA-256, with STEERING.md's and the
-gate-ladder amendment's, in
-[the M0 freeze certificate](../certificates/2026-10-13-m0-freeze.md); any
-later change to this file is version v4 with its own hash. v1 was committed at `5aeee56` and reviewed by three independent
+Status: **v4, 2026-10-13; three amendments taken by John the same day (§14)
+on the two reviews of the implementation plan; authorises no execution.**
+v3 was frozen on 2026-10-13 after merge to `main` (J10, merge commit
+`ae35dfe`) by [freeze certificate 1](../certificates/2026-10-13-m0-freeze.md);
+v4 is frozen by [freeze certificate 2](../certificates/2026-10-13-m0-freeze-2.md),
+which pins this file's SHA-256 with STEERING.md's and both gate-ladder
+amendments'. Any later change to this file is version v5 with its own hash. v1 was committed at `5aeee56` and reviewed by three independent
 readers; v2 (`20dee97`, `fdef5fc`) adopted every finding. On 2026-10-13
 twelve agents each took one of John's decisions and wrote a recommendation
 with the case for and against; a synthesizer reconciled them against source
@@ -247,8 +248,10 @@ edge-of-grid flag are reported beside D2, so a null D2 can be read as
 M-small at twice the schedule ({400, 1,600, 6,400}). **"Matched budget"
 means matched optimiser steps and example passes**: the overgrow route
 spends 3 × 3,200 steps on M-wide plus 3 × 3,200 on the refit, 19,200 steps
-and 4,915,200 example passes per anchor; M-small-B spends 3 × 6,400 =
-19,200 steps and 4,915,200 passes. Measured wall per step is flat in module
+and 4,800,000 example passes per anchor; M-small-B spends 3 × 6,400 =
+19,200 steps and 4,800,000 passes (v4 correction: the fitter's cycle over
+2,000 examples is seven batches of 256 and one of 208, 250 per step on
+average; v3 stated 4,915,200 by assuming eight full batches). Measured wall per step is flat in module
 width (4.68 ms for the 272-parameter module against 4.64 ms for h = 64
 [measured]), because the cost is the host forward and backward, so matched
 steps is matched wall and matched FLOPs (the Scratch-B convention).
@@ -426,8 +429,19 @@ sampling error]; the frontier fraction is descriptive.
 D2s, the random-rank contrasts, the survival curves and the extended arms
 are reported beside with bounds and no verdict role.
 
-**Programme reading.** Rung M1 (generated builder) opens only on V1
-present. V1 re-tuning-equivalent or harvests-undertraining sends the next
+**Programme reading** [v4, John 2026-10-13]. The outcomes of V1 are
+ranked and all are valid: more capacity at a small parameter cost (V1
+present) above the same loss with fewer retained parameters (re-tuning
+equivalent, where the foldable route reaches the module's loss at zero
+retained parameters) above no substantial change (indeterminate or a null
+D1). In John's words: "it doesn't have to strictly beat it, technically
+speaking 'noop with no substantial change' or 'same but with fewer
+parameters' are also valid outputs, they're less valuable than 'more with a
+little bit' but they're all strictly valid." The module is therefore
+**compared against** every named cheaper route, and "beats every named
+re-tune" (D1′) grades the value of a present reading; it is not a gate.
+Rung M1 (generated builder) opens only on V1 present. V1
+re-tuning-equivalent or harvests-undertraining sends the next
 screen to the starved 0.5 host [taken, J-host], whose extended pair in
 this study is the first evidence that screen would read. V2 sets the prior
 for rung M2, which opens independently of M1 and starts near-empty in the
@@ -439,7 +453,8 @@ Kernels [measured, attempt 4]: 1.0 host 44.5 s charged (35.8 s training;
 bottleneck hosts 41–42 s, so training is launch-bound and a narrower host
 is not proportionally cheaper); one 24-candidate two-schedule grid 50 s;
 per-step cost linear at 3.2 s per 800 steps; dev evaluation 0.04 s;
-replay, timing and co-tenancy stages 883 s. Derived: a one-seed,
+replay, timing and co-tenancy stages 883 s in attempt 4 (the co-tenancy
+stages are not carried into M0, §14). Derived: a one-seed,
 three-rate, checkpointed 3,200-step grid about 40 s, booked 60; a
 five-rate grid with cached site booked 100 for M-aff and 80 for the
 re-tune arms; arms that re-run the front booked at 3 × (unmeasured; 4 ×
@@ -451,7 +466,7 @@ is the defensible worst case; the pilot measures it first).
 | T-cool resumes | 6 × 25 s | 150 s |
 | S-static hosts | 6 × 50 s | 300 s |
 | Frontier hosts s = 0.5 and 1.5 | 6 × 35 s + 6 × 85 s | 720 s |
-| Replay, timing, co-tenancy | as attempt 4 (about 600 s of it re-proves an unchanged host trainer; a V0-scope lever for John, not taken here) | 900 s |
+| Replay, timing and the GPU acceptance matrix [v4] | 3 replay hosts on both cards, 3 timing children, and the five acceptance checks (resume versus uninterrupted, checkpoint versus separate fits, static step 0, shared padded evaluation, fold residual on card) | 600 s |
 | P1 instrument | 6 × 56 s (inherits the Gate 3 post-hoc wall; the P1-only carve-out costs less) | 340 s |
 | Module-grid cases: M-sq, M-sq-fresh, M-sq \| T-cool, M-wide, M-small, S-static refit | 6 × 6 × 60 s | 2,160 s |
 | M-aff, five-rate grid, fold and residual | 6 × 100 s | 600 s |
@@ -460,7 +475,7 @@ is the defensible worst case; the pilot measures it first).
 | R-272s | 6 × 80 s | 480 s |
 | R-aff (re-runs front) | 6 × 250 s | 1,500 s |
 | Cuts, folds, leave-one-out, calibrations, evaluations | 6 × 30 s | 180 s |
-| **Core pilot total** | | **about 9,050 s** |
+| **Core pilot total** | | **about 8,750 s** |
 
 Extended set, in priority order: (1) the enlarged 0.5-host pair, 6 ×
 (T-cool 25 + M-sq 60 + M-aff 100 + M-sq | T-cool 60 + calibrations 30) =
@@ -471,7 +486,7 @@ estimate for a full forward and backward, plus recalibration and
 evaluations; booked high on purpose); (3) M-exp 360 s; (4) lottery 360 s;
 (5) 20-epoch cooled F(1.0) 570 s; (6) F(0.25) 210 s (launch-bound, as
 the 0.5 host); (7) F(0.75) 210 s; about 4,260 s in all. Core plus
-extended is about 13,300 s at nominal.
+extended is about 13,000 s at nominal.
 
 **Overrun rule**, read strictly: extended arms run in that order only while
 the measured charge projects to finish under the ceiling, and the pilot
@@ -483,10 +498,10 @@ hard and nothing resumes, so a stop costs the whole core again.
 **Ceiling** [taken, J6: option B]: 4 GPU-hours, 14,400 process-seconds, as
 a **new M0 constant**; `PILOT_SECONDS` (3 GPU-hours) is left untouched
 because the Gate 3 ledgers are checked against it. The program-design
-review's arithmetic (recomputed on the v3 ledger): under 3 hours the core
-alone survives only a 1.19 × kernel overrun and core plus R-all a 1.09 ×,
+review's arithmetic (recomputed on the v4 ledger): under 3 hours the core
+alone survives only a 1.23 × kernel overrun and core plus R-all a 1.12 ×,
 and a late overrun found in step 5 burns the whole charge; under 4 hours
-the core survives 1.59 × and at a 1.3 × stress the pilot still delivers
+the core survives 1.65 × and at a 1.3 × stress the pilot still delivers
 the core and the 0.5-host pair, stopping at R-all by the rule. The 4,593 s left in the Gate 3 cap belong to a closed
 study and are not carried.
 
@@ -507,7 +522,11 @@ existing `costs.py` style, not from these bookings.
 Development anchors 3000–3005. Outputs to `docs/results/m0-pilot-<date>-<id>/`.
 
 1. Host costs; replay of attempt 4's pinned state hashes; both-card
-   determinism; one grid replay; co-tenancy replay.
+   determinism; one grid replay; the GPU acceptance matrix on both cards
+   (resume versus uninterrupted training, checkpointed grid versus separate
+   fits, the complete static model at step 0, shared padded evaluation,
+   the fold residual recomputed on card) [v4; the co-tenancy replay is
+   withdrawn, §14].
 2. P1 known answer; zero-module identities; slicing known answer; M-aff
    fold residual on every anchor.
 3. Frontier, T-cool and S-static hosts; frontier slope.
@@ -565,14 +584,16 @@ it. The 0.5 hosts 6000–6005 become development anchors only if extended
 item 1 runs; whether rung M2 may reuse them even for development follows
 from that.
 
-**Identity.** `PROTOCOL_VERSION = "m0-v1"`; `PROTOCOL_SHA` = SHA-256 of
-`"m0-v1\n" + sha(this file) + "\n" + sha(docs/STEERING.md) + "\n" +
-sha(docs/plans/2026-10-13-gate-ladder-amendment.md) + "\n"` (the v4.1
-composition rule, one active identity from separately hashed documents);
-`protocol_identity()` carries `protocol_version`, `protocol_sha256`,
-`preregistration_sha256` (this file), `steering_sha256` and
-`amendment_sha256` (the gate-ladder amendment, not the v4 amendments);
-`source_identity()` pins these three documents instead of the v4 chain;
+**Identity** [v4]. `PROTOCOL_VERSION = "m0-v4"`; `PROTOCOL_SHA` = SHA-256 of
+`"m0-v4\n" + sha(this file) + "\n" + sha(docs/STEERING.md) + "\n" +
+sha(docs/plans/2026-10-13-gate-ladder-amendment.md) + "\n" +
+sha(docs/plans/2026-10-13-gate-ladder-amendment-2.md) + "\n"` (the Gate 3
+v4.1 composition rule, one active identity from separately hashed
+documents); `protocol_identity()` carries `protocol_version`,
+`protocol_sha256`, `preregistration_sha256` (this file), `steering_sha256`,
+`amendment_sha256` (gate-ladder amendment 1) and `amendment_2_sha256`
+(gate-ladder amendment 2; neither is a Gate 3 v4 amendment);
+`source_identity()` pins these four documents instead of the Gate 3 chain;
 the identity tests are rewritten; the Gate 3 chain is not inherited and no
 Gate 3 checkpoint is loaded.
 
@@ -611,9 +632,52 @@ v3 checked once more in a targeted pass against the synthesis table and
 the recut checklist, the report preserved and dispositioned (done, `da2768f`);
 John accepts the gate-ladder amendment text (done, 2026-10-13); merge to
 `main` (done, `ae35dfe`); the file's SHA-256 pinned in the package at the
-freeze (done, [certificate](../certificates/2026-10-13-m0-freeze.md));
-then the implementation plan with exact-source reviews for every item in
-§2; then the pilot go.
+freeze (done, [certificate 1](../certificates/2026-10-13-m0-freeze.md));
+the implementation plan reviewed twice against source and this document,
+its three amendment candidates taken by John as v4 (done, §14,
+[certificate 2](../certificates/2026-10-13-m0-freeze-2.md)); then the
+implementation plan's acceptance (gate A), the code with exact-source
+reviews for every item in §2 (gate B); then the pilot go.
+
+## 14. Amendment record (v4, 2026-10-13)
+
+Raised by the two reviews of the
+[implementation plan](2026-10-13-m0-implementation.md) (a reality review
+and an independent Astra review by Codex, preserved under
+`docs/reviews/m0-capacity/`), put to John, and taken in his words.
+
+1. **Co-tenancy replay withdrawn** (§8 ledger line, §9 step 1). The v3
+   stage replayed attempt 4's three-workers-per-card stress, but §4 and §8
+   fix one process per card, adopted because that very measurement showed
+   co-tenancy inflating a 44.5 s host to about 102 s. Under the
+   process-seconds ledger co-tenancy can only cost, and no later stage
+   reads the replay. John: "ok, I'll agree with you, we don't want to
+   record something that nothing reads." He asked to be told if there were
+   a meaningful reason to record and use that data; there is none under the
+   current charging rule, which counts wall per process, so packing a card
+   never lowers a charge. The data would matter only if the ledger were
+   changed to count card-wall, which nothing proposes. The 900 s line
+   becomes 600 s for replay, timing and the GPU acceptance matrix; the
+   core total falls to about 8,750 s and the overrun multipliers are
+   recomputed above.
+2. **Programme reading restated** (§7). The reviews noted that §1 and
+   gate-ladder amendment 1 said the module "must beat every named cheaper
+   route" while V1 conditions on D1 alone. John: "it doesn't have to
+   strictly beat it, technically speaking 'noop with no substantial change'
+   or 'same but with fewer parameters' are also valid outputs, they're less
+   valuable than 'more with a little bit' but they're all strictly valid."
+   §7 now states that ordering; V1's thresholds, labels and the M1 opening
+   rule are unchanged; D1′ grades value and is not a gate.
+   [Gate-ladder amendment 2](2026-10-13-gate-ladder-amendment-2.md) restates
+   the one row of amendment 1 that said "must beat"; amendment 1's bytes
+   are untouched.
+3. **Example-pass arithmetic corrected** (§4). 4,915,200 assumed eight full
+   256-example batches per cycle; the fitter's stream has seven of 256 and
+   one of 208, so each matched route visits 4,800,000 examples. The two
+   routes still match each other exactly. John: "ok, correct the number."
+   The fitter is not changed to make the old number true.
+
+Every other value, arm, margin, rule and seed block is as frozen in v3.
 
 ## Appendix A. Seed registry (never reuse)
 
