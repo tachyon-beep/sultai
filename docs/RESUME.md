@@ -21,7 +21,14 @@ John):
   answer kept as instrument validation; core and extended arm tiers with an
   overrun rule; decisions J0–J10 for John. v1 (`5aeee56`) was reviewed by
   three independent readers; reports and dispositions are under
-  `docs/reviews/m0-capacity/`.
+  `docs/reviews/m0-capacity/`. On 2026-10-13 twelve further agents each
+  took one of John's decisions J0–J9 and wrote a recommendation with the
+  case for and against; the reports, the arithmetic validation and the
+  reconciled table with a v3 defect worklist are under
+  `docs/reviews/m0-capacity/j-recommendations/` (`SYNTHESIS.md` first).
+  Only J6 rejects its recorded default outright (4 GPU-hours); J0 is a
+  genuine split (drop or keep the accuracy guard); John later clarified
+  that accuracy was Esper-lite's currency, not a required unit.
 - [Attempt-4 final disposition](certificates/2026-10-13-gate3-linked-pilot-3-final-disposition.md):
   the repair screen is closed on its finding; v4.2 confirmatory ranges
   retired unused; 4,593.33 s of the Gate 3 cap unspent and not carried by

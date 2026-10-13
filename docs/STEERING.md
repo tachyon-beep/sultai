@@ -26,6 +26,11 @@ and then:
 > … I want an updated experimental guide that measures progress against the
 > actual goal."
 
+and, later the same day, on the unit of the objective:
+
+> "also accuracy was just a value we used in esper, its not 'the value we
+> have to use'"
+
 [CONCEPT.md](CONCEPT.md) already records the long-run form of this objective:
 comparable capability at about half the final retained parameters of a
 credible reference, developed by addition **and** deliberate physical
@@ -75,11 +80,14 @@ exactly the controls the recut study puts between the module and a
 1. **The primary endpoint is stated in retained-parameter and loss units,
    with an accuracy guard.** Every arm reports a point on the plane
    (physically retained parameters, development loss) with its compute
-   booked. John said "accuracy"; the author's formalisation is mean
-   development cross-entropy as the primary unit, because it is what every
-   arm optimises and what the instrument measures with paired-bootstrap
-   intervals, with a dev-accuracy co-read that must not be negative for any
-   "present" verdict. John confirms or changes the unit (decision J0).
+   booked. John said "accuracy" and then clarified that accuracy was
+   Esper-lite's reward currency, not a required unit. The author's
+   formalisation is mean development cross-entropy as the primary unit,
+   because it is what every arm optimises and what the instrument measures
+   with paired-bootstrap intervals; whether a dev-accuracy co-read remains a
+   condition of any "present" verdict is open. John fixes the unit and the
+   guard (decision J0; the recommendations are under
+   `reviews/m0-capacity/j-recommendations/`).
 2. **"Efficient" is a comparison against named cheaper routes to the same
    loss**, never against zero: re-tuning an equal count of the host's own
    parameters on the same data; more training of the host; the same
