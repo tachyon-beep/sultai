@@ -32,6 +32,8 @@ RESERVED_M2: Final = range(6100, 6200)
 _WIDTH_SCALES: Final[dict[Lineage, float]] = {
     "anchor": 1.0,
     "cooled-20": 1.0,
+    "confirmatory": 1.0,
+    "restart": 1.0,
     "frontier-0.25": 0.25,
     "frontier-0.5": 0.5,
     "frontier-0.75": 0.75,
@@ -49,7 +51,5 @@ def admit(seed: int, lineage: Lineage) -> int:
 
 
 def width_scale(lineage: Lineage) -> float:
-    """The width multiplier s of a lineage; confirmatory and restart take their width from the arm, not the lineage."""
-    if lineage not in _WIDTH_SCALES:
-        raise PilotHold(f"lineage {lineage} does not determine a width scale")
+    """The width multiplier s of a lineage; confirmatory and restart draw reference-host (s = 1.0) anchors."""
     return _WIDTH_SCALES[lineage]

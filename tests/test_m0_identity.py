@@ -176,9 +176,10 @@ class SeedTests(unittest.TestCase):
         self.assertEqual(width_scale("frontier-0.5"), 0.5)
         self.assertEqual(width_scale("frontier-0.75"), 0.75)
         self.assertEqual(width_scale("frontier-1.5"), 1.5)
-        for lineage in ("confirmatory", "restart"):
-            with self.assertRaises(PilotHold):
-                width_scale(lineage)
+        self.assertEqual(width_scale("confirmatory"), 1.0)
+        self.assertEqual(width_scale("restart"), 1.0)
+        for lineage in BLOCKS:
+            self.assertIsInstance(width_scale(lineage), float)
 
 
 if __name__ == "__main__":
