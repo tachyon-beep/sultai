@@ -13,7 +13,7 @@ from typing import Final
 
 from sultai.trust import ContractViolation
 from sultai_screen.contracts import Record, json_value
-from sultai_screen.m0.identity import M0_CONFIRMATORY_SECONDS
+from sultai_screen.m0.identity import CHECKPOINTS, M0_CONFIRMATORY_SECONDS, RETUNE_RATES
 from sultai_screen.m0.stats import CONFIRMATORY_ARMS, KNOWN_ARMS, PILOT_ARMS, STARVED_PAIR_ARMS
 
 DEVELOPMENT_ANCHORS: Final = 6
@@ -34,7 +34,8 @@ class Workloads:
     step zero; `grid` per grid kind: "module" (three-rate checkpointed module grid), "module-B" (M-small-B's doubled
     schedule), "aff" (M-aff five-rate grid with fold and residual), "retune" (cached-site re-tune grid, R-272s),
     "refit" (M-wide→8 refit with the full module grid), "refit-single" (one 800-step refit at the M-wide rate,
-    h = 16/4/2); `front_rerun` one front-re-running arm (R-aff, measured first in stage 4); `fold_and_calibrations`
+    h = 16/4/2); `front_rerun` seconds per 1,000 front-re-running optimiser steps (the first front-re-running arm is
+    measured in stage 4 and divided by its steps, R9); `fold_and_calibrations`
     one anchor's N0 and its twin, R-temp and R-cal, cuts, folds, leave-one-out and their evaluations (the §8 30 s
     line); `evaluation` one development evaluation of a new host; `fixed_v0` the fixed V0 stage total.
     """
@@ -66,6 +67,15 @@ class Workloads:
                 raise ContractViolation("every measured workload must be positive and finite")
 
 
+# Front re-running arms are costed in units of 1,000 optimiser steps (R9): R-aff runs each of the five re-tune rates
+# to the last checkpoint (5 x 3,200 = 16 units); R-all runs each rate to 800 steps (§5 item 2: 5 x 800 = 4 units).
+FRONT_UNIT_STEPS: Final = 1_000
+R_ALL_STEPS: Final = 800
+R_AFF_FRONT_UNITS: Final = len(RETUNE_RATES) * CHECKPOINTS[-1] // FRONT_UNIT_STEPS
+R_ALL_FRONT_UNITS: Final = len(RETUNE_RATES) * R_ALL_STEPS // FRONT_UNIT_STEPS
+if (len(RETUNE_RATES) * CHECKPOINTS[-1]) % FRONT_UNIT_STEPS or (len(RETUNE_RATES) * R_ALL_STEPS) % FRONT_UNIT_STEPS:
+    raise ContractViolation("front re-run step counts must be whole units of 1,000 steps")
+
 # The per-anchor work every arm set needs: the anchor's reference host (s = 1.0) and its N0, twin, calibrations,
 # cuts, folds and evaluations. R-temp and R-cal, and every sliced or ablated cut, are inside the second unit.
 ANCHOR_UNITS: Final = ("host:1.0", "fold_and_calibrations")
@@ -75,7 +85,7 @@ ARM_UNITS: Final[dict[str, tuple[str, ...]]] = {
     "M-sq": ("grid:module",),
     "M-aff": ("grid:aff",),
     "R-272s": ("grid:retune",),
-    "R-aff": ("front_rerun",),
+    "R-aff": ("front_rerun",) * R_AFF_FRONT_UNITS,
     "T-cool": ("tcool",),
     "M-sq|T-cool": ("grid:module",),
     "M-wide": ("grid:module",),
@@ -93,7 +103,7 @@ ARM_UNITS: Final[dict[str, tuple[str, ...]]] = {
     "M-small": ("grid:module",),
     "M-small-B": ("grid:module-B",),
     "M-sq-fresh": ("grid:module",),
-    "R-all": ("front_rerun",),
+    "R-all": ("front_rerun",) * R_ALL_FRONT_UNITS,
     "M-exp": ("grid:module",),
     "lottery": ("grid:refit",),
     "S-static": ("static",),
@@ -175,15 +185,12 @@ def per_anchor(w: Workloads, arms: Arms) -> float:
 def extended_cost(item: str, w: Workloads) -> float:
     """One §5 extended item from measured units."""
     if item == "starved-pair":
-        # Six 0.5 hosts x (host 0.5 + T-cool + M-sq grid + M-aff grid + M-sq | T-cool grid + N0 and calibrations).
-        # The 0.5 hosts are the core frontier hosts; counting their training again is a conservative bound.
-        return DEVELOPMENT_ANCHORS * (
-            unit_seconds(w, "host:0.5") + unit_seconds(w, "fold_and_calibrations") + _arm_seconds(w, STARVED_PAIR_ARMS)
-        )
+        # Six 0.5 hosts x (N0 and calibrations + T-cool + M-sq grid + M-aff grid + M-sq | T-cool grid). The 0.5 hosts
+        # are the core frontier hosts already trained and charged in stage 3, so no host term (R9).
+        return DEVELOPMENT_ANCHORS * (unit_seconds(w, "fold_and_calibrations") + _arm_seconds(w, STARVED_PAIR_ARMS))
     if item == "R-all":
-        # One seed of five rates x 800 steps with a full backward and recalibration, bounded by six front-re-running
-        # arms (the measured R-aff kernel: 6 x 250 = 1,500 s at the §8 kernel against its 900 s booking).
-        return DEVELOPMENT_ANCHORS * unit_seconds(w, "front_rerun")
+        # Six anchors x five rates x 800 front-re-running steps = 6 x 4 units of the per-1,000-step kernel (R9).
+        return DEVELOPMENT_ANCHORS * _arm_seconds(w, ("R-all",))
     if item in ("M-exp", "lottery"):
         # Six anchors x one grid: M-exp a module grid; the lottery retrain the h = 8 refit grid.
         return DEVELOPMENT_ANCHORS * _arm_seconds(w, (item,))

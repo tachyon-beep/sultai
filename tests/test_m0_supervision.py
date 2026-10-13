@@ -40,13 +40,14 @@ CHILD = (
 def workloads() -> Workloads:
     # A literal transcription of the §8 bookings: the §10 per-anchor decomposition is host 45, T-cool 25, N0 and
     # calibrations 30, four nonlinear module grids 4 x 60, M-aff 100, two M-wide→8 refits 2 x 60, M-small-B 120,
-    # R-272s 80 and R-aff 250 = 1,010 s; S-static adds its host 50 and its module-grid refit 60 = 110 s.
+    # R-272s 80 and R-aff 250 = 1,010 s; S-static adds its host 50 and its module-grid refit 60 = 110 s. The front re-run
+    # unit is per 1,000 optimiser steps: R-aff is 5 rates x 3,200 steps = 16 units, so 15.625 s per unit gives 250 s.
     return Workloads(
         host={0.25: 20.0, 0.5: 35.0, 0.75: 40.0, 1.0: 45.0, 1.5: 85.0},
         tcool=25.0,
         static=50.0,
         grid={"module": 60.0, "module-B": 120.0, "aff": 100.0, "retune": 80.0, "refit": 60.0, "refit-single": 10.0},
-        front_rerun=250.0,
+        front_rerun=15.625,
         fold_and_calibrations=30.0,
         evaluation=0.5,
         fixed_v0=1500.0,
@@ -236,8 +237,9 @@ class SupervisionTests(unittest.TestCase):
         self.assertEqual(record["projected_gpu_process_seconds"], 33_820.0)
         self.assertEqual(record["ceiling_seconds"], M0_CONFIRMATORY_SECONDS)
         self.assertIs(record["within_ceiling"], True)
-        # Measured, never a literal: doubling the measured R-aff (front re-run) unit moves the projection by 32 x 250.
-        slower = project_confirmatory(32, dataclasses.replace(w, front_rerun=500.0), CONFIRMATORY_ARMS, 1500)
+        # Measured, never a literal: doubling the measured front re-run unit moves the projection by 32 x 250.
+        self.assertEqual(per_anchor(w, ("R-aff",)) - per_anchor(w, ()), 16 * 15.625)
+        slower = project_confirmatory(32, dataclasses.replace(w, front_rerun=31.25), CONFIRMATORY_ARMS, 1500)
         self.assertEqual(slower["projected_gpu_process_seconds"], 33_820.0 + 32 * 250.0)
         over = project_confirmatory(42, w, CONFIRMATORY_ARMS, 1500)
         self.assertEqual(over["projected_gpu_process_seconds"], 1500 + 42 * 1_010.0)
@@ -281,10 +283,13 @@ class SupervisionTests(unittest.TestCase):
         self.assertEqual(
             EXTENDED_ORDER, ("starved-pair", "R-all", "M-exp", "lottery", "cooled-20", "F(0.25)", "F(0.75)")
         )
-        self.assertEqual(extended_cost("starved-pair", w), 6 * (35 + 25 + 60 + 100 + 60 + 30))
-        self.assertEqual(extended_cost("R-all", w), 6 * 250.0)
+        # The starved pair runs on the six 0.5 hosts already trained in stage 3: no host term (R9).
+        self.assertEqual(extended_cost("starved-pair", w), 6 * (25 + 60 + 100 + 60 + 30))
+        self.assertEqual(extended_cost("starved-pair", dataclasses.replace(w, host={1.0: 45.0})), 1_650.0)
+        # R-all: 5 rates x 800 steps = 4 front re-run units per anchor, on six anchors (R9).
+        self.assertEqual(extended_cost("R-all", w), 6 * 4 * 15.625)
         self.assertEqual(extended_cost("F(0.25)", w), 6 * (20 + 0.5))
-        # 2,000 s margin: the starved pair (1,860) fits; R-all (1,500) misses; F(0.25) (123) would still fit but is
+        # 2,000 s margin: the starved pair (1,650) fits; R-all (375) misses; F(0.25) (123) would still fit but is
         # never reached, because admission stops at the first item that does not fit.
         self.assertEqual(admit_extended(3_000.0, 9_400.0, w, 14_400.0), ["starved-pair"])
         # The first item itself misses: nothing is admitted although later items are cheap enough.
