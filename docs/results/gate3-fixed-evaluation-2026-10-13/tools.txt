@@ -1,0 +1,13 @@
+Quality-gate tool provenance for this evidence directory.
+
+The mypy executable recorded in quality.json is a two-line shell wrapper that execs the
+pinned mypy from a session scratchpad virtual environment with the system interpreter so
+that installed torch/numpy stubs resolve. Wrapper contents:
+
+#!/bin/sh
+exec /tmp/claude-1000/-home-john-sultai/5e6e694f-8ad1-4704-a1e7-ef9540bb893d/scratchpad/quality-venv/bin/mypy --python-executable /usr/bin/python3 "$@"
+
+Pinned tools: mypy 1.19.1 (compiled), ruff 0.15.4, both installed with uv into that
+scratchpad environment; interpreter /usr/bin/python3 3.12.3; torch 2.9.1+cu128; numpy 2.3.5.
+A fresh session recreates the environment with the same pins; the wrapper and venv paths
+baked into quality.json will not exist outside this session.

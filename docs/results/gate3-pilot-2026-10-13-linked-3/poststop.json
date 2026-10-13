@@ -1,0 +1,55 @@
+{
+  "observed_utc": "2026-10-12T15:51:30.378235+00:00",
+  "gpu_query": "0, GPU-6198007d-505f-920d-088c-957818fc0988, 0, 15\n1, GPU-d5b931ca-445e-0e51-004f-ead3b68d6ece, 0, 15\n",
+  "compute_apps": "",
+  "prior_receipts": [
+    {
+      "path": ".weft/gate3-pilot-attempt.json",
+      "expected": "49034bf3f26d3061fc4d57318ae156d54297d113b529898c4c925dc8c61d1821",
+      "actual": "49034bf3f26d3061fc4d57318ae156d54297d113b529898c4c925dc8c61d1821"
+    },
+    {
+      "path": ".weft/gate3-pilot-linked-retry-1.json",
+      "expected": "d3726c4293655faf7c5630a12a235368a47bde6d8eccafa2d96780ddcdf01888",
+      "actual": "d3726c4293655faf7c5630a12a235368a47bde6d8eccafa2d96780ddcdf01888"
+    },
+    {
+      "path": ".weft/gate3-twin-diagnostic-attempt.json",
+      "expected": "5cf565c14899c7a0fa7635beb37170a1c3d1e2f86a9f9124fcf88b677ff779e4",
+      "actual": "5cf565c14899c7a0fa7635beb37170a1c3d1e2f86a9f9124fcf88b677ff779e4"
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/pilot-result.json",
+      "expected": "943ace1533cde6950d0e57cc1ef64fd5ec4f318826a89b5f1d7cfce026cd3931",
+      "actual": "943ace1533cde6950d0e57cc1ef64fd5ec4f318826a89b5f1d7cfce026cd3931"
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/ledger-015.json",
+      "expected": "42ee5feedcda3c7841064b0bd65c049cdcf84ed0432e480cf2ae6d89bef73ce1",
+      "actual": "42ee5feedcda3c7841064b0bd65c049cdcf84ed0432e480cf2ae6d89bef73ce1"
+    },
+    {
+      "path": "runs/gate3-twin-diagnostic-2026-10-12-01a125af/charge.json",
+      "expected": "3660f2fd5d59364429eed82f259f75d5c97fcc41407a30e50c8fd6552f291f33",
+      "actual": "3660f2fd5d59364429eed82f259f75d5c97fcc41407a30e50c8fd6552f291f33"
+    },
+    {
+      "path": ".weft/gate3-pilot-linked-pilot-2.json",
+      "expected": "acabf167162363af96695bd3f6924f3952e2045267d9013059a55dfc62e1db34",
+      "actual": "acabf167162363af96695bd3f6924f3952e2045267d9013059a55dfc62e1db34"
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-2/pilot-result.json",
+      "expected": "dd8659a0ffe34c9dfa55c8a4cf9871d3c5f1b1c2b4a726c24712ace538e0fff7",
+      "actual": "dd8659a0ffe34c9dfa55c8a4cf9871d3c5f1b1c2b4a726c24712ace538e0fff7"
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-13-linked-2/ledger-020.json",
+      "expected": "0e1c184b4c26630198f42e7dd7fea033a059a5e9ae4d457ada6f48805df77799",
+      "actual": "0e1c184b4c26630198f42e7dd7fea033a059a5e9ae4d457ada6f48805df77799"
+    }
+  ],
+  "all_prior_receipts_intact": true,
+  "linked_pilot_3_custody_sha256": "1ac3c80f022c0fccf293d1f0d9d3014e4f48e15b668b7d5b92b4be705651202b",
+  "new_attempt_authorized": false
+}

@@ -1,0 +1,342 @@
+{
+  "verdict": "execution-invalid",
+  "pilot_clean": false,
+  "confirmatory_ready": false,
+  "reviewed_commit": "bbf9811854f23e40b2700dab9e457852c09ba7da",
+  "launch_commit": "9b97fb1ef4d170936dbd2757231428d03e70a107",
+  "source_sha256": "a9445331c6b92018fbe73316fe4b7eb3851fc157a4798185da51ce2fff17b595",
+  "raw_exit": 2,
+  "gnu_time_exit": 2,
+  "outer_tool_exit": 2,
+  "wall_seconds": 662.93,
+  "peak_rss_kib": 1564996,
+  "opening_charge_gpu_process_seconds": 2.370860553928651,
+  "retry_charge_gpu_process_seconds": 1466.9817409639945,
+  "total_charge_gpu_process_seconds": 1469.3526015179232,
+  "total_ceiling_gpu_process_seconds": 10800,
+  "remaining_gpu_process_seconds": 9330.647398482077,
+  "completed_training_hosts": 12,
+  "successful_child_receipts": 30,
+  "failed_child_receipts": 1,
+  "host_bitwise_replay": true,
+  "fit_bitwise_replay": true,
+  "failure_stage": "materiality",
+  "failure": "resampled no-op evaluation twin is not bitwise",
+  "failure_location": "src/sultai_screen/fit.py:71",
+  "root_cause": "undetermined; no GPU diagnostic authorized or run after stop",
+  "materiality_or_repair_result": null,
+  "new_attempt_authorized": false,
+  "raw_log_hashes": [
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/bottle4-3000.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/bottle4-3001.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/bottle4-3002.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/bottle4-3003.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/bottle4-3004.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/bottle4-3005.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/cotenancy-0-0.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/cotenancy-0-1.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/cotenancy-0-2.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/cotenancy-1-0.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/cotenancy-1-1.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/cotenancy-1-2.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/cotenancy-fit-0-0.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/cotenancy-fit-0-1.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/cotenancy-fit-0-2.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/cotenancy-fit-1-0.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/cotenancy-fit-1-1.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/cotenancy-fit-1-2.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/intact-3000.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/intact-3001.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/intact-3002.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/intact-3003.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/intact-3004.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/intact-3005.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/materiality-3000.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/replay-card0.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/replay-card1-a.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/replay-card1-b.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/timing-0-a.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/timing-0-b.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/timing-1.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/bottle4-3000.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/bottle4-3001.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/bottle4-3002.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/bottle4-3003.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/bottle4-3004.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/bottle4-3005.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/cotenancy-0-0.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/cotenancy-0-1.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/cotenancy-0-2.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/cotenancy-1-0.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/cotenancy-1-1.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/cotenancy-1-2.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/cotenancy-fit-0-0.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/cotenancy-fit-0-1.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/cotenancy-fit-0-2.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/cotenancy-fit-1-0.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/cotenancy-fit-1-1.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/cotenancy-fit-1-2.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/intact-3000.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/intact-3001.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/intact-3002.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/intact-3003.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/intact-3004.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/intact-3005.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/materiality-3000.stderr",
+      "sha256": "c84ea75309fb1ca448319cd6ad95db2b52069a576cc0228de7e43cb948f50b24",
+      "bytes": 1139
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/replay-card0.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/replay-card1-a.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/replay-card1-b.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/timing-0-a.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/timing-0-b.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-pilot-2026-10-11-01a125af-retry1/timing-1.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  ],
+  "private_weights_and_loss_streams": "retained locally in ignored run storage; excluded from Git"
+}

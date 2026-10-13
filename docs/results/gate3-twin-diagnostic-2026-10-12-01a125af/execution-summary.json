@@ -1,0 +1,101 @@
+{
+  "diagnostic_complete": true,
+  "reviewed_commit": "9e19e5e9fee3be709b54f810c6b3e4954271416b",
+  "launch_commit": "340bff2efe6f4ce732dccd5f2bf0f7d017907434",
+  "source_sha256": "c0e99d856b54c599b854492ea3b5fd20a57c4c77aa477d5d23aafad6068c0f36",
+  "raw_child_exit": 0,
+  "supervisor_exit": 0,
+  "gnu_time_exit": 0,
+  "outer_tool_exit": 0,
+  "gnu_wall_seconds": 5.06,
+  "peak_rss_kib": 1316628,
+  "charge": {
+    "child_returncode": 0,
+    "diagnostic_ceiling_seconds": 120.0,
+    "diagnostic_charge_gpu_process_seconds": 3.9146629869937897,
+    "opening_charge_gpu_process_seconds": 1469.3526015179232,
+    "timed_out": false,
+    "total_ceiling_gpu_process_seconds": 10800,
+    "total_charge_gpu_process_seconds": 1473.267264504917
+  },
+  "remaining_total_process_seconds": 9326.732735495083,
+  "original_twin_bitwise_equal": false,
+  "changed_batch_size_indices": [
+    115,
+    1644,
+    2387,
+    2593,
+    3455,
+    3699,
+    4024,
+    4960,
+    4992,
+    4993,
+    4994,
+    4995,
+    4996,
+    4997,
+    4998,
+    4999
+  ],
+  "logit_mismatch_indices": [
+    115,
+    1644,
+    2387,
+    2593,
+    3455,
+    3699,
+    4024,
+    4960,
+    4992,
+    4993,
+    4994,
+    4995,
+    4996,
+    4997,
+    4998,
+    4999
+  ],
+  "loss_mismatch_indices": [
+    115,
+    1644,
+    2387,
+    4994,
+    4995,
+    4996
+  ],
+  "max_logit_absolute_difference": 1.9073486328125e-06,
+  "max_loss_absolute_difference": 5.960464477539062e-07,
+  "identical_repeat_bitwise": true,
+  "batch_size_preserving_bitwise": true,
+  "padded_pair_bitwise": true,
+  "baseline_logits_cross_entropy_order_bitwise": true,
+  "all_frozen_states_unchanged": true,
+  "permutation_round_trip_bitwise": true,
+  "scope": "one saved intact-3000 checkpoint, one GPU0 execution, sealed5000 devexamples; not a cross-host guarantee",
+  "pilot_ready": false,
+  "confirmation_ready": false,
+  "new_attempt_authorized": false,
+  "raw_log_hashes": [
+    {
+      "path": "runs/gate3-twin-diagnostic-2026-10-12-01a125af/worker.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runs/gate3-twin-diagnostic-2026-10-12-01a125af/worker.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "/tmp/sultai-twin-diagnostic-20261012.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "/tmp/sultai-twin-diagnostic-20261012.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  ]
+}

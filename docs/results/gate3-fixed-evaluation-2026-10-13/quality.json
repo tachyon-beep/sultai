@@ -1,0 +1,304 @@
+{
+  "passed": true,
+  "source_files": {
+    "src/sultai/__init__.py": "e66c34ef37b48f60de6d67d8802193abcd7bf23414da274c86e5d3b700ede1d7",
+    "src/sultai/contracts.py": "3b7a3b7a6f53afd20880bc3ebdcdcf093808b2938e5ce48624bbc4f52c4f367f",
+    "src/sultai/correction.py": "d3bdbcf6b7eb9697fb919fc2a8c231458b250279ed117fe0c4789234bec728ec",
+    "src/sultai/formation.py": "c1446773dcc2d9d1765fb2d2fe1e3d6c04f0825de32b54e12a3e5403597afa74",
+    "src/sultai/formation_controls.py": "8f08960360c1bb52fe9834beeb8042d79bae7049e0481632cd42652022e8e119",
+    "src/sultai/hybrid.py": "00e7e6410f34521d1b4c6627279ccab2172aeecb075a5cad5bab9c40ebe253b8",
+    "src/sultai/lifecycle.py": "609722508a21c3a0106cc36a3270d7d86152ab2e3ecd8a278a8d636b0bf683ec",
+    "src/sultai/repair.py": "e0ae740de230a36470b8d02f1cb09b898a1233916d0d3df369056d3b390b9ff3",
+    "src/sultai/report_types.py": "c678ebedf2c09c774eb25fba2f488e4059469142cd808b11893e57ae98a33801",
+    "src/sultai/smoke.py": "20550ca0c1101505cdb2e49eb5e06eee9bc7cdca56ae2e109fc75c512f5abe8f",
+    "src/sultai/trajectory.py": "01a4802ddbcc0afbdfbe4cca864ad5c09219494dc209748f331fbc8bcfe6ff7e",
+    "src/sultai/trust.py": "bda93da0cd5a37f800955662d0b1a5fe1bf7f70c6723547aa0fd82a366de4a9a",
+    "src/sultai_screen/__init__.py": "0c9d6ae6f3efb76a1f7846a761b3800677d57cb13db31eee458acae8c2b747b8",
+    "src/sultai_screen/alignment.py": "5b3385ad580c3a6215e049635a7e8766ea9ccb8793a5c89d8b233a38a085e975",
+    "src/sultai_screen/contracts.py": "d063c7e108d7f1fe5d357f0a3744d4c757ea6862d31e1ec4d0afe8d96077f228",
+    "src/sultai_screen/costs.py": "004f6ab8faa74b33e38d420d6bb36aa04557008fa4a70817600abcbbdd346d55",
+    "src/sultai_screen/data.py": "8a394063b1d8606a98d92388ccce2b21a840852e9a77c36ecf03e1fe77d58b4f",
+    "src/sultai_screen/fit.py": "fd460da0369086f2cf0ad9133b6575482b08e8754c7cd82319579c75224ac223",
+    "src/sultai_screen/former_bridge.py": "596b90ac486d3488babd3a54292092943120e404be30743ea6a51d421e73cb97",
+    "src/sultai_screen/host.py": "fd8a263e2c1fde97d27f48bf6157a04821b779c453e4e7dd3c5f25bcd4c73633",
+    "src/sultai_screen/impair.py": "22242da3204216150be8755ec81a64d11b8bfb1c37cee1eec0469d74645270ad",
+    "src/sultai_screen/pilot.py": "7132ae7c6a2b5d3dcedd0b00c9c25ad5359500ca58eac56c1cba3d17d8aa2afd",
+    "src/sultai_screen/screen.py": "50ac039efc985dfd2dd23dc557225b34aacac631ccf25d69f1a214af6228c226",
+    "src/sultai_screen/twin_diagnostic.py": "56085c2d44e1db1c910829090c131fc8ccdabd35f0b42e2f011d6f4414be4ce8"
+  },
+  "source_unchanged": true,
+  "checks": [
+    {
+      "name": "mypy_version",
+      "command": [
+        "/tmp/sultai-screen-mypy-wrapper",
+        "--version"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "output": "mypy 1.19.1 (compiled: yes)\n"
+    },
+    {
+      "name": "ruff_version",
+      "command": [
+        "/tmp/claude-1000/-home-john-sultai/5e6e694f-8ad1-4704-a1e7-ef9540bb893d/scratchpad/quality-venv/bin/ruff",
+        "--version"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "output": "ruff 0.15.4\n"
+    },
+    {
+      "name": "operation_trust_policy",
+      "command": [
+        "/usr/bin/python3",
+        "scripts/check_policy.py"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "output": "Sultai trust policy passed\n"
+    },
+    {
+      "name": "strict_source_types",
+      "command": [
+        "/tmp/sultai-screen-mypy-wrapper",
+        "--config-file",
+        "/home/john/sultai/pyproject.toml",
+        "--cache-dir",
+        "/tmp/sultai-quality-ow2opks1/mypy",
+        "src/sultai",
+        "src/sultai_screen"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "output": "Success: no issues found in 24 source files\n"
+    },
+    {
+      "name": "source_and_test_lint",
+      "command": [
+        "/tmp/claude-1000/-home-john-sultai/5e6e694f-8ad1-4704-a1e7-ef9540bb893d/scratchpad/quality-venv/bin/ruff",
+        "check",
+        "--no-cache",
+        "--config",
+        "/home/john/sultai/pyproject.toml",
+        "src",
+        "tests"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "output": "All checks passed!\n"
+    },
+    {
+      "name": "source_and_test_format",
+      "command": [
+        "/tmp/claude-1000/-home-john-sultai/5e6e694f-8ad1-4704-a1e7-ef9540bb893d/scratchpad/quality-venv/bin/ruff",
+        "format",
+        "--check",
+        "--no-cache",
+        "--config",
+        "/home/john/sultai/pyproject.toml",
+        "src",
+        "tests"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "output": "39 files already formatted\n"
+    },
+    {
+      "name": "type_positive_control",
+      "command": [
+        "/tmp/sultai-screen-mypy-wrapper",
+        "--config-file",
+        "/home/john/sultai/pyproject.toml",
+        "--cache-dir",
+        "/tmp/sultai-quality-ow2opks1/mypy",
+        "/tmp/sultai-quality-ow2opks1/good.py"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "output": "Success: no issues found in 1 source file\n"
+    },
+    {
+      "name": "lint_positive_control",
+      "command": [
+        "/tmp/claude-1000/-home-john-sultai/5e6e694f-8ad1-4704-a1e7-ef9540bb893d/scratchpad/quality-venv/bin/ruff",
+        "check",
+        "--no-cache",
+        "--config",
+        "/home/john/sultai/pyproject.toml",
+        "/tmp/sultai-quality-ow2opks1/good.py"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "output": "All checks passed!\n"
+    },
+    {
+      "name": "format_positive_control",
+      "command": [
+        "/tmp/claude-1000/-home-john-sultai/5e6e694f-8ad1-4704-a1e7-ef9540bb893d/scratchpad/quality-venv/bin/ruff",
+        "format",
+        "--check",
+        "--no-cache",
+        "--config",
+        "/home/john/sultai/pyproject.toml",
+        "/tmp/sultai-quality-ow2opks1/good.py"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "output": "1 file already formatted\n"
+    },
+    {
+      "name": "type_negative_missing_measurement.py",
+      "command": [
+        "/tmp/sultai-screen-mypy-wrapper",
+        "--config-file",
+        "/home/john/sultai/pyproject.toml",
+        "--cache-dir",
+        "/tmp/sultai-quality-ow2opks1/mypy",
+        "/tmp/sultai-quality-ow2opks1/missing_measurement.py"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "output": "/tmp/sultai-quality-ow2opks1/missing_measurement.py:8: error: Missing key \"value\" for TypedDict \"Measurement\"  [typeddict-item]\nFound 1 error in 1 file (checked 1 source file)\n"
+    },
+    {
+      "name": "type_negative_wrong_type.py",
+      "command": [
+        "/tmp/sultai-screen-mypy-wrapper",
+        "--config-file",
+        "/home/john/sultai/pyproject.toml",
+        "--cache-dir",
+        "/tmp/sultai-quality-ow2opks1/mypy",
+        "/tmp/sultai-quality-ow2opks1/wrong_type.py"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "output": "/tmp/sultai-quality-ow2opks1/wrong_type.py:2: error: Incompatible return value type (got \"str\", expected \"float\")  [return-value]\nFound 1 error in 1 file (checked 1 source file)\n"
+    },
+    {
+      "name": "type_negative_untyped.py",
+      "command": [
+        "/tmp/sultai-screen-mypy-wrapper",
+        "--config-file",
+        "/home/john/sultai/pyproject.toml",
+        "--cache-dir",
+        "/tmp/sultai-quality-ow2opks1/mypy",
+        "/tmp/sultai-quality-ow2opks1/untyped.py"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "output": "/tmp/sultai-quality-ow2opks1/untyped.py:1: error: Function is missing a type annotation  [no-untyped-def]\nFound 1 error in 1 file (checked 1 source file)\n"
+    },
+    {
+      "name": "type_negative_explicit_any.py",
+      "command": [
+        "/tmp/sultai-screen-mypy-wrapper",
+        "--config-file",
+        "/home/john/sultai/pyproject.toml",
+        "--cache-dir",
+        "/tmp/sultai-quality-ow2opks1/mypy",
+        "/tmp/sultai-quality-ow2opks1/explicit_any.py"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "output": "/tmp/sultai-quality-ow2opks1/explicit_any.py:4: error: Explicit \"Any\" is not allowed  [explicit-any]\nFound 1 error in 1 file (checked 1 source file)\n"
+    },
+    {
+      "name": "lint_negative_control",
+      "command": [
+        "/tmp/claude-1000/-home-john-sultai/5e6e694f-8ad1-4704-a1e7-ef9540bb893d/scratchpad/quality-venv/bin/ruff",
+        "check",
+        "--no-cache",
+        "--config",
+        "/home/john/sultai/pyproject.toml",
+        "/tmp/sultai-quality-ow2opks1/lint_bad.py"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "output": "F401 [*] `os` imported but unused\n --> /tmp/sultai-quality-ow2opks1/lint_bad.py:1:8\n  |\n1 | import os\n  |        ^^\n2 |\n3 | value = undefined_measurement\n  |\nhelp: Remove unused import: `os`\n\nF821 Undefined name `undefined_measurement`\n --> /tmp/sultai-quality-ow2opks1/lint_bad.py:3:9\n  |\n1 | import os\n2 |\n3 | value = undefined_measurement\n  |         ^^^^^^^^^^^^^^^^^^^^^\n  |\n\nFound 2 errors.\n[*] 1 fixable with the `--fix` option.\n"
+    },
+    {
+      "name": "format_negative_control",
+      "command": [
+        "/tmp/claude-1000/-home-john-sultai/5e6e694f-8ad1-4704-a1e7-ef9540bb893d/scratchpad/quality-venv/bin/ruff",
+        "format",
+        "--check",
+        "--no-cache",
+        "--config",
+        "/home/john/sultai/pyproject.toml",
+        "/tmp/sultai-quality-ow2opks1/format_bad.py"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "output": "Would reformat: /tmp/sultai-quality-ow2opks1/format_bad.py\n1 file would be reformatted\n"
+    },
+    {
+      "name": "real_source_type_mutation_sultai",
+      "command": [
+        "/tmp/sultai-screen-mypy-wrapper",
+        "--config-file",
+        "/home/john/sultai/pyproject.toml",
+        "--cache-dir",
+        "/tmp/sultai-quality-ow2opks1/mypy",
+        "/tmp/sultai-quality-ow2opks1/mutation/src/sultai"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "output": "/tmp/sultai-quality-ow2opks1/mutation/src/sultai/repair.py:293: error: Incompatible return value type (got \"str\", expected \"int\")  [return-value]\nFound 1 error in 1 file (checked 12 source files)\n"
+    },
+    {
+      "name": "real_source_lint_mutation_sultai",
+      "command": [
+        "/tmp/claude-1000/-home-john-sultai/5e6e694f-8ad1-4704-a1e7-ef9540bb893d/scratchpad/quality-venv/bin/ruff",
+        "check",
+        "--no-cache",
+        "--config",
+        "/home/john/sultai/pyproject.toml",
+        "/tmp/sultai-quality-ow2opks1/mutation/src/sultai"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "output": "F821 Undefined name `MISSING_MEASUREMENT_FOR_GATE_CONTROL_SULTAI`\n   --> /tmp/sultai-quality-ow2opks1/mutation/src/sultai/repair.py:295:26\n    |\n293 |     return \"invalid measurement\"\n294 |\n295 | _quality_lint_mutation = MISSING_MEASUREMENT_FOR_GATE_CONTROL_SULTAI\n    |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    |\n\nFound 1 error.\n"
+    },
+    {
+      "name": "real_source_type_mutation_sultai_screen",
+      "command": [
+        "/tmp/sultai-screen-mypy-wrapper",
+        "--config-file",
+        "/home/john/sultai/pyproject.toml",
+        "--cache-dir",
+        "/tmp/sultai-quality-ow2opks1/mypy",
+        "/tmp/sultai-quality-ow2opks1/mutation/src/sultai_screen"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "output": "/tmp/sultai-quality-ow2opks1/mutation/src/sultai_screen/__init__.py:5: error: Incompatible return value type (got \"str\", expected \"int\")  [return-value]\n/tmp/sultai-quality-ow2opks1/mutation/src/sultai/repair.py:293: error: Incompatible return value type (got \"str\", expected \"int\")  [return-value]\n/tmp/sultai-quality-ow2opks1/mutation/src/sultai/repair.py:295: error: Name \"MISSING_MEASUREMENT_FOR_GATE_CONTROL_SULTAI\" is not defined  [name-defined]\nFound 3 errors in 2 files (checked 12 source files)\n"
+    },
+    {
+      "name": "real_source_lint_mutation_sultai_screen",
+      "command": [
+        "/tmp/claude-1000/-home-john-sultai/5e6e694f-8ad1-4704-a1e7-ef9540bb893d/scratchpad/quality-venv/bin/ruff",
+        "check",
+        "--no-cache",
+        "--config",
+        "/home/john/sultai/pyproject.toml",
+        "/tmp/sultai-quality-ow2opks1/mutation/src/sultai_screen"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "output": "F821 Undefined name `MISSING_MEASUREMENT_FOR_GATE_CONTROL_SULTAI_SCREEN`\n --> /tmp/sultai-quality-ow2opks1/mutation/src/sultai_screen/__init__.py:7:26\n  |\n5 |     return \"invalid measurement\"\n6 |\n7 | _quality_lint_mutation = MISSING_MEASUREMENT_FOR_GATE_CONTROL_SULTAI_SCREEN\n  |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  |\n\nFound 1 error.\n"
+    },
+    {
+      "name": "real_source_policy_mutation_sultai_screen",
+      "command": [
+        "/usr/bin/python3",
+        "scripts/check_policy.py",
+        "--root",
+        "/tmp/sultai-quality-ow2opks1/mutation"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "output": "src/sultai_screen/__init__.py:9: prohibited Any\n"
+    }
+  ]
+}

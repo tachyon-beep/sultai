@@ -18,3 +18,12 @@ Two rules `--help` will not tell you:
 2. On `SCHEMA_MISMATCH` the installed filigree is older than the project
    database. Surface it to the user; do not retry.
 <!-- /filigree:instructions -->
+
+## Programme steering
+
+Read `docs/STEERING.md` before proposing or running any experiment. The
+objective is accuracy per retained parameter (John, 2026-10-13); repair
+families are instrument validation only. The active draft study is
+`docs/plans/2026-10-13-capacity-frontier-screen.md`; `docs/RESUME.md` has the
+current state. Nothing runs on GPU, merges to `main` or closes in the tracker
+without John's explicit go.

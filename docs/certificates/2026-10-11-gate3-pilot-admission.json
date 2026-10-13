@@ -1,0 +1,34 @@
+{
+  "implementation_commit": "4936d28c90e9ab3a4e7358c772ae0b7acbaffa54",
+  "implementation_source_sha256": "74f1c403562d13fa37c724ab6ca358642dbaf025c265a82598303c60f4c086a8",
+  "preregistration_sha256": "7668d20ad55c3a62384975a7cf1f3989dbe69bf701ce02bc9c68ac2601d0d42a",
+  "quality_passed": true,
+  "runtime_tests_passed": true,
+  "independent_panel_accepted": true,
+  "evidence": [
+    {
+      "path": "docs/results/gate3-implementation-2026-10-11/selected-rate-fix/quality.json",
+      "sha256": "bad9cfad61515d7ff0ca6b7e5784fd397a76214dd368bb8cb9bf4661ccf3827e"
+    },
+    {
+      "path": "docs/results/gate3-implementation-2026-10-11/selected-rate-fix/runtime.json",
+      "sha256": "13a93a6352f45b0dc8ad4690e2f5ff9bf2ba9bc659764860e6cd255eb3fb7b9d"
+    },
+    {
+      "path": "docs/reviews/gate3-headroom/implementation-final-acceptance.md",
+      "sha256": "60f6275eb3c499cc375243e1457b0a16a28dbcf8dc3bd20da5df1ad29f4778d0"
+    },
+    {
+      "path": "docs/reviews/gate3-headroom/implementation-dispositions.md",
+      "sha256": "70df42aaaa94689268ec4b0d5f25acc545f8e6be3aa38aacd72b4a63262f4527"
+    },
+    {
+      "path": "docs/reviews/gate3-headroom/implementation-recheck-aeba343.md",
+      "sha256": "5c20a8ce41c471d6da577064e92d4ecadd457e70e1564dd2f1b4aa970ea0a0d7"
+    }
+  ],
+  "pilot_gpu_hour_ceiling": 3,
+  "confirmation_cleared": false,
+  "pr_url": "https://github.com/tachyon-beep/sultai/pull/3",
+  "recorded_utc": "2026-10-11T09:21:32.264221+00:00"
+}

@@ -1,0 +1,1 @@
+{"charged_gpu_process_seconds":2.370860553928651,"confirmatory_ready":false,"error":"child bottle4-3000 exited 1","error_type":"PilotHold","instrument_valid":null,"pilot_clean":false,"preregistration_sha256":"7668d20ad55c3a62384975a7cf1f3989dbe69bf701ce02bc9c68ac2601d0d42a","software_valid":false,"stage":"timing-replay","verdict":"execution-invalid"}

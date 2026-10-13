@@ -1,0 +1,1 @@
+{"aggregate_budget_remaining_seconds":5434.269837553147,"command":["nice","-n","19","/usr/bin/python3","-B","-m","sultai_screen.screen","train","--output","/home/john/sultai/runs/gate3-pilot-2026-10-13-linked-3/bottle2-3001","--data-root","/home/john/simic/runs/data/cifar-10-batches-py","--seed","3001","--width","2"],"gpu":1,"pid":1864081,"started_unix":1791819408.3883417}
