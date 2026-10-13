@@ -8,10 +8,10 @@ with the case for and against; a synthesizer reconciled them against source
 ([`docs/reviews/m0-capacity/j-recommendations/SYNTHESIS.md`](../reviews/m0-capacity/j-recommendations/SYNTHESIS.md)).
 John then said "ok go with the recommendations, recut the draft to v3". This
 is that recut: §12 records each decision as taken, with its source report,
-and §2 and §8 absorb the sixteen draft defects the synthesis listed. The
-freeze waits on John's acceptance of the
-[gate-ladder amendment](2026-10-13-gate-ladder-amendment.md) text and on
-J10 (merge). Written by `sultai-claude-nyx` under the
+and §2 and §8 absorb the sixteen draft defects the synthesis listed. John
+accepted the [gate-ladder amendment](2026-10-13-gate-ladder-amendment.md)
+text on 2026-10-13; the freeze (SHA pin) and J10 (merge) follow his merge
+go. Written by `sultai-claude-nyx` under the
 [steering statement](../STEERING.md). Values marked [taken] were fixed by
 John's instruction; [proposed] remain the author's; [measured] come from
 Gate 3 attempt-4 receipts; [pilot-fill] are filled by the pilot under §9.
@@ -595,7 +595,7 @@ freeze.
 | J7 | The §10 arm set; n = max(32, n*); 12 GPU-hours as a new hard-stop constant with its own supervisor instance; S-static out unless 14 h; a fixed V0 term in the projection | program-design architect; validator | |
 | J-retire | Retired as §2; mechanism is a code carve-out (P1-only workers, checks, cost projection, tests), not prose; reversal triggers recorded | shaping architect; plan-review reality | The two reports disagreed on mechanism; source settled it for the reality reading |
 | J-D02 | Principle fixed now: rung M2 starts near-empty in the sense of D02; the 0.5 host is not that start and becomes it only by John's explicit, recorded relaxation of D02; near-empty in this family means s ≤ 0.25; the number is fixed at the M2 draft. M0 records: a reserved M2 seed block, the burn rule for 6000–6005, an explicit width-tuple constructor, published frontier hashes, and that slicing is module-only | shaping architect | F(0.25) added to the extended set; flagged as the reviewer's addition |
-| J9 | The gate reading in STEERING §6 becomes a separate, dated, SHA-pinned, prospective amendment to the frozen correction protocol, bound into the M0 identity; the protocol's bytes stay untouched | J9 critic; Codex (independent model, same substance) | **The amendment is drafted; its seven gate rows await John's acceptance at the freeze.** He accepted the form, not yet the text |
+| J9 | The gate reading in STEERING §6 becomes a separate, dated, SHA-pinned, prospective amendment to the frozen correction protocol, bound into the M0 identity; the protocol's bytes stay untouched | J9 critic; Codex (independent model, same substance) | Form taken 2026-10-13; the seven-row text accepted by John the same day ("Accepted") after the v3 report |
 | J10 | Merge of the steering package to `main` | — | Pending John. Nothing in this package is durable for the repository until then |
 
 Seed blocks and the 0.5-host anchor count are the author's and live in the
@@ -604,8 +604,9 @@ implementation plan.
 ## 13. Acceptance
 
 v3 checked once more in a targeted pass against the synthesis table and
-the recut checklist, the report preserved and dispositioned; John accepts
-the gate-ladder amendment text; the file's SHA-256 pinned in the package;
+the recut checklist, the report preserved and dispositioned (done, `da2768f`);
+John accepts the gate-ladder amendment text (done, 2026-10-13); the file's
+SHA-256 pinned in the package at the freeze;
 then the implementation plan with exact-source reviews for every item in
 §2; then the pilot go.
 

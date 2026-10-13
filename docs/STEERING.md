@@ -136,8 +136,8 @@ dated, SHA-pinned, prospective
 into the M0 identity. In outline: Gate 3 is retired as not established and
 replaced by the capacity-headroom requirement read by rungs M0 and M1; Gate
 5 is next read by rung M2, never by M0's truncation contrast; Gate 7's
-predecessors are restated as M0–M3 plus gates 4 and 6. **The amendment's
-text awaits John's acceptance before the M0 freeze.**
+predecessors are restated as M0–M3 plus gates 4 and 6. **John accepted the
+amendment's text on 2026-10-13.**
 
 ## 7. Where to look
 

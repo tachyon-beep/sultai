@@ -23,7 +23,7 @@ John subsequently authorized the bounded correction PR and normal merge workflow
 - [Hybrid demo and results](docs/HYBRID_DEMO.md): learned formation, admission and actual removal.
 - [Strict contracts and local gates](docs/TYPING_CONTRACTS.md): successor hardening and ELSPETH conventions.
 - [Reviewed correction protocol](docs/plans/2026-10-09-correction-protocol.md): missing scientific controls and HTTYE gate meanings.
-- [Gate-ladder amendment 1](docs/plans/2026-10-13-gate-ladder-amendment.md): prospective restatement of gates 3–7 under the efficient-capacity objective (drafted 2026-10-13; awaiting John's acceptance).
+- [Gate-ladder amendment 1](docs/plans/2026-10-13-gate-ladder-amendment.md): prospective restatement of gates 3–7 under the efficient-capacity objective (accepted 2026-10-13).
 - [Correction evidence certificate](docs/certificates/2026-10-09-hybrid-correction.md): measured negatives and gate verdicts.
 - [Nyx confirmation handover](docs/NYX_CORRECTION_HANDOVER.md): exact source, checks, commands and stop rules.
 - [Nyx transfer recommendation](docs/plans/2026-10-09-nyx-transfer-proposal.md): distinct future experiment and unresolved owner choices.

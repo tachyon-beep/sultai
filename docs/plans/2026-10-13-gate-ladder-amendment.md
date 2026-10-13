@@ -1,8 +1,11 @@
 # Gate-ladder amendment 1 to the hybrid correction protocol (2026-10-13)
 
-**Status: drafted under John's instruction of 2026-10-13 ("ok go with the
-recommendations"); the gate mapping below awaits his acceptance before the
-M0 freeze. Until then this file authorises nothing and changes no verdict.**
+**Status: accepted by John on 2026-10-13 ("Accepted"), after the gate
+mapping below was put to him in the v3 report. It authorises no execution
+and changes no issued verdict; it restates, prospectively, what the later
+gates mean under the efficient-capacity objective.** Drafting history: drafted
+the same day under his instruction "ok go with the recommendations"; eight
+corrections from the v3 targeted re-review adopted before acceptance.
 
 Amends, prospectively, the frozen
 [hybrid correction protocol](2026-10-09-correction-protocol.md) (SHA-256
@@ -49,7 +52,8 @@ into a pass.
 
 ## Acceptance
 
-John accepts or amends the table above before the M0 freeze. On acceptance
-this file's SHA-256 is recorded in the M0 package identity, decision D27 in
+Accepted by John on 2026-10-13. This file's SHA-256 is recorded in the M0
+package identity at the freeze (M0 draft §11), decision D27 in
 [DECISIONS.md](../DECISIONS.md) points here, and [STEERING.md §6](../STEERING.md)
-carries only a link.
+carries only a link. Any later change is amendment 2 with its own date and
+hash.
