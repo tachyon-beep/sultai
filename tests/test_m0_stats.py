@@ -10,10 +10,12 @@ from pathlib import Path
 import torch
 
 from sultai.trust import ContractViolation
+from sultai_screen import contracts
 from sultai_screen.contracts import mapping
 from sultai_screen.data import generator
 from sultai_screen.fit import paired_se
 from sultai_screen.host import Host, parameter_count
+from sultai_screen.m0 import identity
 from sultai_screen.m0.stats import (
     CONFIRMATORY_ARMS,
     CORE_ARMS,
@@ -334,6 +336,8 @@ class StatsTests(unittest.TestCase):
     def test_confirmatory_count(self) -> None:
         self.assertEqual(confirmatory_count(0.0275), (32, 32))
         self.assertEqual(confirmatory_count(0.03), (39, 39))
+        # M11: the count is contracts.anchor_count, which reads Gate 3's X; it must be M0's frozen X.
+        self.assertEqual(contracts.X, identity.X)
 
     def test_reference_parameters(self) -> None:
         self.assertEqual(REFERENCE_PARAMETERS, parameter_count(Host()))

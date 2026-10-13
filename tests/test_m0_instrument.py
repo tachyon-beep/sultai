@@ -11,7 +11,7 @@ from unittest.mock import patch
 import torch
 
 from sultai_screen.contracts import InstrumentHold, PilotHold, Record, mapping
-from sultai_screen.fit import zero_adapter
+from sultai_screen.fit import Adapter, zero_adapter
 from sultai_screen.host import Cached, Features, Host, freeze
 from sultai_screen.impair import Impairment
 from sultai_screen.m0 import instrument
@@ -102,6 +102,30 @@ class InstrumentTests(unittest.TestCase):
         assert isinstance(arms, dict)
         self.assertEqual(sorted(arms), ["A1", "A2", "A3", "B3"])
         self.assertEqual(record["rho_required"], 0.8)
+
+    def test_posthoc_b3_fraction_of_a3_and_its_none_branch(self) -> None:
+        # M10: fraction = (noop - B3) / (noop - A3); mean_loss order is intact, A1, noop, B3, A2, A3.
+        host, cache = fixture()
+        for losses, expected in (((0.5, 0.5, 1.0, 0.55, 0.6, 0.5), 0.9), ((0.5, 0.5, 0.5, 0.55, 0.6, 0.6), None)):
+            with tempfile.TemporaryDirectory() as tmp, patch.object(instrument, "oracle", lambda *a, **k: FakeOracle()):
+                with patch.object(instrument, "mean_loss", side_effect=losses):
+                    record = posthoc(host, cache, 3000, Path(tmp))
+            if expected is None:
+                self.assertIsNone(record["oracle_gain_fraction_of_A3"])
+            else:
+                self.assertAlmostEqual(float(str(record["oracle_gain_fraction_of_A3"])), expected)
+            self.assertEqual(record["a1_drift"], 0.0)
+
+    def test_a1_drift_and_zero_module_identity_are_instrument_failures(self) -> None:
+        # M1 (R21): these V0 clauses publish instrument-failed, so the M0 path raises InstrumentHold.
+        host, cache = fixture()
+        with tempfile.TemporaryDirectory() as tmp, patch.object(instrument, "oracle", lambda *a, **k: FakeOracle()):
+            with patch.object(Impairment, "undo", lambda self, values: values + 0.1):
+                with self.assertRaisesRegex(InstrumentHold, "exact inverse endpoint drift"):
+                    posthoc(host, cache, 3000, Path(tmp))
+        with patch.object(Adapter, "apply", lambda adapter, read, base: base + 1e-3):
+            with self.assertRaisesRegex(InstrumentHold, "zero module is not bitwise identity"):
+                materiality(host, cache, 3000)
 
     def test_check_instrument(self) -> None:
         check_instrument(tuple(good(s) for s in SEEDS))

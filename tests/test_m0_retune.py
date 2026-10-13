@@ -333,7 +333,7 @@ class StaticTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         data = dataset()
-        cls.static, cls.hashes, cls.stream, _ = train_static(3000, data, CPU, widths=SMALL)
+        cls.static, cls.hashes, cls.stream, _, _ = train_static(3000, data, CPU, widths=SMALL)
         cls.plain_hashes, cls.plain_stream, _ = train_host(make_host(3000, 0, CPU, widths=SMALL), data, 3000)
 
     def setUp(self) -> None:

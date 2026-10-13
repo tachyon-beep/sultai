@@ -39,7 +39,18 @@ from sultai_screen.contracts import (
     text,
 )
 from sultai_screen.data import Dataset, as_tensor, install_seal, load_dataset, normalized
-from sultai_screen.fit import Adapter, Candidate, Grid, accuracy, fit_sgd, grid, logits, losses, mean_loss
+from sultai_screen.fit import (
+    Adapter,
+    Candidate,
+    Grid,
+    accuracy,
+    adapter_shapes,
+    fit_sgd,
+    grid,
+    logits,
+    losses,
+    mean_loss,
+)
 from sultai_screen.host import (
     COOLED_20,
     TCOOL,
@@ -69,7 +80,7 @@ from sultai_screen.m0.calibrate import (
 )
 from sultai_screen.m0.data import features_from_images, seen_fit
 from sultai_screen.m0.fold import fold_affine, fold_residual
-from sultai_screen.m0.identity import CHECKPOINTS, CHECKPOINTS_B, MODULE_RATES, RETUNE_RATES
+from sultai_screen.m0.identity import CHECKPOINTS, CHECKPOINTS_B, MODULE_RATES, RALL_CHECKPOINTS, RETUNE_RATES
 from sultai_screen.m0.instrument import materiality, posthoc
 from sultai_screen.m0.modules import (
     FRONTIER_WIDTHS,
@@ -120,8 +131,6 @@ ATTEMPT4_FINAL_STATE: Final[dict[int, str]] = {
 # §5: M-wide→{16, 4, 2} refit is one run at the selected M-wide rate for 800 steps, not the grid.
 SURVIVAL_REFIT_STEPS: Final = 800
 SURVIVAL_CUTS: Final = (16, 4, 2)
-# §4: R-all runs to 800 steps only, with a selection checkpoint every 40 steps.
-RALL_CHECKPOINTS: Final = tuple(range(40, 801, 40))
 WIDE: Final = 64
 SMALL: Final = 8
 ACCEPTANCE_TOLERANCE: Final = 1e-6
@@ -155,6 +164,14 @@ TCOOL_ARMS: Final = frozenset(("T-cool", "M-sq|T-cool"))
 STATIC_ARMS: Final = frozenset(("S-static", "S-static:refit"))
 RETUNE_ARMS: Final = ("R-272s", "R-aff", "R-all")
 RETUNE_DEFAULT: Final = ("R-272s", "R-aff")
+# Ruling R25: every module form the arms fit, as (hidden, nonlinear, expanded) for fit.adapter_shapes.
+ZERO_MODULE_KINDS: Final[dict[str, tuple[int | None, bool, bool]]] = {
+    "affine": (None, False, False),
+    "nonlinear": (None, True, False),
+    "expanded": (None, True, True),
+    "hidden-64": (WIDE, True, False),
+    "hidden-8": (SMALL, True, False),
+}
 
 
 @dataclass(frozen=True)
@@ -341,6 +358,7 @@ def train_action(request: Request, data: Dataset, device: torch.device) -> Recor
     if request.action == "cooled20" and not cooled:
         raise PilotHold("cooled20 trains the cooled-20 lineage only")
     host = make_host(request.seed, 0, device, widths=request.widths)
+    initial = state_hash(host)
     forward_backward = _probe(request.seed, data, request.widths)
     optimizer = recipe_optimizer(host.parameters())
     hashes, stream, elapsed = train_epochs(
@@ -362,6 +380,7 @@ def train_action(request: Request, data: Dataset, device: torch.device) -> Recor
         "epochs": epochs,
         "schedule": "cooled-20" if cooled else "constant-0.05",
         "steps": len(stream),
+        "initial_state_sha256": initial,
         "epoch_state_sha256": _texts(hashes),
         "loss_stream_sha256": stream_sha,
         "checkpoint_sha256": file_sha(output / "host.pt"),
@@ -432,7 +451,7 @@ def tcool_action(request: Request, data: Dataset, device: torch.device) -> Recor
 
 def static_action(request: Request, data: Dataset, device: torch.device) -> Record:
     """S-static: the anchor's seed trained with the 16x16 module present from step zero (Task 11)."""
-    static, hashes, stream, elapsed = train_static(request.seed, data, device, request.widths)
+    static, hashes, stream, elapsed, initial = train_static(request.seed, data, device, request.widths)
     record = save_static(static, request.output)
     stream_sha = _stream(request.output, stream)
     return {
@@ -440,6 +459,8 @@ def static_action(request: Request, data: Dataset, device: torch.device) -> Reco
         "epochs": 10,
         "schedule": "constant-0.05",
         "steps": len(stream),
+        # M8: the inner host's step-zero state, for the pilot to compare with the anchor's make_host state.
+        "initial_state_sha256": initial,
         "epoch_state_sha256": _texts(hashes),
         "loss_stream_sha256": stream_sha,
         "checkpoint_sha256": file_sha(request.output / "host.pt"),
@@ -477,6 +498,18 @@ def _calibrated_loss(values: Tensor, labels: Tensor) -> float:
     return float(F.cross_entropy(values, labels, reduction="none").double().mean())
 
 
+def zero_module_identity(host: Host, development: Features) -> dict[str, bool]:
+    """R25 (§3, §7 V0): at zero weights every module form is bitwise identity with the host on development."""
+    device = development.read.device
+    baseline = losses(host, development, None)
+    flags: dict[str, bool] = {}
+    for kind, (hidden, nonlinear, expanded) in ZERO_MODULE_KINDS.items():
+        shapes = adapter_shapes(hidden=hidden, nonlinear=nonlinear, expanded=expanded)
+        zero = Adapter(tuple(torch.zeros(shape, device=device) for shape in shapes), nonlinear)
+        flags[kind] = torch.equal(baseline, losses(host, development, zero, check_finite=False))
+    return flags
+
+
 def noop_action(request: Request, data: Dataset, device: torch.device) -> Record:
     """N0 (raw versus R-bn on selection), R-temp and R-cal fitted on the fit examples; never a development number."""
     raw, _ = _request_training(request, device, frozen=True)
@@ -491,6 +524,7 @@ def noop_action(request: Request, data: Dataset, device: torch.device) -> Record
     t_cal, bias = class_bias(fit_logits, fit.labels)
     selection = features_from_images(chosen, data, data.selection)
     selection_logits = logits(chosen, selection, None)
+    identity = zero_module_identity(chosen, features_from_images(chosen, data, data.development))
     return {
         **_identity(request),
         "noop_choice": label,
@@ -504,6 +538,8 @@ def noop_action(request: Request, data: Dataset, device: torch.device) -> Record
         "rtemp_selection_loss": _calibrated_loss(selection_logits / t, selection.labels),
         "rcal_selection_loss": _calibrated_loss(apply_calibration(selection_logits, t_cal, bias), selection.labels),
         "fit_examples": len(fit_ids),
+        # Flags only: the development losses compared are never published (R25).
+        "zero_module_identity": dict(identity),
     }
 
 
@@ -531,6 +567,18 @@ def _mean(values: Tensor) -> float:
 
 def _optional_mean(values: Tensor) -> float | None:
     return _mean(values) if bool(torch.isfinite(values).all()) else None
+
+
+def _booking(candidates: tuple[Candidate, ...]) -> Record:
+    """M5 (§4 booking): the arm's whole runs, i.e. its final-checkpoint candidates, which carry each run's cumulative
+    example passes and parameter-steps and its wall (fit.grid books a run's wall once, there)."""
+    last = max(candidate.steps for candidate in candidates)
+    final = [candidate for candidate in candidates if candidate.steps == last]
+    return {
+        "example_passes": sum(candidate.example_passes for candidate in final),
+        "parameter_steps": sum(candidate.parameter_steps for candidate in final),
+        "wall_seconds": sum(candidate.wall_seconds for candidate in final),
+    }
 
 
 class Collector:
@@ -611,6 +659,7 @@ class Collector:
             "retained_parameters": chosen.count(),
             "report": fit.report(),
             "harm_inventory": _harm(host, development, fit.candidates),
+            "booking": _booking(fit.candidates),
         }
         return self.put(name, losses(host, development, chosen), accuracy(host, development, chosen), record)
 
@@ -628,6 +677,7 @@ class Collector:
             "retained_parameters": run.adapter.count(),
             "report": {"best": run.report(), "candidates": [run.report()]},
             "harm_inventory": _harm(host, development, (run,)),
+            "booking": _booking((run,)),
         }
         return self.put(name, losses(host, development, run.adapter), accuracy(host, development, run.adapter), record)
 
@@ -947,6 +997,11 @@ def _retune_record(fit: RetuneGrid, subset: Subset, source: Host, evaluate: Call
         "parameter_steps": sum(run.parameter_steps for run in runs),
         "example_passes": sum(run.example_passes for run in runs),
         "wall_seconds": sum(candidate.wall_seconds for candidate in fit.candidates),
+        "booking": {
+            "example_passes": sum(run.example_passes for run in runs),
+            "parameter_steps": sum(run.parameter_steps for run in runs),
+            "wall_seconds": sum(candidate.wall_seconds for candidate in fit.candidates),
+        },
         "report": fit.report(),
         "harm_inventory": _retune_harm(fit.candidates, evaluate),
     }
@@ -1072,8 +1127,9 @@ def timing_action(request: Request, data: Dataset, device: torch.device) -> Reco
     _sync(device)
     front_seconds = time.monotonic() - started
     steps = len(RETUNE_RATES) * request.checkpoints[-1]
+    # One development evaluation of a new host (R23): its features from images, then the shared evaluator.
     started = time.monotonic()
-    _ = mean_loss(host, cache.development, None)
+    _ = mean_loss(host, features_from_images(host, data, data.development), None)
     _sync(device)
     return {
         **_identity(request),

@@ -15,11 +15,15 @@ from sultai_screen.contracts import PILOT_SECONDS, PilotHold, read_record
 from sultai_screen.m0.costs import (
     ARM_UNITS,
     EXTENDED_ORDER,
+    EXTENDED_RESERVE,
+    R_ALL_EVALUATIONS,
     STAGE_WORKLOADS,
     Workloads,
     admit_extended,
     core_over_ceiling,
     extended_cost,
+    extended_limit,
+    measured_confirmatory,
     per_anchor,
     project_confirmatory,
     project_pilot,
@@ -51,6 +55,7 @@ def workloads() -> Workloads:
         fold_and_calibrations=30.0,
         evaluation=0.5,
         fixed_v0=1500.0,
+        noop_evaluate={0.5: 40.0, 1.0: 45.0, 1.5: 50.0},
     )
 
 
@@ -265,8 +270,9 @@ class SupervisionTests(unittest.TestCase):
             with_static(32, w, CONFIRMATORY_ARMS | {"S-static"}, 1500)
 
     def test_pilot_projection_is_charged_plus_remaining(self) -> None:
-        # Two remaining stages of 1,000 s each: the fixed V0 stage and the F(0.25) frontier item (6 x (host + eval)).
-        w = dataclasses.replace(workloads(), fixed_v0=1000.0, host={0.25: 1000.0 / 6 - 0.5, 1.0: 45.0})
+        # Two remaining stages of 1,000 s each: the fixed V0 stage and the F(0.25) frontier item (6 x (host + its
+        # noop and evaluate children, measured at the 0.5 width)).
+        w = dataclasses.replace(workloads(), fixed_v0=1000.0, host={0.25: 1000.0 / 6 - 40.0, 1.0: 45.0})
         record = project_pilot(3000.0, ("V0", "F(0.25)"), w)
         self.assertAlmostEqual(record["projected_gpu_process_seconds"], 5000.0, places=9)
         self.assertEqual(record["charged"], 3000.0)
@@ -286,22 +292,41 @@ class SupervisionTests(unittest.TestCase):
         # The starved pair runs on the six 0.5 hosts already trained in stage 3: no host term (R9).
         self.assertEqual(extended_cost("starved-pair", w), 6 * (25 + 60 + 100 + 60 + 30))
         self.assertEqual(extended_cost("starved-pair", dataclasses.replace(w, host={1.0: 45.0})), 1_650.0)
-        # R-all: 5 rates x 800 steps = 4 front re-run units per anchor, on six anchors (R9).
-        self.assertEqual(extended_cost("R-all", w), 6 * 4 * 15.625)
-        self.assertEqual(extended_cost("F(0.25)", w), 6 * (20 + 0.5))
-        # 2,000 s margin: the starved pair (1,650) fits; R-all (375) misses; F(0.25) (123) would still fit but is
-        # never reached, because admission stops at the first item that does not fit.
-        self.assertEqual(admit_extended(3_000.0, 9_400.0, w, 14_400.0), ["starved-pair"])
-        # The first item itself misses: nothing is admitted although later items are cheap enough.
-        self.assertEqual(admit_extended(3_000.0, 10_400.0, w, 14_400.0), [])
+        # R-all by its own terms (R23): 5 rates x 800 steps = 4 front re-run units, plus its 100 from-images
+        # evaluations (5 rates x 20 checkpoints) at the measured development-evaluation kernel, on six anchors.
+        self.assertEqual(R_ALL_EVALUATIONS, 100)
+        self.assertEqual(extended_cost("R-all", w), 6 * (4 * 15.625 + 100 * 0.5))
+        # Host items are whole children (R23): the train child plus the noop and evaluate children of its kind.
+        self.assertEqual(extended_cost("F(0.25)", w), 6 * (20.0 + 40.0))
+        self.assertEqual(extended_cost("cooled-20", w), 6 * (2 * 45.0 + 45.0))
+        # The 5 % reserve (R23): admission fills to 0.95 x ceiling, never to the ceiling.
+        self.assertEqual(EXTENDED_RESERVE, 0.05)
+        self.assertEqual(extended_limit(14_400.0), 13_680.0)
+        # 2,180 s under the limit: the starved pair (1,650) fits; R-all (675) misses; F(0.25) (360) would still fit but
+        # is never reached, because admission stops at the first item that does not fit.
+        self.assertEqual(admit_extended(3_000.0, 8_500.0, w, 14_400.0), ["starved-pair"])
+        # The starved pair fits under the ceiling (14,050) but not under the reserve: nothing is admitted.
+        self.assertEqual(admit_extended(3_000.0, 9_400.0, w, 14_400.0), [])
         self.assertEqual(admit_extended(0.0, 0.0, w, 1e9), list(EXTENDED_ORDER))
 
     def test_unmeasured_frontier_widths_are_costed_at_the_measured_half_width_host(self) -> None:
         # By stage 4 only the 0.5, 1.0 and 1.5 hosts have been measured; F(0.25) and F(0.75) run only after admission.
         w = dataclasses.replace(workloads(), host={0.5: 35.0, 1.0: 45.0, 1.5: 85.0})
-        self.assertEqual(extended_cost("F(0.75)", w), 6 * (35.0 + 0.5))
-        self.assertEqual(extended_cost("F(0.25)", w), 6 * (35.0 + 0.5))
+        self.assertEqual(extended_cost("F(0.75)", w), 6 * (35.0 + 40.0))
+        self.assertEqual(extended_cost("F(0.25)", w), 6 * (35.0 + 40.0))
         self.assertEqual(admit_extended(0.0, 0.0, w, 1e9), list(EXTENDED_ORDER))
+        with self.assertRaises(ContractViolation):
+            extended_cost("cooled-20", dataclasses.replace(w, noop_evaluate={0.5: 40.0}))
+
+    def test_measured_confirmatory_projection_is_fixed_plus_n_times_the_measured_anchor(self) -> None:
+        record = measured_confirmatory(33, 1_100.0, 700.0, 43_200)
+        self.assertEqual(record["projected_gpu_process_seconds"], 700.0 + 33 * 1_100.0)
+        self.assertIs(record["within_ceiling"], True)
+        self.assertIs(measured_confirmatory(40, 1_100.0, 700.0, 43_200)["within_ceiling"], False)
+        with self.assertRaises(ContractViolation):
+            measured_confirmatory(31, 1_100.0, 700.0, 43_200)
+        with self.assertRaises(ContractViolation):
+            measured_confirmatory(32, 0.0, 700.0, 43_200)
 
     def test_core_over_ceiling_stops_before_v1(self) -> None:
         self.assertFalse(core_over_ceiling(5_000.0, 9_400.0, 14_400.0))

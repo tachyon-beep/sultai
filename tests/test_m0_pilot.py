@@ -21,7 +21,16 @@ import torch
 from torch import Tensor
 
 from sultai.trust import InputDataError
-from sultai_screen.contracts import FeasibilityHold, InstrumentHold, Json, PilotHold, Record, file_sha, read_record
+from sultai_screen.contracts import (
+    FeasibilityHold,
+    InstrumentHold,
+    Json,
+    PilotHold,
+    Record,
+    file_sha,
+    mapping,
+    read_record,
+)
 from sultai_screen.m0 import pilot as m0_pilot
 from sultai_screen.m0.confirmatory import CUSTODY as CONFIRMATORY_CUSTODY
 from sultai_screen.m0.confirmatory import RESTART_CUSTODY, Guarded, confirmatory, whitelist
@@ -31,6 +40,7 @@ from sultai_screen.m0.costs import (
     STATIC_ARMS,
     Workloads,
     extended_cost,
+    extended_limit,
     stage_seconds,
 )
 from sultai_screen.m0.identity import (
@@ -42,6 +52,7 @@ from sultai_screen.m0.identity import (
 )
 from sultai_screen.m0.modules import FRONTIER_WIDTHS
 from sultai_screen.m0.pilot import (
+    ANCHORS,
     CUSTODY,
     admission,
     already_run,
@@ -51,11 +62,12 @@ from sultai_screen.m0.pilot import (
     m0_stop_report,
     pilot,
     slicing_known_answer,
+    spreads,
 )
-from sultai_screen.m0.receipts import Source, anchor, arm_vectors, derive_workloads, workloads_record
-from sultai_screen.m0.stats import CONFIRMATORY_ARMS, KNOWN_ARMS, PILOT_ARMS
-from sultai_screen.m0.worker import ATTEMPT4_FINAL_STATE
-from sultai_screen.pilot import GPU_UUIDS, Supervisor
+from sultai_screen.m0.receipts import Source, anchor, arm_vectors, derive_workloads, receipt, workloads_record
+from sultai_screen.m0.stats import CONFIRMATORY_ARMS, KNOWN_ARMS, PILOT_ARMS, quantities
+from sultai_screen.m0.worker import ATTEMPT4_FINAL_STATE, ZERO_MODULE_KINDS
+from sultai_screen.pilot import GPU_UUIDS, Job, Supervisor
 
 REAL_POPEN = subprocess.Popen
 SRC = Path(__file__).resolve().parents[1] / "src"
@@ -125,6 +137,19 @@ def arm_record(
         if sliced:
             record["unfolded_development_loss"] = float(loss.double().mean()) + 0.001
             vectors["unfolded_loss"] = loss + 0.001
+    # The real modules' sizes, so the §4 parameter-step disclosure (M5) reproduces 23.1 M against 5.4 M.
+    if arm == "M-wide":
+        record["retained_parameters"] = 33 * 64 + 16
+    if arm in ("M-small", "M-small-B"):
+        record["retained_parameters"] = 33 * 8 + 16
+    if arm not in FIXED_ARMS and not sliced:
+        # M5: final-checkpoint booking of the arm's three runs (module grids 3 x 3,200 steps; M-small-B 3 x 6,400).
+        steps = 3 * (6400 if arm == "M-small-B" else 3200)
+        record["booking"] = {
+            "example_passes": 250 * steps,
+            "parameter_steps": int(str(record["retained_parameters"])) * steps,
+            "wall_seconds": 1.0,
+        }
     if arm in RETUNE:
         record.update(retained_parameters=0, complement_sha256="c" * 64, complement_unchanged=True)
     if arm == "M-aff":
@@ -155,6 +180,8 @@ class FakeCluster:
         self.fold_mismatch = scenario.pop("fold_mismatch", False)
         self.acceptance_failed = scenario.pop("acceptance_failed", frozenset())
         self.boost = scenario.pop("boost", {})
+        self.zero_identity_failed = scenario.pop("zero_identity_failed", frozenset())
+        self.static_step0_mismatch = scenario.pop("static_step0_mismatch", frozenset())
         if scenario:
             raise AssertionError(f"unknown scenario keys {sorted(scenario)}")
         self.launched: list[tuple[str, str, str, dict[str, str], str]] = []
@@ -207,6 +234,7 @@ class FakeCluster:
                 **write_files(output, {**files, "loss-stream.bin": "loss_stream_sha256"}, seed),
                 "epochs": 20 if action == "cooled20" else 10,
                 "final_state_sha256": state,
+                "initial_state_sha256": f"init-{scale}-{seed}",
                 "epoch_state_sha256": [f"epoch-{seed}"],
                 "forward_backward": {"output_sha256": f"fb-{seed}"},
                 "parameters": PARAMETERS[scale],
@@ -231,13 +259,16 @@ class FakeCluster:
             posthoc = {
                 "seed": seed,
                 "noop_loss": 1.0,
+                "a1_drift": 0.0,
                 "arm_losses": {"A1": 0.8, "A2": 0.82, "A3": 0.805, "B3": 0.81},
                 "oracle_gain_fraction_of_A3": 0.95,
             }
             rungs = {"0.1": 0.2, "0.3": 0.3, "0.03": 0.06}
             return {**base, "materiality": {"seed": seed, "rungs": {"P1": rungs}}, "posthoc": posthoc}
         if action == "noop":
-            return {**base, "noop_choice": "raw", "noop_sha256": f"noop-{seed}"}
+            failed = seed in self.zero_identity_failed
+            identity = {kind: not (failed and kind == "hidden-8") for kind in ZERO_MODULE_KINDS}
+            return {**base, "noop_choice": "raw", "noop_sha256": f"noop-{seed}", "zero_module_identity": identity}
         if action == "tcool":
             source = read_record(Path(flags["--training-root"]) / "result.json")["payload"]
             files = write_files(output, {"host.pt": "checkpoint_sha256", "loss-stream.bin": "loss_stream_sha256"}, seed)
@@ -251,7 +282,8 @@ class FakeCluster:
         if action == "static":
             files = {"host.pt": "checkpoint_sha256", "static-module.pt": "module_sha256"}
             written = write_files(output, {**files, "loss-stream.bin": "loss_stream_sha256"}, seed)
-            return {**base, **written, "static_sha256": f"static-{seed}"}
+            initial = "0" * 64 if seed in self.static_step0_mismatch else f"init-{scale}-{seed}"
+            return {**base, **written, "static_sha256": f"static-{seed}", "initial_state_sha256": initial}
         if action in ("modules", "retune"):
             n0 = noop_loss(seed, scale)
             records: Record = {}
@@ -303,7 +335,12 @@ class PilotRunTests(unittest.TestCase):
         self.certificate = self.base / "certificate.json"
         self.certificate.write_text("{}")
 
-    def launch(self, root_name: str = "run", **scenario: object) -> tuple[int, Path, FakeCluster, list[str]]:
+    def launch(
+        self, root_name: str = "run", *, bumps: dict[str, float] | None = None, item_cost: float | None = None,
+        **scenario: object,
+    ) -> tuple[int, Path, FakeCluster, list[str]]:  # fmt: skip
+        """`bumps` raises the measured charge to a value just before the named job's batch runs (fake children charge
+        milliseconds); `item_cost` replaces the run-time cost of the extended host items (stage 4 is unchanged)."""
         cluster = FakeCluster(self.repo, **scenario)
         published: list[str] = []
         real_publish = m0_pilot.publish
@@ -311,6 +348,19 @@ class PilotRunTests(unittest.TestCase):
         def record(path: Path, value: Json) -> None:
             published.append(path.name)
             real_publish(path, value)
+
+        raised = {} if bumps is None else bumps
+
+        class Bumping(Supervisor):
+            def run(self, jobs: tuple[Job, ...]) -> None:
+                for item in jobs:
+                    if item.name in raised:
+                        self.charged = max(self.charged, raised[item.name])
+                super().run(jobs)
+
+        def runtime_cost(item: str, w: Workloads) -> float:
+            hosts = item in ("cooled-20", "F(0.25)", "F(0.75)")
+            return item_cost if hosts and item_cost is not None else extended_cost(item, w)
 
         root = self.base / root_name
         with (
@@ -320,6 +370,8 @@ class PilotRunTests(unittest.TestCase):
             patch("sultai_screen.m0.pilot.environment_identity", return_value={"torch": "fake"}),
             patch("sultai_screen.m0.pilot.check_cards", return_value={"gpu_query": "fake"}),
             patch("sultai_screen.m0.pilot.publish", side_effect=record),
+            patch("sultai_screen.m0.pilot.Supervisor", Bumping),
+            patch("sultai_screen.m0.pilot.extended_cost", side_effect=runtime_cost),
         ):
             code = pilot(root, self.base / "data", self.certificate)
         return code, root, cluster, published
@@ -400,6 +452,63 @@ class PilotRunTests(unittest.TestCase):
         self.assertTrue(medians["development_only"])
         self.assertIsNone(medians["confirmatory_verdict"])
         self.assertIn("D1", medians["medians"])
+        self.assertEqual(set(medians["headline"]), {"frontier_fraction", "frontier_slope"})
+        self.assertIn("bootstrap", medians["headline"]["frontier_fraction"])
+        self.assertIn("plug-in", medians["headline"]["frontier_slope"])
+        # R26: two timing children, one per card. R24: every anchor-bound child runs on its anchor's card.
+        timing = sorted((name, gpu) for name, action, gpu, _, _ in cluster.launched if action == "timing")
+        self.assertEqual(timing, [("timing-0", "0"), ("timing-1", "1")])
+        for name, _, gpu, flags, _ in cluster.launched:
+            if flags["--lineage"] == "anchor" and not name.startswith(("replay-3000-gpu", "acceptance-", "timing-")):
+                self.assertEqual(gpu, str(ANCHORS.index(int(flags["--seed"])) % 2), name)
+        # M3, R25, M8: the recorded stage 1-3 V0 flags, never literals.
+        instrument = read_record(root / "02-instrument.json")
+        self.assertEqual(set(instrument["zero_module_identity_flags"]), {str(seed) for seed in ANCHORS})
+        self.assertTrue(all(all(flags.values()) for flags in instrument["zero_module_identity_flags"].values()))
+        self.assertIs(instrument["b3_fraction_every_anchor"], True)
+        hosts = read_record(root / "03-hosts.json")
+        self.assertTrue(all(entry["matches"] for entry in hosts["static_step0"].values()))
+        self.assertEqual(hosts["static_step0"]["3000"]["anchor"], "init-1.0-3000")
+        self.assertTrue(all(spreads["v0_recorded"].values()))
+        # M5: §4's parameter-step disclosure of the two D2 routes, 23.1 M against 5.4 M per anchor.
+        ratio = spreads["d2_parameter_step_ratio"]
+        self.assertAlmostEqual(ratio["median"], (2128 + 280) * 9600 / (280 * 19200))
+        self.assertEqual(spreads["anchors"][0]["harm_baseline"]["M-sq|T-cool"], "baseline: anchor N0")
+        # R23: the reserve at stage 4; every extended item re-projected and run.
+        self.assertEqual(admitted["extended_reserve_fraction"], 0.05)
+        self.assertEqual(admitted["extended_limit_gpu_process_seconds"], extended_limit(M0_PILOT_SECONDS))
+        extended = read_record(root / "05-extended.json")
+        self.assertEqual(extended["completed"], ["starved-pair", "cooled-20", "F(0.25)", "F(0.75)"])
+        self.assertEqual((extended["not_admitted_at_runtime"], extended["extended_truncated"]), ([], False))
+        # I3 and M7: the measured projection beside the kernel one, the larger deciding; the fixed term is what the
+        # confirmatory re-runs (replays, acceptance, fold-check), read from the ledger.
+        entries = {e["job"]: e["charged_gpu_process_seconds"] for e in read_record(ledgers[-1])["entries"]}
+        # R23: an extended host item costs its three whole stage-3 children (train, noop, evaluate maxima).
+        half = range(6000, 6006)
+        three = sum(max(entries[f"{kind}-{seed}"] for seed in half) for kind in ("frontier-0.5", "noop", "evaluate"))
+        self.assertAlmostEqual(workload["host"]["0.5"] + workload["noop_evaluate"]["0.5"], three)
+        measured = count["measured_charges"]
+        replays = ["replay-3000-gpu0", "replay-3000-gpu1", *(f"replay-{seed}" for seed in ANCHORS[1:])]
+        self.assertEqual(measured["fixed_v0_children"], [*replays, "acceptance-0", "acceptance-1", "fold-check-3000"])
+        fixed = sum(entries[name] for name in measured["fixed_v0_children"])
+        self.assertAlmostEqual(measured["fixed_v0_gpu_process_seconds"], fixed)
+        self.assertAlmostEqual(count["projection"]["fixed_v0_gpu_process_seconds"], fixed)
+        children = ["replay-3000-gpu0", "noop-3000", "maff-3000", "tcool-3000", "modules-3000", "retune-3000"]
+        self.assertAlmostEqual(measured["per_anchor"]["3000"], sum(entries[name] for name in children))
+        larger = max(
+            count["projection"]["projected_gpu_process_seconds"],
+            count["measured_projection"]["projected_gpu_process_seconds"],
+        )
+        self.assertEqual(count["projected_gpu_process_seconds"], larger)
+        self.assertEqual(count["within_ceiling"], larger <= M0_CONFIRMATORY_SECONDS)
+        # R27, I3: the pilot result binds its source and carries both projections to the confirmatory.
+        self.assertEqual(result["implementation_source_sha256"], IDENTITY["source_sha256"])
+        self.assertEqual(result["implementation_commit"], IDENTITY["commit"])
+        self.assertIs(result["extended_truncated"], False)
+        carried = result["confirmatory_projection"]
+        self.assertEqual(carried["projected_gpu_process_seconds"], larger)
+        self.assertEqual(carried["fixed_v0_gpu_process_seconds"], measured["fixed_v0_gpu_process_seconds"])
+        self.assertEqual(carried["per_anchor_gpu_process_seconds"], max(measured["per_anchor"].values()))
 
     def test_raised_axis_doubles_both_axes_in_one_receipt_and_reruns_maff(self) -> None:
         code, root, cluster, _ = self.launch(uncertified=frozenset((3000, 3001)))
@@ -421,6 +530,72 @@ class PilotRunTests(unittest.TestCase):
         self.assertEqual(admitted["already_run"]["M-aff"], {"names": [], "seconds": 0.0})
         k = 10.0 / 9600
         self.assertAlmostEqual(admitted["workloads"]["grid"]["module"], k * 9600 * 2)
+
+    def test_a_false_zero_module_flag_holds_at_stage_two_before_any_maff_grid(self) -> None:
+        code, root, cluster, _ = self.launch(zero_identity_failed=frozenset((3002,)))
+        self.assertEqual(code, 2)
+        result = self.assert_stop(root, "instrument", "instrument-failed")
+        self.assertIn("zero-module identity", result["error"])
+        self.assertIn("3002:hidden-8", result["error"])
+        self.assertEqual(result["implementation_source_sha256"], IDENTITY["source_sha256"])
+        self.assertFalse(any(name.startswith("maff-") for name in cluster.names()))
+
+    def test_a_static_step_zero_state_other_than_the_anchors_holds_at_stage_three(self) -> None:
+        code, root, cluster, _ = self.launch(static_step0_mismatch=frozenset((3004,)))
+        self.assertEqual(code, 2)
+        result = self.assert_stop(root, "hosts", "instrument-failed")
+        self.assertIn("step 0", result["error"])
+        self.assertIn("3004", result["error"])
+        self.assertFalse((root / "03-hosts.json").exists())
+        self.assertFalse(any(name.startswith("modules-") for name in cluster.names()))
+
+    def test_runtime_reprojection_stops_at_the_first_extended_item_that_no_longer_fits(self) -> None:
+        # Stage 4 admits every item; the starved pair runs; the measured charge has then grown so that cooled-20,
+        # costed 1,000 s at run time, no longer fits under the reserve. The pilot stays clean (R23).
+        limit = extended_limit(M0_PILOT_SECONDS)
+        code, root, cluster, published = self.launch(bumps={"starved-6000": limit - 500.0}, item_cost=1000.0)
+        self.assertEqual(code, 0, read_record(root / "pilot-result.json"))
+        self.assertEqual([name for name in published if name in RECEIPTS], list(RECEIPTS))
+        self.assertEqual(read_record(root / "04-admission.json")["admitted_extended"], list(EXTENDED_ORDER))
+        extended = read_record(root / "05-extended.json")
+        self.assertEqual(extended["completed"], ["starved-pair"])
+        refused = extended["not_admitted_at_runtime"]
+        self.assertEqual([entry["item"] for entry in refused], ["cooled-20", "F(0.25)", "F(0.75)"])
+        projection = refused[0]["projection"]
+        self.assertEqual(projection["item_gpu_process_seconds"], 1000.0)
+        self.assertGreaterEqual(projection["charged_gpu_process_seconds"], limit - 500.0)
+        self.assertGreater(projection["projected_gpu_process_seconds"], projection["limit_gpu_process_seconds"])
+        self.assertEqual(projection["limit_gpu_process_seconds"], limit)
+        self.assertNotIn("projection", refused[1])
+        self.assertIs(extended["extended_truncated"], False)
+        hosts = ("cooled-20-", "frontier-0.25-", "frontier-0.75-")
+        self.assertFalse(any(name.startswith(hosts) for name in cluster.names()))
+        self.assertIs(read_record(root / "pilot-result.json")["pilot_clean"], True)
+
+    def test_a_ceiling_stop_inside_an_extended_item_truncates_the_set_and_the_pilot_stays_clean(self) -> None:
+        # The F(0.75) item is admitted at run time, then the Supervisor's own cap check stops its first batch.
+        code, root, cluster, published = self.launch(bumps={"frontier-0.75-6006": M0_PILOT_SECONDS - 5.0})
+        self.assertEqual(code, 0, read_record(root / "pilot-result.json"))
+        self.assertEqual([name for name in published if name in RECEIPTS], list(RECEIPTS))
+        extended = read_record(root / "05-extended.json")
+        self.assertIs(extended["extended_truncated"], True)
+        self.assertEqual(extended["completed"], ["starved-pair", "cooled-20", "F(0.25)"])
+        truncated = extended["truncated"]
+        self.assertEqual((truncated["item"], truncated["completed"]), ("F(0.75)", False))
+        self.assertEqual(truncated["error"], "aggregate pilot GPU-hour cap exhausted")
+        self.assertNotIn("frontier-0.75-6006", cluster.names())
+        result = read_record(root / "pilot-result.json")
+        self.assertIs(result["pilot_clean"], True)
+        self.assertIs(result["extended_truncated"], True)
+        self.assertTrue((root / "06-confirmatory-count.json").is_file())
+        self.assertTrue((root / "07-development-medians.json").is_file())
+
+    def test_only_the_supervisors_ceiling_stops_are_caught_in_the_extended_stage(self) -> None:
+        for message in m0_pilot.CEILING_STOPS:
+            self.assertTrue(m0_pilot.ceiling_stop(PilotHold(message)), message)
+        self.assertFalse(m0_pilot.ceiling_stop(PilotHold("child cooled-20-6018 exited 1")))
+        self.assertFalse(m0_pilot.ceiling_stop(InstrumentHold("aggregate GPU-hour timeout")))
+        self.assertFalse(m0_pilot.ceiling_stop(FeasibilityHold("aggregate GPU-hour timeout")))
 
     def test_replay_mismatch_holds_at_stage_one(self) -> None:
         code, root, cluster, _ = self.launch(replay_mismatch=frozenset(("replay-3000-gpu1",)))
@@ -540,6 +715,7 @@ def workloads() -> Workloads:
         fold_and_calibrations=30.0,
         evaluation=0.5,
         fixed_v0=1500.0,
+        noop_evaluate={0.5: 40.0, 1.0: 45.0, 1.5: 50.0},
     )
 
 
@@ -551,6 +727,7 @@ class AdmissionTests(unittest.TestCase):
         self.assertEqual(done["N0"]["seconds"], 6 * w.fold_and_calibrations)
         self.assertEqual(done["M-aff"]["seconds"], 6 * w.grid["aff"])
         record = admission(charged, w, M0_PILOT_SECONDS, done["seconds"])
+        self.assertEqual(record["extended_limit_gpu_process_seconds"], 0.95 * M0_PILOT_SECONDS)
         projection = record["projection"]
         lines = projection["remaining_lines"]
         admitted = record["admitted_extended"]
@@ -566,7 +743,7 @@ class AdmissionTests(unittest.TestCase):
         raised = already_run(w, raised=True)
         self.assertEqual(raised["M-aff"], {"names": [], "seconds": 0.0})
         self.assertAlmostEqual(raised["remaining_core_seconds"] - remaining_core, 6 * w.grid["aff"])
-        self.assertLessEqual(expected, M0_PILOT_SECONDS)
+        self.assertLessEqual(expected, extended_limit(M0_PILOT_SECONDS))
         self.assertEqual(admitted, list(EXTENDED_ORDER[: len(admitted)]))
         over = admission(M0_PILOT_SECONDS - 1.0, w, M0_PILOT_SECONDS, done["seconds"])
         self.assertTrue(over["core_over_ceiling"])
@@ -587,8 +764,14 @@ class AdmissionTests(unittest.TestCase):
             "static": (50.0,),
             "aff": (90.0, 100.0),
             "fold_and_calibrations": (30.0,),
+            "noop:0.5": (5.0, 6.0),
+            "noop:1.5": (7.0,),
+            "evaluate:0.5": (3.0,),
+            "evaluate:1.5": (4.0, 4.5),
         }
         w, sources = derive_workloads(timing, charges, fixed_v0=1200.0, ratio=1.0)
+        # R23: a host item's noop and evaluate children; width 1.0 pairs the anchors' noop with the larger evaluate.
+        self.assertEqual(w.noop_evaluate, {0.5: 9.0, 1.0: 34.5, 1.5: 11.5})
         self.assertEqual(w.host, {0.5: 35.0, 1.0: 45.0, 1.5: 85.0})
         self.assertAlmostEqual(w.grid["module"], 60.0)
         self.assertAlmostEqual(w.grid["module-B"], 120.0)
@@ -620,6 +803,50 @@ def anchor_sources(seed: int, arms: frozenset[str]) -> tuple[dict[str, Record], 
 
 
 class ReceiptTests(unittest.TestCase):
+    def test_a_receipt_of_another_implementation_source_is_refused(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "noop-3000").mkdir()
+            envelope = {
+                "action": "noop",
+                "software_valid": True,
+                "identity": {"physical_gpu": "0", **IDENTITY},
+                "payload": {"seed": 3000, "lineage": "anchor"},
+            }
+            (root / "noop-3000/result.json").write_text(json.dumps(envelope))
+            certified = str(IDENTITY["source_sha256"])
+            self.assertEqual(receipt(root, "noop-3000", "noop", 3000, "anchor", certified)["seed"], 3000)
+            with self.assertRaisesRegex(PilotHold, "another implementation source"):
+                receipt(root, "noop-3000", "noop", 3000, "anchor", "2" * 64)
+
+    def test_a_recorded_false_v0_flag_fails_v0_at_aggregation(self) -> None:
+        anchors = []
+        for seed in ANCHORS:
+            records, vectors = anchor_sources(seed, PILOT_ARMS)
+            anchors.append(anchor(seed, (source(f"modules-{seed}", seed, records, vectors),), PILOT_ARMS))
+        computed = [quantities(item.result, PILOT_ARMS) for item in anchors]
+        recorded: Record = {
+            "both_cards_bitwise": True,
+            "a1_within_1e-4": True,
+            "b3_fraction_every_anchor": True,
+            "zero_module_identity": True,
+            "static_step0": True,
+            "known_answer": True,
+        }
+        clean = spreads(anchors, computed, recorded)
+        self.assertIs(mapping(clean["v0"])["passed"], True)
+        self.assertEqual(clean["v0_recorded"], recorded)
+        for key, clause in (
+            ("zero_module_identity", "zero-module identity"),
+            ("a1_within_1e-4", "A1"),
+            ("b3_fraction_every_anchor", "B3"),
+            ("both_cards_bitwise", "replay"),
+            ("static_step0", "S-static step 0"),
+            ("known_answer", "slicing known answer"),
+        ):
+            with self.subTest(key=key), self.assertRaisesRegex(InstrumentHold, f"V0 failed at aggregation.*{clause}"):
+                spreads(anchors, computed, {**recorded, key: False})
+
     def test_vectors_boundary_requires_n0_and_aligned_floating_loss_and_correctness(self) -> None:
         good = {
             "N0": {"loss": torch.ones(4), "correct": torch.zeros(4)},
@@ -695,10 +922,28 @@ def pilot_record(**changes: Json) -> Record:
         "reason": "pilot-filled values must be reviewed and committed before the confirmatory run",
         "schedule": {"checkpoints": list(CHECKPOINTS), "checkpoints_b": list(CHECKPOINTS_B), "raised": False},
         "admitted_extended": list(EXTENDED_ORDER),
+        "extended_truncated": False,
         "confirmatory_count": 32,
+        "confirmatory_projection": carried_projection(),
         "static_admitted": False,
         "charged_gpu_process_seconds": 9000.0,
+        "implementation_source_sha256": IDENTITY["source_sha256"],
+        "implementation_commit": IDENTITY["commit"],
         **protocol_identity(),
+    }
+    record.update(changes)
+    return record
+
+
+def carried_projection(**changes: Json) -> Record:
+    """The confirmatory projection pair a clean pilot result carries (I3): kernel 600 + 32 x 1,010, measured below."""
+    record: Record = {
+        "fixed_v0_gpu_process_seconds": 600.0,
+        "per_anchor_gpu_process_seconds": 1_000.0,
+        "static_per_anchor_gpu_process_seconds": 1_100.0,
+        "kernel_gpu_process_seconds": 32_920.0,
+        "measured_gpu_process_seconds": 32_600.0,
+        "projected_gpu_process_seconds": 32_920.0,
     }
     record.update(changes)
     return record
@@ -720,6 +965,8 @@ class ConfirmatoryTests(unittest.TestCase):
         self.disposition = self.repo / "docs/certificates/m0-confirmatory-restart-disposition.md"
         self.disposition.parent.mkdir(parents=True)
         self.disposition.write_text("John: one restart from the restart block.\n")
+        self.source_disposition = self.repo / "docs/certificates/m0-source-change-disposition.md"
+        self.source_disposition.write_text("John: the confirmatory runs implementation version 2 (§10).\n")
         # Evidence must be tracked: a real index in the temporary repository, with runs/ ignored as in Sultai.
         (self.repo / ".gitignore").write_text("runs/\n")
         self.git("init", "-q")
@@ -752,11 +999,18 @@ class ConfirmatoryTests(unittest.TestCase):
     def write_pilot(self, **changes: Json) -> None:
         self.pilot_result.write_text(json.dumps(pilot_record(**changes)))
 
-    def certificate(self, hours: int = 12, *, disposition: bool = False) -> Path:
+    def certificate(self, hours: int = 12, *, disposition: bool = False, source_change: str | None = None) -> Path:
+        """`source_change`: "named" names the source-change disposition only; "listed" also hash-lists it."""
         paths = [self.pilot_result, self.results / "04-admission.json", *([self.disposition] if disposition else [])]
+        paths += [self.source_disposition] if source_change == "listed" else []
         evidence = [{"path": str(path.relative_to(self.repo)), "sha256": file_sha(path)} for path in paths]
+        named = (
+            {}
+            if source_change is None
+            else {"source_change_disposition": str(self.source_disposition.relative_to(self.repo))}
+        )
         path = self.base / "certificate.json"
-        path.write_text(json.dumps({**IDENTITY, "evidence": evidence, "confirmatory_ceiling_hours": hours}))
+        path.write_text(json.dumps({**IDENTITY, "evidence": evidence, "confirmatory_ceiling_hours": hours, **named}))
         return path
 
     def launch(
@@ -811,6 +1065,31 @@ class ConfirmatoryTests(unittest.TestCase):
         self.write_pilot(schedule={"checkpoints": list(CHECKPOINTS)})
         self.assert_refused(self.certificate(), "lacks 'checkpoints_b'")
 
+    def test_the_confirmatory_source_is_the_pilots_unless_a_listed_disposition_names_the_change(self) -> None:
+        # R27: the pilot result binds its implementation source; a mixed-source confirmatory needs a disposition.
+        self.write_pilot(implementation_source_sha256="2" * 64)
+        self.assert_refused(self.certificate(), "implementation source differs from the pilot's")
+        self.assert_refused(self.certificate(source_change="named"), "source-change disposition .* not hash-listed")
+        missing = pilot_record()
+        del missing["implementation_source_sha256"]
+        self.pilot_result.write_text(json.dumps(missing))
+        self.assert_refused(self.certificate(), "lacks 'implementation_source_sha256'")
+        self.write_pilot(implementation_source_sha256="2" * 64)
+        code, root, _ = self.launch(self.certificate(source_change="listed"))
+        self.assertEqual(code, 0, read_record(root / "confirmatory-result.json"))
+        binding = read_record(self.repo / CONFIRMATORY_CUSTODY)["identity"]["implementation_source"]
+        self.assertEqual((binding["pilot_source_sha256"], binding["same_source"]), ("2" * 64, False))
+        listed = str(self.source_disposition.relative_to(self.repo))
+        self.assertEqual(binding["source_change_disposition"], {listed: file_sha(self.source_disposition)})
+
+    def test_the_larger_of_the_kernel_and_measured_projections_must_fit(self) -> None:
+        # I3: the kernel projection fits (600 + 32 x 1,010); the measured per-anchor charge does not (600 + 32 x 1,400).
+        self.write_pilot(confirmatory_projection=carried_projection(per_anchor_gpu_process_seconds=1_400.0))
+        with self.assertRaisesRegex(FeasibilityHold, "measured"):
+            self.launch(self.certificate())
+        self.assertFalse((self.repo / CONFIRMATORY_CUSTODY).exists())
+        self.assertFalse((self.base / "run").exists())
+
     def test_evidence_must_be_tracked_not_merely_hash_listed(self) -> None:
         ignored = self.repo / "runs/m0-pilot"
         ignored.mkdir(parents=True)
@@ -845,7 +1124,8 @@ class ConfirmatoryTests(unittest.TestCase):
         cluster = FakeCluster(self.repo, custody=CONFIRMATORY_CUSTODY)
         root = self.base / "guarded"
         root.mkdir()
-        run = Guarded(root, Supervisor(root, self.base / "data", ceiling=M0_CONFIRMATORY_SECONDS, per_card=1), allowed)
+        supervisor = Supervisor(root, self.base / "data", ceiling=M0_CONFIRMATORY_SECONDS, per_card=1)
+        run = Guarded(root, supervisor, str(IDENTITY["source_sha256"]), allowed)
         with (
             patch("sultai_screen.pilot.subprocess.Popen", side_effect=cluster),
             self.assertRaisesRegex(PilotHold, "whitelist"),
@@ -939,6 +1219,14 @@ class ConfirmatoryTests(unittest.TestCase):
         self.assertTrue(math.isfinite(widths["D2"]) and math.isfinite(widths["D3"]))
         self.assertIsNone(widths["D5"])
         self.assertEqual(result["ceiling_gpu_process_seconds"], M0_CONFIRMATORY_SECONDS)
+        self.assertIs(result["v0"]["zero_module_identity"], True)
+        # I3 and M7: the launch took the larger of the kernel projection (on the pilot's replay and acceptance fixed
+        # term) and the measured one.
+        projection = read_record(root / "00-opening.json")["projection"]
+        self.assertEqual(projection["kernel"]["fixed_v0_gpu_process_seconds"], 600.0)
+        self.assertEqual(projection["kernel"]["projected_gpu_process_seconds"], 600.0 + 32 * 1_010.0)
+        self.assertEqual(projection["measured"]["projected_gpu_process_seconds"], 600.0 + 32 * 1_000.0)
+        self.assertEqual(projection["projected_gpu_process_seconds"], 600.0 + 32 * 1_010.0)
         # Its own custody; the pilot's and Gate 3's receipts are never written.
         custody = read_record(self.repo / CONFIRMATORY_CUSTODY)
         self.assertEqual(custody["identity"]["protocol_version"], "m0-v4")
@@ -998,6 +1286,21 @@ class ConfirmatoryTests(unittest.TestCase):
         trained = [int(flags["--seed"]) for _, action, _, flags, _ in cluster.launched if action == "train"]
         self.assertEqual(trained, list(range(7500, 7533)))
         self.assertEqual(result["anchors"], list(range(7500, 7533)))
+        # R24 at odd n: every anchor's children (train, noop, maff, fold-check, tcool, modules, retune) share its card.
+        cards: dict[int, set[str]] = {}
+        for _, _, gpu, flags, _ in cluster.launched:
+            if flags["--lineage"] == "confirmatory":
+                cards.setdefault(int(flags["--seed"]), set()).add(gpu)
+        self.assertEqual(set(cards), set(range(7500, 7533)))
+        for seed, used in cards.items():
+            self.assertEqual(used, {str((seed - 7500) % 2)}, seed)
+        # One process per card in every Supervisor.run call.
+        previous = 0
+        for path in sorted(root.glob("ledger-*.json")):
+            entries = read_record(path)["entries"]
+            batch = [entry["gpu"] for entry in entries[previous:]]
+            previous = len(entries)
+            self.assertEqual(len(batch), len(set(batch)), path.name)
 
     def test_an_unavailable_required_arm_holds_at_aggregation_and_drops_no_anchor(self) -> None:
         code, root, cluster = self.launch(self.certificate(), unavailable={7510: frozenset(("M-small",))})
@@ -1035,13 +1338,15 @@ class SupervisionTests(unittest.TestCase):
             check_certificate(approved)
 
     def test_stop_report_has_the_gate3_shape_with_the_m0_identity(self) -> None:
-        report = m0_stop_report(FeasibilityHold("over"), "admission", 12.5)
+        report = m0_stop_report(FeasibilityHold("over"), "admission", 12.5, IDENTITY)
         self.assertEqual(report["verdict"], "hold-feasibility")
         self.assertEqual(report["charged_gpu_process_seconds"], 12.5)
+        self.assertEqual(report["implementation_source_sha256"], IDENTITY["source_sha256"])
+        self.assertEqual(report["implementation_commit"], IDENTITY["commit"])
         for key, value in protocol_identity().items():
             self.assertEqual(report[key], value)
-        self.assertEqual(m0_stop_report(InstrumentHold("x"), "core", 0.0)["verdict"], "instrument-failed")
-        self.assertEqual(m0_stop_report(PilotHold("x"), "core", 0.0)["verdict"], "execution-invalid")
+        self.assertEqual(m0_stop_report(InstrumentHold("x"), "core", 0.0, IDENTITY)["verdict"], "instrument-failed")
+        self.assertEqual(m0_stop_report(PilotHold("x"), "core", 0.0, IDENTITY)["verdict"], "execution-invalid")
 
     def test_slicing_known_answer_passes_on_the_cpu_fixture(self) -> None:
         record = slicing_known_answer()

@@ -37,6 +37,8 @@ MODULE_RATES = (1.0, 0.3, 0.1)
 RETUNE_RATES = (1.0, 0.3, 0.1, 0.03, 0.01)
 CHECKPOINTS = (200, 800, 3200)
 CHECKPOINTS_B = (400, 1600, 6400)
+# §4: R-all runs to 800 steps only, with a selection checkpoint every 40 steps.
+RALL_CHECKPOINTS = tuple(range(40, 801, 40))
 
 
 def protocol_identity() -> Record:

@@ -57,9 +57,13 @@ def _seal(static: StaticHost) -> None:
 
 def train_static(
     seed: int, data: Dataset, device: torch.device, widths: tuple[int, int, int, int] = REFERENCE_WIDTHS
-) -> tuple[StaticHost, list[str], Tensor, float]:
-    """The registered ten-epoch recipe with w in the weight-decay group and b in the affine group; returned sealed."""
+) -> tuple[StaticHost, list[str], Tensor, float, str]:
+    """The registered ten-epoch recipe with w in the weight-decay group and b in the affine group; returned sealed.
+
+    The last element is the inner host's state hash at step zero, before any step (final-review M8).
+    """
     host = make_host(seed, 0, device, widths=widths)
+    initial = state_hash(host)
     static = StaticHost(host)
     hashes, stream, elapsed = train_epochs(
         static,
@@ -71,7 +75,7 @@ def train_static(
         optimizer=recipe_optimizer(static.parameters()),
     )
     _seal(static)
-    return static, hashes, stream, elapsed
+    return static, hashes, stream, elapsed, initial
 
 
 def static_adapter(static: StaticHost) -> Adapter:

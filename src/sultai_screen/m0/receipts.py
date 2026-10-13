@@ -52,14 +52,30 @@ GRID_STEPS: Final = {
     "refit-single": SURVIVAL_REFIT_STEPS,
     "retune": len(RETUNE_RATES) * CHECKPOINTS[-1],
 }
-# Ledger charge kinds measured by whole children (ruling R17).
-CHARGE_KINDS: Final = ("host:0.5", "host:1.0", "host:1.5", "tcool", "static", "aff", "fold_and_calibrations")
+# Ledger charge kinds measured by whole children (rulings R17, R23): the stage-3 frontier hosts' noop and evaluate
+# children are measured per width; the anchors' noop children are `fold_and_calibrations`.
+CHARGE_KINDS: Final = (
+    "host:0.5",
+    "host:1.0",
+    "host:1.5",
+    "tcool",
+    "static",
+    "aff",
+    "fold_and_calibrations",
+    "noop:0.5",
+    "noop:1.5",
+    "evaluate:0.5",
+    "evaluate:1.5",
+)
+# Final-review M9: the harm screen measures every raw candidate against the anchor's N0 (§6), M-sq | T-cool included.
+HARM_BASELINE: Final = "anchor N0"
 
 Vectors = dict[str, dict[str, Tensor]]
 
 
-def receipt(root: Path, name: str, action: str, seed: int, lineage: str) -> Record:
-    """A child's payload, refused unless it is a valid M0 receipt of this action, seed and lineage."""
+def receipt(root: Path, name: str, action: str, seed: int, lineage: str, certified_source: str) -> Record:
+    """A child's payload, refused unless it is a valid M0 receipt of this action, seed and lineage, produced by the
+    certified implementation source (final-review M4)."""
     record = read_record(root / name / "result.json")
     if record["software_valid"] is not True or "action" not in record or record["action"] != action:
         raise PilotHold(f"{name} is not a software-valid {action} receipt")
@@ -67,6 +83,8 @@ def receipt(root: Path, name: str, action: str, seed: int, lineage: str) -> Reco
     for key, value in protocol_identity().items():
         if key not in identity or identity[key] != value:
             raise PilotHold(f"{name} receipt carries another protocol identity ({key})")
+    if "source_sha256" not in identity or identity["source_sha256"] != certified_source:
+        raise PilotHold(f"{name} receipt was produced by another implementation source than the certified one")
     payload = mapping(record["payload"])
     if integer(payload["seed"]) != seed or payload["lineage"] != lineage:
         raise PilotHold(f"{name} receipt belongs to seed {payload['seed']} / {payload['lineage']}")
@@ -128,8 +146,8 @@ class Source:
     vectors: Vectors
 
 
-def source(root: Path, name: str, action: str, seed: int, lineage: str) -> Source:
-    payload = receipt(root, name, action, seed, lineage)
+def source(root: Path, name: str, action: str, seed: int, lineage: str, certified_source: str) -> Source:
+    payload = receipt(root, name, action, seed, lineage, certified_source)
     return Source(name, payload, load_vectors(root / name, payload))
 
 
@@ -247,6 +265,8 @@ def anchor(seed: int, sources: tuple[Source, ...], required: frozenset[str]) -> 
         "unavailable_arms": list(unavailable),
         "unfolded_nonfinite": nonfinite,
         "harm_inventory": dict(labelled),
+        # M9: one baseline for every arm; M-sq | T-cool's candidates are not measured against the T-cool host's N0.
+        "harm_baseline": dict.fromkeys(labelled, f"baseline: {HARM_BASELINE}"),
         # §6: the refit's step-0 (as-sliced) selection loss and its selected rate go beside D2.
         "refit_step0_selection_loss": None if refit is None else refit["step0_selection_loss"],
         "refit_rate": None if refit is None else refit["rate"],
@@ -280,6 +300,14 @@ def derive_workloads(
     per_step = max(number(t["module_grid_seconds"]) / integer(t["module_grid_steps"]) for t in timing)
     grid = {kind: per_step * steps * ratio for kind, steps in GRID_STEPS.items()}
     grid["aff"] = max(charges["aff"]) * ratio
+    # R23: the whole noop and evaluate children after one trained host, per width. No evaluate child follows a 1.0
+    # host (its N0 development loss comes from the M-aff child), so 1.0 takes the larger measured evaluate child.
+    evaluate = {scale: max(charges[f"evaluate:{scale}"]) for scale in (0.5, 1.5)}
+    noop_evaluate = {
+        0.5: max(charges["noop:0.5"]) + evaluate[0.5],
+        1.0: max(charges["fold_and_calibrations"]) + max(evaluate.values()),
+        1.5: max(charges["noop:1.5"]) + evaluate[1.5],
+    }
     workload = Workloads(
         host={
             float(kind.partition(":")[2]): max(values) for kind, values in charges.items() if kind.startswith("host:")
@@ -291,6 +319,7 @@ def derive_workloads(
         fold_and_calibrations=max(charges["fold_and_calibrations"]),
         evaluation=max(number(t["development_evaluation_seconds"]) for t in timing),
         fixed_v0=fixed_v0,
+        noop_evaluate=noop_evaluate,
     )
     sources: Record = {
         "method": "one-per-card maxima (ruling R17); grids = per-step module kernel x steps x axis ratio",
@@ -300,6 +329,8 @@ def derive_workloads(
         "charges": {kind: list(values) for kind, values in charges.items()},
         "aff": "measured stage-2 M-aff child charge x axis ratio",
         "fixed_v0": "total charge at the end of stage 2",
+        "noop_evaluate": "per width: the largest noop child plus the largest evaluate child (R23); width 1.0 uses the "
+        "anchors' noop children and the larger frontier evaluate child (no evaluate child follows a 1.0 host)",
     }
     return workload, sources
 
@@ -314,4 +345,5 @@ def workloads_record(w: Workloads) -> Record:
         "fold_and_calibrations": w.fold_and_calibrations,
         "evaluation": w.evaluation,
         "fixed_v0": w.fixed_v0,
+        "noop_evaluate": {str(scale): seconds for scale, seconds in w.noop_evaluate.items()},
     }

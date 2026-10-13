@@ -32,8 +32,8 @@ from sultai_screen.contracts import (
 )
 from sultai_screen.data import Dataset, Seal
 from sultai_screen.fit import Adapter, Candidate, Grid, fit_sgd, grid
-from sultai_screen.host import REFERENCE_WIDTHS, Features, Host, state_hash
-from sultai_screen.m0 import worker
+from sultai_screen.host import REFERENCE_WIDTHS, Features, Host, make_host, state_hash
+from sultai_screen.m0 import receipts, worker
 from sultai_screen.m0.calibrate import load_noop
 from sultai_screen.m0.identity import protocol_identity
 from sultai_screen.m0.retune import RetuneGrid, Subset, retune_grid
@@ -346,6 +346,8 @@ class WorkerTests(unittest.TestCase):
             (10, "constant-0.05", 20, "anchor"),
         )
         self.assertEqual(payload["widths"], list(REFERENCE_WIDTHS))
+        # M8: the host's state at construction, before the probe and before any step.
+        self.assertEqual(payload["initial_state_sha256"], state_hash(make_host(3000, 0, CPU)))
         self.assertEqual(
             payload["final_state_sha256"],
             payload_of(read_record(self.root / "train/result.json"))["final_state_sha256"],
@@ -386,6 +388,9 @@ class WorkerTests(unittest.TestCase):
         self.assertEqual(static["module_sha256"], file_sha(self.root / "static/static-module.pt"))
         self.assertEqual(static["checkpoint_sha256"], file_sha(self.root / "static/host.pt"))
         self.assertIn("static_sha256", static)
+        # M8: S-static's inner host at step zero is the anchor's make_host state.
+        train = payload_of(read_record(self.root / "train/result.json"))
+        self.assertEqual(static["initial_state_sha256"], train["initial_state_sha256"])
 
     def test_noop_publishes_the_choice_and_never_a_development_number(self) -> None:
         payload = payload_of(read_record(self.root / "noop/result.json"))
@@ -403,6 +408,17 @@ class WorkerTests(unittest.TestCase):
         for name in ("raw", "rbn", "rtemp", "rcal"):
             self.assertTrue(math.isfinite(float(str(payload[f"{name}_selection_loss"]))))
         self.assertFalse([key for key in keys(payload) if "development" in key])
+        # R25: a zero module of every form is bitwise identity with N0 on development (flags only, no number).
+        flags = mapping(payload["zero_module_identity"])
+        self.assertEqual(set(flags), {"affine", "nonlinear", "expanded", "hidden-64", "hidden-8"})
+        self.assertTrue(all(value is True for value in flags.values()), flags)
+        data = fixture()
+        host = load_noop(self.root / "noop", 3000, REFERENCE_WIDTHS, str(payload["noop_sha256"]), CPU)
+        development = worker.features_from_images(host, data, data.development)
+        with patch.object(Adapter, "apply", lambda adapter, read, base: base + 1e-3):
+            shifted = worker.zero_module_identity(host, development)
+        self.assertEqual(set(shifted), set(flags))
+        self.assertTrue(all(value is False for value in shifted.values()), shifted)
 
     def test_modules_runs_every_module_arm_with_vectors_harm_cuts_and_single_survival_refits(self) -> None:
         out = self.root / "modules"
@@ -445,6 +461,17 @@ class WorkerTests(unittest.TestCase):
             self.assertEqual(len(mapping(arm["harm_inventory"])), 1)
         refit = mapping(arms["M-wide→8:rank:refit"])
         self.assertIsNotNone(refit["step0_selection_loss"])
+        # M5: every grid or single-run arm books its final-checkpoint candidates (whole runs), §4 units.
+        for name in ("M-sq", "M-small-B", "M-wide", "M-wide→8:rank:refit", "M-wide→4:refit", "M-exp"):
+            arm = mapping(arms[name])
+            candidates = [mapping(c) for c in sequence(mapping(arm["report"])["candidates"])]
+            last = max(int(str(c["steps"])) for c in candidates)
+            final = [c for c in candidates if c["steps"] == last]
+            booking = mapping(arm["booking"])
+            for key in ("example_passes", "parameter_steps", "wall_seconds"):
+                self.assertAlmostEqual(number(booking[key]), sum(number(c[key]) for c in final), msg=f"{name} {key}")
+            self.assertGreater(number(booking["parameter_steps"]), 0)
+        self.assertNotIn("booking", mapping(arms["M-wide→8:rank:sliced"]))
         self.assertTrue(math.isfinite(float(str(payload["r_aff"]))))
         self.assertEqual(payload["noop_sha256"], payload_of(read_record(self.root / "noop/result.json"))["noop_sha256"])
         retune = self.root / "retune-for-quantities"
@@ -475,6 +502,33 @@ class WorkerTests(unittest.TestCase):
         computed = quantities(anchor, PILOT_ARMS)
         self.assertIsNotNone(computed["delta_acc"])
         self.assertIsNotNone(computed["D3"])
+
+    def test_real_children_pass_through_the_supervisor_readers_and_stats(self) -> None:
+        """I5: real noop, tcool, static, modules and retune receipts through receipts.source, anchor and quantities."""
+        root = self.root / "end-to-end"
+        root.mkdir()
+        run("modules", root / "modules-3000", 3000, "anchor", *self.roots())
+        run("retune", root / "retune-3000", 3000, "anchor", "--noop-root", str(self.root / "noop"))
+        certified = str(IDENTITY["source_sha256"])
+        sources = tuple(
+            receipts.source(root, f"{kind}-3000", kind, 3000, "anchor", certified) for kind in ("modules", "retune")
+        )
+        joined = receipts.anchor(3000, sources, PILOT_ARMS)
+        computed = quantities(joined.result, PILOT_ARMS)
+        self.assertIs(joined.report["printed_counts"], True)
+        self.assertIs(joined.report["complement_unchanged"], True)
+        labelled = mapping(joined.report["harm_inventory"])
+        self.assertTrue(labelled)
+        for name, labels in labelled.items():
+            for label in mapping(labels):
+                self.assertIsInstance(receipts.candidate_rate(label), float, f"{name} {label}")
+        ran = set(mapping(payload_of(read_record(root / "modules-3000/result.json"))["arms"]))
+        self.assertEqual(set(joined.result.arms), ran | RETUNE_ONLY)
+        for key in ("D1", "D1prime", "D2", "D3", "D5", "delta_acc"):
+            self.assertIsNotNone(computed[key], key)
+        # M4: a receipt of another implementation source is refused.
+        with self.assertRaisesRegex(PilotHold, "implementation source"):
+            receipts.source(root, "modules-3000", "modules", 3000, "anchor", "0" * 64)
 
     def test_modules_arm_list_restricts_the_child(self) -> None:
         out = self.root / "modules-two"

@@ -26,7 +26,11 @@ ANCHORS: Final = 6
 
 
 def materiality(host: Host, cache: Cached, seed: int) -> Record:
-    identity_check(host, cache.development, seed)
+    try:
+        identity_check(host, cache.development, seed)
+    except PilotHold as error:
+        # M1 (R21): an identity clause is an instrument failure in M0; Gate 3's identity_check is unchanged.
+        raise InstrumentHold(str(error)) from error
     original = mean_loss(host, cache.development, None)
     gains: Record = {}
     for magnitude in P1_LADDER:
@@ -66,8 +70,10 @@ def posthoc(host: Host, cache: Cached, seed: int, output: Path) -> Record:
     development = operator.features(cache.development)
     intact_loss = mean_loss(host, cache.development, None)
     a1 = mean_loss(host, Features(development.read, operator.undo(development.base), development.labels), None)
-    if abs(a1 - intact_loss) > INVERSE_TOLERANCE:
-        raise PilotHold("exact inverse endpoint drift")
+    a1_drift = abs(a1 - intact_loss)
+    if a1_drift > INVERSE_TOLERANCE:
+        # M1 (R21): A1 drift is the V0 A1 clause, an instrument failure.
+        raise InstrumentHold("exact inverse endpoint drift")
     a2 = ridge(conditioning.read, conditioning.base, cache.conditioning.read, nonlinear=True)
     a3 = ridge(conditioning.read, conditioning.base, cache.conditioning.read, nonlinear=False)
     noop = mean_loss(host, development, None)
@@ -88,6 +94,7 @@ def posthoc(host: Host, cache: Cached, seed: int, output: Path) -> Record:
         "seed": seed,
         "alpha": ALPHA,
         "noop_loss": noop,
+        "a1_drift": a1_drift,
         "arm_losses": arms,
         "oracle": fit.report(),
         "oracle_gain_fraction_of_A3": (noop - b3) / (noop - a3_loss) if noop > a3_loss else None,

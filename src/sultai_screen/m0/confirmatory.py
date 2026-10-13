@@ -38,6 +38,7 @@ from sultai_screen.m0.costs import (
     M0_CONFIRMATORY_STATIC_SECONDS,
     STATIC_ARMS,
     Workloads,
+    measured_confirmatory,
     project_confirmatory,
     with_static,
 )
@@ -72,10 +73,9 @@ from sultai_screen.m0.receipts import (
     anchor,
     bound,
     schedule_matches,
-    source,
 )
 from sultai_screen.m0.seeds import BLOCKS, Lineage, admit
-from sultai_screen.m0.worker import MODULE_ARMS, RETUNE_ARMS
+from sultai_screen.m0.worker import MODULE_ARMS, RETUNE_ARMS, ZERO_MODULE_KINDS
 from sultai_screen.pilot import Job, Supervisor, check_output_root, claim_attempt
 
 REPO: Path = M0_REPO
@@ -180,10 +180,33 @@ def workloads_of(record: Record) -> Workloads:
         fold_and_calibrations=number(record["fold_and_calibrations"]),
         evaluation=number(record["evaluation"]),
         fixed_v0=number(record["fixed_v0"]),
+        noop_evaluate={float(scale): number(value) for scale, value in mapping(record["noop_evaluate"]).items()},
     )
 
 
-def admit_launch(approved: Record, pilot_result: Path, static: bool, restart: Path | None) -> Plan:
+def source_binding(approved: Record, identity: Record, pilot: Record) -> Record:
+    """Ruling R27 (§10): the confirmatory runs the pilot's implementation source, or a hash-listed disposition in its
+    certificate (`source_change_disposition`) names the new version."""
+    pilot_source = text(field(pilot, "implementation_source_sha256", "the pilot result"))
+    current = text(identity["source_sha256"])
+    record: Record = {
+        "pilot_source_sha256": pilot_source,
+        "pilot_commit": field(pilot, "implementation_commit", "the pilot result"),
+        "confirmatory_source_sha256": current,
+        "same_source": current == pilot_source,
+    }
+    if current != pilot_source:
+        if "source_change_disposition" not in approved:
+            raise PilotHold(
+                "the confirmatory implementation source differs from the pilot's; a hash-listed "
+                "source_change_disposition is required (§10)"
+            )
+        disposition = REPO / text(approved["source_change_disposition"])
+        record["source_change_disposition"] = evidenced(approved, disposition, "the source-change disposition")
+    return record
+
+
+def admit_launch(approved: Record, identity: Record, pilot_result: Path, static: bool, restart: Path | None) -> Plan:
     """Every refusal before custody, so a refused launch never consumes the single attempt."""
     binding: Record = {"pilot_result": evidenced(approved, pilot_result, "the pilot result")}
     pilot = read_record(pilot_result)
@@ -192,6 +215,7 @@ def admit_launch(approved: Record, pilot_result: Path, static: bool, restart: Pa
     for key, value in protocol_identity().items():
         if key not in pilot or pilot[key] != value:
             raise PilotHold(f"the pilot result carries another protocol identity ({key})")
+    binding["implementation_source"] = source_binding(approved, identity, pilot)
     admission = pilot_result.parent / "04-admission.json"
     binding["pilot_admission"] = evidenced(approved, admission, "the pilot's measured kernels")
     if static and field(pilot, "static_admitted", "the pilot result") is not True:
@@ -221,10 +245,26 @@ def admit_launch(approved: Record, pilot_result: Path, static: bool, restart: Pa
     seeds = tuple(admit(seed, lineage) for seed in range(start, start + n))
     w = workloads_of(mapping(field(read_record(admission), "workloads", "the pilot's 04-admission.json")))
     arms = stats.CONFIRMATORY_ARMS | (STATIC_ARMS if static else frozenset())
-    projection = (with_static if static else project_confirmatory)(n, w, arms, w.fixed_v0)
-    if projection["within_ceiling"] is not True:
-        raise FeasibilityHold("the confirmatory projects over its ceiling from the pilot's measured kernels")
     ceiling = M0_CONFIRMATORY_STATIC_SECONDS if static else M0_CONFIRMATORY_SECONDS
+    # I3 and M7: the fixed term is the pilot's replay and acceptance charge; the larger of the kernel projection and
+    # the measured whole-child projection must fit.
+    carried = mapping(field(pilot, "confirmatory_projection", "the pilot result"))
+    fixed = number(field(carried, "fixed_v0_gpu_process_seconds", "the pilot's confirmatory projection"))
+    per = "static_per_anchor_gpu_process_seconds" if static else "per_anchor_gpu_process_seconds"
+    kernel = (with_static if static else project_confirmatory)(n, w, arms, fixed)
+    measured = measured_confirmatory(
+        n, number(field(carried, per, "the pilot's confirmatory projection")), fixed, ceiling
+    )
+    larger = max(number(kernel["projected_gpu_process_seconds"]), number(measured["projected_gpu_process_seconds"]))
+    projection: Record = {
+        "kernel": kernel,
+        "measured": measured,
+        "projected_gpu_process_seconds": larger,
+        "ceiling_seconds": ceiling,
+        "within_ceiling": larger <= ceiling,
+    }
+    if larger > ceiling:
+        raise FeasibilityHold("the confirmatory projects over its ceiling from the pilot's kernels or measured charges")
     return Plan(lineage, seeds, (checkpoints, checkpoints_b), arms, static, ceiling, custody, binding, projection)
 
 
@@ -241,6 +281,15 @@ def stage_v0(run: Run, plan: Plan) -> Record:
     for s in seeds:
         bound(run.path(f"train-{s}"), run.payload(f"train-{s}", "train", s, lineage), TRAINING_FILES)
     run.run([job(f"noop-{s}", "noop", s, lineage, training=run.path(f"train-{s}")) for s in seeds])
+    # R25: every fresh anchor's noop child checked the zero module of every form against N0, bitwise.
+    failed: list[str] = []
+    for s in seeds:
+        flags = mapping(run.payload(f"noop-{s}", "noop", s, lineage)["zero_module_identity"])
+        if set(flags) != set(ZERO_MODULE_KINDS):
+            raise InstrumentHold(f"anchor {s}'s noop child did not check every module form for zero-module identity")
+        failed.extend(f"{s}:{kind}" for kind, value in flags.items() if value is not True)
+    if failed:
+        raise InstrumentHold(f"V0 zero-module identity (bitwise, every module form) failed on {failed}")
     maff = [
         job(f"maff-{s}", "modules", s, lineage, "--arms", "M-aff", "--noop-root", str(run.path(f"noop-{s}")),
             *plan.flags())
@@ -261,6 +310,7 @@ def stage_v0(run: Run, plan: Plan) -> Record:
         residuals[str(s)] = r_aff
     return {
         "slicing": slicing,
+        "zero_module_identity": True,
         "fold_residuals": residuals,
         "fold_tolerance": FOLD_TOLERANCE,
         "fold_check": checked,
@@ -312,7 +362,7 @@ def aggregate(run: Run, plan: Plan) -> tuple[list[Anchor], list[Record]]:
     anchors: list[Anchor] = []
     for s in plan.seeds:
         sources = tuple(
-            source(run.root, f"{kind}-{s}", action, s, plan.lineage)
+            run.source(f"{kind}-{s}", action, s, plan.lineage)
             for kind, action in (("modules", "modules"), ("retune", "retune"), ("maff", "modules"))
         )
         for item in sources:
@@ -387,13 +437,13 @@ def read_once(plan: Plan, anchors: list[Anchor], quantities: list[Record]) -> Re
 # --- the attempt ---------------------------------------------------------------------------------------------------
 
 
-def stopped(error: Exception, stage: str, run: Run, plan: Plan) -> Record:
+def stopped(error: Exception, stage: str, run: Run, plan: Plan, identity: Record) -> Record:
     """The stop report with the M0 identity; custody consumed the block (ruling R22, §11), so every stop burns it.
 
     Ruling R21: a pinned-hash replay mismatch is `execution-invalid` (not the certified software or hardware); a failed
     instrument clause (acceptance matrix, slicing, identities, fold residual, fold-check) is `instrument-failed`.
     """
-    report = m0_stop_report(error, stage, run.supervisor.charged)
+    report = m0_stop_report(error, stage, run.supervisor.charged, identity)
     return {
         **{key: value for key, value in report.items() if key not in STOP_ONLY_PILOT},
         "seed_block": plan.block(),
@@ -411,7 +461,7 @@ def confirmatory(
         raise PilotHold("one attempt requires a new output root; no automatic resume")
     approved = read_record(certificate)
     identity = check_certificate(approved)
-    plan = admit_launch(approved, pilot_result, static, restart)
+    plan = admit_launch(approved, identity, pilot_result, static, restart)
     environment = environment_identity()
     cards = check_cards()
     certificate_sha = file_sha(certificate)
@@ -420,7 +470,7 @@ def confirmatory(
     claim_attempt(REPO / plan.custody, root, custody)
     root.mkdir(parents=True, exist_ok=False)
     supervisor = Supervisor(root, data, ceiling=plan.ceiling, per_card=1, module=WORKER)
-    run = Guarded(root, supervisor, plan.arms)
+    run = Guarded(root, supervisor, text(identity["source_sha256"]), plan.arms)
     stage = "opening"
     try:
         publish(
@@ -473,8 +523,8 @@ def confirmatory(
                     "fold_check_matches": True,
                     "printed_counts": True,
                     "complement_unchanged": True,
-                    "not_rerun": "P1 instrument (A1, B3) and zero-module identity: development-anchor clauses of "
-                    "the clean pilot's V0 (§7)",
+                    "zero_module_identity": True,
+                    "not_rerun": "P1 instrument (A1, B3): development-anchor clauses of the clean pilot's V0 (§7)",
                 },
                 **reading,
                 "anchors": list(plan.seeds),
@@ -488,7 +538,7 @@ def confirmatory(
         )
         return 0
     except Exception as error:
-        publish(root / "confirmatory-result.json", stopped(error, stage, run, plan))
+        publish(root / "confirmatory-result.json", stopped(error, stage, run, plan, identity))
         return 2
 
 

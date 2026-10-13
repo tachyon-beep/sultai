@@ -8,8 +8,8 @@ root is handed to the `sultai_screen.m0.worker` children, which keep the seal.
 from __future__ import annotations
 
 import argparse
-import dataclasses
 import datetime
+import itertools
 import signal
 import subprocess
 from dataclasses import dataclass
@@ -39,10 +39,16 @@ from sultai_screen.contracts import (
 from sultai_screen.fit import Adapter
 from sultai_screen.m0 import stats, verdicts
 from sultai_screen.m0.costs import (
+    EXTENDED_RESERVE,
+    M0_CONFIRMATORY_STATIC_SECONDS,
     STATIC_ARMS,
     Workloads,
     admit_extended,
     core_over_ceiling,
+    extended_cost,
+    extended_fits,
+    extended_limit,
+    measured_confirmatory,
     project_confirmatory,
     project_pilot,
     stage_seconds,
@@ -53,13 +59,15 @@ from sultai_screen.m0.identity import (
     CHECKPOINTS,
     CHECKPOINTS_B,
     FOLD_TOLERANCE,
+    M0_CONFIRMATORY_SECONDS,
     M0_PILOT_SECONDS,
+    RHO,
     S_STATIC_SD_LIMIT,
     protocol_identity,
     source_identity,
 )
 from sultai_screen.m0.identity import REPO as M0_REPO
-from sultai_screen.m0.instrument import check_instrument, materiality_report
+from sultai_screen.m0.instrument import INVERSE_TOLERANCE, check_instrument, materiality_report
 from sultai_screen.m0.modules import activation_means, cut, random_cut, rank_cut
 from sultai_screen.m0.provenance import environment_identity
 from sultai_screen.m0.receipts import (
@@ -78,7 +86,7 @@ from sultai_screen.m0.receipts import (
     workloads_record,
 )
 from sultai_screen.m0.seeds import BLOCKS, Lineage, width_scale
-from sultai_screen.m0.worker import ATTEMPT4_FINAL_STATE, MODULE_ARMS, RETUNE_ARMS
+from sultai_screen.m0.worker import ATTEMPT4_FINAL_STATE, MODULE_ARMS, RETUNE_ARMS, ZERO_MODULE_KINDS
 from sultai_screen.pilot import GPU_UUIDS, Job, Supervisor, check_output_root, claim_attempt
 
 REPO: Path = M0_REPO
@@ -128,6 +136,16 @@ SLICING_UNITS: Final = (3, 9, 17, 22, 30, 41, 50, 63)
 SLICING_WEIGHT_SEED: Final = 7
 SLICING_SITE_SEED: Final = 1
 RANDOM_CUT_SEED: Final = 0
+# Ruling R23: the frozen Gate 3 Supervisor's ceiling stops (plain PilotHold); only these end the extended stage early.
+CEILING_STOPS: Final = (
+    "aggregate pilot GPU-hour cap exhausted",
+    "aggregate GPU-hour timeout",
+    "aggregate cap reached during cleanup; no further work",
+)
+# R23: the stage-3 frontier lineages whose noop and evaluate children cost the extended host items, by width scale.
+FRONTIER_CHILDREN: Final[tuple[tuple[float, Lineage], ...]] = ((0.5, "frontier-0.5"), (1.5, "frontier-1.5"))
+# M5: §4's disclosed parameter-step ratio of the two D2 routes, (M-wide + its rank-8 refit) over M-small-B.
+OVERGROW_ROUTE: Final = ("M-wide", "M-wide→8:rank:refit")
 
 
 def check_cards() -> Record:
@@ -184,8 +202,16 @@ def check_certificate(approved: Record) -> Record:
     return identity
 
 
-def m0_stop_report(error: Exception, stage: str, charged: float) -> Record:
-    """Gate 3's stop_report shape carrying the M0 identity."""
+def implementation(identity: Record) -> Record:
+    """Ruling R27: the certified implementation source a result was produced by."""
+    return {
+        "implementation_source_sha256": text(identity["source_sha256"]),
+        "implementation_commit": text(identity["commit"]),
+    }
+
+
+def m0_stop_report(error: Exception, stage: str, charged: float, identity: Record) -> Record:
+    """Gate 3's stop_report shape carrying the M0 identity and the certified implementation source (R27)."""
     instrument_failure = isinstance(error, (InstrumentHold, OracleUnavailable, FitUnavailable))
     feasibility_failure = isinstance(error, FeasibilityHold)
     return {
@@ -202,6 +228,7 @@ def m0_stop_report(error: Exception, stage: str, charged: float) -> Record:
         "error_type": type(error).__name__,
         "error": str(error),
         "charged_gpu_process_seconds": charged,
+        **implementation(identity),
         **protocol_identity(),
     }
 
@@ -264,6 +291,8 @@ def admission(charged: float, w: Workloads, ceiling: float, done: float) -> Reco
             "projected_gpu_process_seconds": number(extended["projected_gpu_process_seconds"]) + core,
         },
         "ceiling_gpu_process_seconds": ceiling,
+        "extended_reserve_fraction": EXTENDED_RESERVE,
+        "extended_limit_gpu_process_seconds": extended_limit(ceiling),
     }
 
 
@@ -277,10 +306,23 @@ def raise_only(raised: tuple[int, ...], default: tuple[int, ...]) -> tuple[int, 
     return raised
 
 
-def job(name: str, action: str, seed: int, lineage: Lineage, *flags: str, training: Path | None = None) -> Job:
-    """An M0 worker job; its card is assigned by position in Run.run."""
+def card(seed: int, lineage: Lineage) -> int:
+    """Ruling R24: an anchor-bound job runs on its anchor's card, the seed's index in its lineage block mod 2."""
+    return BLOCKS[lineage].index(seed) % 2
+
+
+def job(
+    name: str,
+    action: str,
+    seed: int,
+    lineage: Lineage,
+    *flags: str,
+    training: Path | None = None,
+    gpu: int | None = None,
+) -> Job:
+    """An M0 worker job on its anchor's card (R24); replay pairs, acceptance and timing name their card in `gpu`."""
     extra = ("--lineage", lineage, "--scale", str(width_scale(lineage)), *flags)
-    return Job(name, action, seed, 0, 0, training, None, extra)
+    return Job(name, action, seed, 0, card(seed, lineage) if gpu is None else gpu, training, None, extra)
 
 
 def anchor_host(seed: int) -> str:
@@ -291,18 +333,26 @@ def anchor_host(seed: int) -> str:
 class Run:
     root: Path
     supervisor: Supervisor
+    # The certified implementation source every child receipt must carry (final-review M4).
+    certified_source: str
 
     def run(self, jobs: list[Job]) -> None:
-        """One process per card: job i runs on card i % 2, two at a time, in order."""
-        placed = [dataclasses.replace(item, gpu=index % 2) for index, item in enumerate(jobs)]
-        for start in range(0, len(placed), 2):
-            self.supervisor.run(tuple(placed[start : start + 2]))
+        """One process per card (R24): every job keeps its card; each Supervisor.run takes at most one card-0 and one
+        card-1 job, each card's jobs in their given order."""
+        queues = [[item for item in jobs if item.gpu == gpu] for gpu in (0, 1)]
+        if len(queues[0]) + len(queues[1]) != len(jobs):
+            raise PilotHold("every M0 job is pinned to card 0 or 1")
+        for pair in itertools.zip_longest(*queues):
+            self.supervisor.run(tuple(item for item in pair if item is not None))
 
     def path(self, name: str) -> Path:
         return self.root / name
 
     def payload(self, name: str, action: str, seed: int, lineage: Lineage) -> Record:
-        return receipt(self.root, name, action, seed, lineage)
+        return receipt(self.root, name, action, seed, lineage, self.certified_source)
+
+    def source(self, name: str, action: str, seed: int, lineage: Lineage) -> Source:
+        return source(self.root, name, action, seed, lineage, self.certified_source)
 
     def charges(self, names: list[str]) -> tuple[float, ...]:
         return ledger_charges(self.supervisor.ledger, tuple(names))
@@ -317,8 +367,8 @@ def stage_replay(run: Run, *, timed: bool = True) -> Record:
     The confirmatory passes `timed=False`: its kernels are the pilot's committed measurement, so no timing child runs.
     """
     replays = [
-        job("replay-3000-gpu0", "replay", ANCHORS[0], "anchor"),
-        job("replay-3000-gpu1", "replay", ANCHORS[0], "anchor"),
+        job("replay-3000-gpu0", "replay", ANCHORS[0], "anchor", gpu=0),
+        job("replay-3000-gpu1", "replay", ANCHORS[0], "anchor", gpu=1),
         *(job(f"replay-{seed}", "replay", seed, "anchor") for seed in ANCHORS[1:]),
     ]
     run.run(replays)
@@ -329,24 +379,27 @@ def stage_replay(run: Run, *, timed: bool = True) -> Record:
         if payload["final_state_sha256"] != ATTEMPT4_FINAL_STATE[item.seed]:
             raise PilotHold(f"bitwise host replay mismatch with attempt 4's pinned state: {item.name}")
         finals[item.name] = payload["final_state_sha256"]
-    cards = [run.payload(f"replay-3000-gpu{card}", "replay", ANCHORS[0], "anchor") for card in (0, 1)]
+    cards = [run.payload(f"replay-3000-gpu{gpu}", "replay", ANCHORS[0], "anchor") for gpu in (0, 1)]
     for key in REPLAY_KEYS:
         if cards[0][key] != cards[1][key]:
             raise PilotHold(f"both-card bitwise host replay mismatch: {key}")
     checks = [
-        job(f"acceptance-{card}", "acceptance", ANCHORS[0], "anchor", training=run.path(f"replay-3000-gpu{card}"))
-        for card in (0, 1)
+        job(
+            f"acceptance-{gpu}", "acceptance", ANCHORS[0], "anchor", training=run.path(f"replay-3000-gpu{gpu}"), gpu=gpu
+        )
+        for gpu in (0, 1)
     ]
+    # Ruling R26: one timing child per card (the one-per-card maximum needs one measurement on each card).
     timing = [
-        job(f"timing-{i}", "timing", ANCHORS[0], "anchor", training=run.path(anchor_host(ANCHORS[0])))
-        for i in range(3 if timed else 0)
+        job(f"timing-{gpu}", "timing", ANCHORS[0], "anchor", training=run.path(anchor_host(ANCHORS[0])), gpu=gpu)
+        for gpu in ((0, 1) if timed else ())
     ]
     run.run(checks + timing)
     accepted = [run.payload(item.name, "acceptance", ANCHORS[0], "anchor") for item in checks]
-    for card, record in enumerate(accepted):
+    for gpu, record in enumerate(accepted):
         for key, label in ACCEPTANCE.items():
             if record[key] is not True:
-                raise InstrumentHold(f"GPU acceptance {label} failed on card {card}")
+                raise InstrumentHold(f"GPU acceptance {label} failed on card {gpu}")
     for key in ("straight_epoch_state_sha256", "checkpoint_rate"):
         if accepted[0][key] != accepted[1][key]:
             raise PilotHold(f"GPU acceptance replay differs across cards: {key}")
@@ -378,6 +431,21 @@ def fold_check(run: Run, name: str, modules: str, *, seed: int = ANCHORS[0], lin
     return payload
 
 
+def zero_module_flags(run: Run) -> Record:
+    """R25: every anchor's recorded zero-module identity flags; a False flag holds at stage 2, before any M-aff grid."""
+    flags: Record = {}
+    failed: list[str] = []
+    for s in ANCHORS:
+        recorded = mapping(run.payload(f"noop-{s}", "noop", s, "anchor")["zero_module_identity"])
+        if set(recorded) != set(ZERO_MODULE_KINDS):
+            raise InstrumentHold(f"anchor {s}'s noop child did not check every module form for zero-module identity")
+        flags[str(s)] = recorded
+        failed.extend(f"{s}:{kind}" for kind, value in recorded.items() if value is not True)
+    if failed:
+        raise InstrumentHold(f"V0 zero-module identity (bitwise, every module form) failed on {failed}")
+    return flags
+
+
 def stage_instrument(run: Run) -> Record:
     """P1 known answer, zero-module identity, slicing known answer, N0, and the M-aff fold residual on every anchor."""
     run.run(
@@ -385,7 +453,12 @@ def stage_instrument(run: Run) -> Record:
         + [job(f"noop-{s}", "noop", s, "anchor", training=run.path(anchor_host(s))) for s in ANCHORS]
     )
     records = [run.payload(f"instrument-{s}", "instrument", s, "anchor") for s in ANCHORS]
+    identity = zero_module_flags(run)
     check_instrument(tuple(mapping(record["posthoc"]) for record in records))
+    posthoc = [mapping(record["posthoc"]) for record in records]
+    a1 = all(number(record["a1_drift"]) <= INVERSE_TOLERANCE for record in posthoc)
+    fractions = [record["oracle_gain_fraction_of_A3"] for record in posthoc]
+    b3 = all(fraction is not None and number(fraction) >= RHO for fraction in fractions)
     slicing = slicing_known_answer()
     if slicing["known_answer"] is not True:
         raise InstrumentHold("V0 slicing known answer failed")
@@ -416,9 +489,14 @@ def stage_instrument(run: Run) -> Record:
         "materiality": materiality_report(tuple(mapping(record["materiality"]) for record in records)),
         "posthoc": [record["posthoc"] for record in records],
         "instrument_passed": True,
-        "a1_within_1e-4": True,
+        # M3: the recorded V0 flags spreads() passes to verdicts.v0.
+        "a1_within_1e-4": a1,
+        "b3_fraction_every_anchor": b3,
         "zero_module_identity": True,
-        "zero_module_identity_evidence": "every instrument child's materiality ran fit.identity_check (ruling R18 c)",
+        "zero_module_identity_flags": identity,
+        "zero_module_identity_evidence": "every anchor's noop child compared losses(N0, development, zero module) with "
+        "losses(N0, development, None) bitwise for every module form (ruling R25); every instrument child's "
+        "materiality also ran fit.identity_check (ruling R18 c)",
         "slicing": slicing,
         "fold_residuals": residuals,
         "fold_tolerance": FOLD_TOLERANCE,
@@ -488,6 +566,7 @@ def stage_hosts(run: Run, reference: list[tuple[int, int, float]]) -> tuple[Reco
     )
     tcool: Record = {}
     static: Record = {}
+    step0: Record = {}
     for s in ANCHORS:
         resumed = run.payload(f"tcool-{s}", "tcool", s, "anchor")
         if resumed["source_final_state_sha256"] != ATTEMPT4_FINAL_STATE[s]:
@@ -496,12 +575,23 @@ def stage_hosts(run: Run, reference: list[tuple[int, int, float]]) -> tuple[Reco
         payload = run.payload(f"static-{s}", "static", s, "anchor")
         bound(run.path(f"static-{s}"), payload, STATIC_FILES)
         static[str(s)] = payload["static_sha256"]
+        # M8 (§7 V0): S-static's inner host at step zero is the anchor's make_host state.
+        anchor_state = text(run.payload(anchor_host(s), "replay", s, "anchor")["initial_state_sha256"])
+        static_state = text(payload["initial_state_sha256"])
+        step0[str(s)] = {"static": static_state, "anchor": anchor_state, "matches": static_state == anchor_state}
+    mismatched = [seed for seed, entry in step0.items() if mapping(entry)["matches"] is not True]
+    if mismatched:
+        raise InstrumentHold(
+            f"V0 S-static step 0: the static host's step-zero state is not the anchor's on {mismatched}"
+        )
     points = dict(points_of(hosts) for hosts in (frontier["frontier-0.5"], reference, frontier["frontier-1.5"]))
     slope = stats.frontier_slope(points, BOOTSTRAP_SEED)
     record: Record = {
         "frontier": {lineage: [list(host) for host in hosts] for lineage, hosts in frontier.items()},
         "tcool_final_state_sha256": tcool,
         "static_sha256": static,
+        "static_step0": step0,
+        "static_step0_matches": True,
         "frontier_slope": slope.report(),
         "bootstrap_seed": BOOTSTRAP_SEED,
         "charged_gpu_process_seconds": run.supervisor.charged,
@@ -547,6 +637,11 @@ def stage_admission(
         "static": run.charges([f"static-{s}" for s in ANCHORS]),
         "aff": run.charges([f"maff-{s}" for s in ANCHORS]),
         "fold_and_calibrations": run.charges([f"noop-{s}" for s in ANCHORS]),
+        **{
+            f"{kind}:{scale}": run.charges([f"{kind}-{s}" for s in BLOCKS[lineage]])
+            for kind in ("noop", "evaluate")
+            for scale, lineage in FRONTIER_CHILDREN
+        },
     }
     w, sources = derive_workloads(timing, charges, fixed_v0=fixed_v0, ratio=checkpoints[-1] / CHECKPOINTS[-1])
     done = already_run(w, raised)
@@ -596,28 +691,63 @@ def stage_core(
     run.run(modules[2:] + retunes)
     anchors: list[Anchor] = []
     for s in ANCHORS:
-        sources = [source(run.root, f"modules-{s}", "modules", s, "anchor")]
-        sources.append(source(run.root, f"retune-{s}", "retune", s, "anchor"))
+        sources = [run.source(f"modules-{s}", "modules", s, "anchor")]
+        sources.append(run.source(f"retune-{s}", "retune", s, "anchor"))
         for item in sources:
             schedule_matches(item.name, item.payload, checkpoints, checkpoints_b)
         if not raised:
-            sources.append(source(run.root, f"maff-{s}", "modules", s, "anchor"))
+            sources.append(run.source(f"maff-{s}", "modules", s, "anchor"))
         anchors.append(anchor(s, tuple(sources), stats.PILOT_ARMS))
     return anchors
 
 
-def spreads(anchors: list[Anchor], quantities: list[Record], acceptance: list[Json], slicing: bool) -> Record:
-    """V0 at aggregation, then the per-anchor SDs of D1, D2, D3, D5 and S-static's admission, before any median."""
+def recorded_v0(replay: Record, instrument: Record, hosts: Record) -> Record:
+    """M3: V0's stage 1-3 clauses as 01, 02 and 03 recorded them (never literals)."""
+    acceptance = [mapping(record) for record in sequence(replay["acceptance"])]
+    return {
+        "both_cards_bitwise": replay["both_cards_bitwise"] is True,
+        "a1_within_1e-4": instrument["a1_within_1e-4"] is True,
+        "b3_fraction_every_anchor": instrument["b3_fraction_every_anchor"] is True,
+        "zero_module_identity": instrument["zero_module_identity"] is True,
+        "static_step0": all(record["static_step0_bitwise"] is True for record in acceptance)
+        and hosts["static_step0_matches"] is True,
+        "known_answer": mapping(instrument["slicing"])["known_answer"] is True,
+    }
+
+
+def parameter_step_ratio(anchors: list[Anchor]) -> Record:
+    """M5 (§4): the overgrow route's parameter-steps over M-small-B's per anchor, from the arms' bookings."""
+    names = (*OVERGROW_ROUTE, "M-small-B")
+    ratios: Record = {}
+    for item in anchors:
+        if not all(name in item.records and "booking" in item.records[name] for name in names):
+            ratios[str(item.seed)] = None
+            continue
+        steps = [number(mapping(item.records[name]["booking"])["parameter_steps"]) for name in names]
+        ratios[str(item.seed)] = (steps[0] + steps[1]) / steps[2] if steps[2] > 0 else None
+    return {
+        "route": "(M-wide + M-wide→8:rank:refit) / M-small-B, final-checkpoint parameter-steps (§4 disclosure)",
+        "per_anchor": ratios,
+        "median": median_or_none(list(ratios.values())),
+    }
+
+
+def spreads(anchors: list[Anchor], quantities: list[Record], recorded: Record) -> Record:
+    """V0 at aggregation on the recorded stage 1-3 flags (M3), then the per-anchor SDs of D1, D2, D3, D5 and S-static's
+    admission, before any median."""
     v0 = verdicts.v0(
-        {"both_cards_bitwise": True},
-        {"a1_within_1e-4": True, "b3_fraction_every_anchor": True},
+        {"both_cards_bitwise": recorded["both_cards_bitwise"]},
         {
-            "zero_module_identity": True,
+            "a1_within_1e-4": recorded["a1_within_1e-4"],
+            "b3_fraction_every_anchor": recorded["b3_fraction_every_anchor"],
+        },
+        {
+            "zero_module_identity": recorded["zero_module_identity"],
             "printed_counts": all(item.report["printed_counts"] is True for item in anchors),
             "complement_hash": all(item.report["complement_unchanged"] is True for item in anchors),
-            "static_step0": all(mapping(record)["static_step0_bitwise"] is True for record in acceptance),
+            "static_step0": recorded["static_step0"],
         },
-        {"known_answer": slicing},
+        {"known_answer": recorded["known_answer"]},
         tuple(item.result.fold_residual for item in anchors),
     )
     if v0["passed"] is not True:
@@ -636,12 +766,14 @@ def spreads(anchors: list[Anchor], quantities: list[Record], acceptance: list[Js
                 certified.setdefault(name, []).append(arm.certified)
     return {
         "v0": v0,
+        "v0_recorded": recorded,
         "sd": sd,
         "sd_reasons": reasons,
         "sd_d5": sd_d5,
         "s_static_sd_limit": S_STATIC_SD_LIMIT,
         "static_admitted": sd_d5 is not None and number(sd_d5) <= S_STATIC_SD_LIMIT,
         "plateau_fractions": {name: sum(flags) / len(flags) for name, flags in sorted(certified.items())},
+        "d2_parameter_step_ratio": parameter_step_ratio(anchors),
         "anchors": [{**item.report, "quantities": q} for item, q in zip(anchors, quantities, strict=True)],
     }
 
@@ -666,53 +798,159 @@ def starved_host(item: Source, seed: int) -> Record:
     return {"status": "available", **host.report, "quantities": quantities}
 
 
-def stage_extended(run: Run, admitted: list[str], schedule: tuple[tuple[int, ...], tuple[int, ...]]) -> Record:
-    """The admitted §5 extended host items (R-all, M-exp and the lottery ran inside the anchors' children)."""
-    flags = ("--checkpoints", axis(schedule[0]), "--checkpoints-b", axis(schedule[1]))
-    record: Record = {"admitted": list(admitted)}
-    if "starved-pair" in admitted:
-        seeds = BLOCKS["frontier-0.5"]
-        lineage: Lineage = "frontier-0.5"
-        arms = ",".join(name for name in MODULE_ARMS if name in stats.STARVED_PAIR_ARMS)
-        run.run([job(f"tcool-{s}", "tcool", s, lineage, training=run.path(f"{lineage}-{s}")) for s in seeds])
-        run.run(
-            [
-                job(f"starved-{s}", "modules", s, lineage, "--arms", arms, "--noop-root", str(run.path(f"noop-{s}")),
-                    "--tcool-root", str(run.path(f"tcool-{s}")), *flags)
-                for s in seeds
-            ]
-        )  # fmt: skip
-        record["starved-pair"] = [
-            starved_host(source(run.root, f"starved-{s}", "modules", s, lineage), s) for s in seeds
+def ceiling_stop(error: PilotHold) -> bool:
+    """R23: one of the Supervisor's ceiling stops, never a child failure or an instrument or feasibility hold."""
+    return type(error) is PilotHold and str(error) in CEILING_STOPS
+
+
+def starved_pair(run: Run, flags: tuple[str, ...]) -> list[Json]:
+    """§5 item 1 on the six stage-3 0.5 hosts: T-cool resumes, then the starved-pair module arms (R11: never a stop)."""
+    seeds = BLOCKS["frontier-0.5"]
+    lineage: Lineage = "frontier-0.5"
+    arms = ",".join(name for name in MODULE_ARMS if name in stats.STARVED_PAIR_ARMS)
+    run.run([job(f"tcool-{s}", "tcool", s, lineage, training=run.path(f"{lineage}-{s}")) for s in seeds])
+    run.run(
+        [
+            job(f"starved-{s}", "modules", s, lineage, "--arms", arms, "--noop-root", str(run.path(f"noop-{s}")),
+                "--tcool-root", str(run.path(f"tcool-{s}")), *flags)
+            for s in seeds
         ]
-    lineages = tuple(lineage for item, lineage in EXTENDED_HOSTS if item in admitted)
-    if lineages:
-        hosts_by_lineage = train_hosts(run, lineages)
-        record["hosts"] = {key: [list(host) for host in hosts] for key, hosts in hosts_by_lineage.items()}
+    )  # fmt: skip
+    return [starved_host(run.source(f"starved-{s}", "modules", s, lineage), s) for s in seeds]
+
+
+def stage_extended(
+    run: Run, admitted: list[str], schedule: tuple[tuple[int, ...], tuple[int, ...]], w: Workloads
+) -> Record:
+    """The admitted §5 items that run here, the starved pair and then the host items in priority order (R-all, M-exp and
+    the lottery ran inside the anchors' stage-5 children). Ruling R23: each is re-projected from the measured charge
+    first and the stage stops at the first that does not fit; a ceiling stop inside an item truncates the extended
+    set and never the pilot, whose core is complete."""
+    flags = ("--checkpoints", axis(schedule[0]), "--checkpoints-b", axis(schedule[1]))
+    lineages = dict(EXTENDED_HOSTS)
+    items = [item for item in admitted if item == "starved-pair" or item in lineages]
+    limit = extended_limit(M0_PILOT_SECONDS)
+    record: Record = {"admitted": list(admitted), "run_here": list(items), "extended_limit_gpu_process_seconds": limit}
+    completed: list[Json] = []
+    refused: list[Json] = []
+    truncated: Record | None = None
+    trained: dict[str, list[tuple[int, int, float]]] = {}
+    for position, item in enumerate(items):
+        charged, cost = run.supervisor.charged, extended_cost(item, w)
+        if not extended_fits(charged, cost, M0_PILOT_SECONDS):
+            projection: Record = {
+                "charged_gpu_process_seconds": charged,
+                "item_gpu_process_seconds": cost,
+                "projected_gpu_process_seconds": charged + cost,
+                "limit_gpu_process_seconds": limit,
+            }
+            refused.append({"item": item, "projection": projection})
+            refused.extend(
+                {"item": later, "reason": f"follows {item}, the first that did not fit"}
+                for later in items[position + 1 :]
+            )
+            break
+        try:
+            if item == "starved-pair":
+                record["starved-pair"] = starved_pair(run, flags)
+            else:
+                trained.update(train_hosts(run, (lineages[item],)))
+        except PilotHold as error:
+            if not ceiling_stop(error):
+                raise
+            truncated = {"item": item, "completed": False, "error": str(error), "not_run": list(items[position + 1 :])}
+            break
+        completed.append(item)
+    if trained:
+        record["hosts"] = {key: [list(host) for host in hosts] for key, hosts in trained.items()}
+    record.update(
+        {
+            "completed": completed,
+            "not_admitted_at_runtime": refused,
+            "extended_truncated": truncated is not None,
+            "truncated": truncated,
+        }
+    )
     return record
 
 
 # --- stages 6 and 7 ----------------------------------------------------------------------------------------------
 
 
-def confirmatory_count(quantities: list[Record], w: Workloads, static_admitted: bool) -> Record:
-    """§9 stage 6: n = max(32, n*) sized on D1 only; the projection includes the fixed V0 term (R20 half-widths)."""
+def measured_charges(run: Run) -> Record:
+    """I3 and M7: from the ledger, each development anchor's whole children of the confirmatory's per-anchor work
+    (a superset: the pilot's modules and retune children run more arms) and the fixed V0 term the confirmatory
+    re-runs (the replays, acceptance (i)-(iv) and the fold-check), not the pilot's whole stage 1-2 charge."""
+    children = ("train", "noop", "maff", "tcool", "modules", "retune")
+    base: dict[str, float] = {}
+    static: dict[str, float] = {}
+    for s in ANCHORS:
+        names = [anchor_host(s), *(f"{kind}-{s}" for kind in children[1:])]
+        base[str(s)] = sum(run.charges(names))
+        static[str(s)] = base[str(s)] + sum(run.charges([f"static-{s}"]))
+    fixed = ["replay-3000-gpu0", "replay-3000-gpu1", *(f"replay-{s}" for s in ANCHORS[1:])]
+    fixed += ["acceptance-0", "acceptance-1", f"fold-check-{ANCHORS[0]}"]
+    return {
+        "per_anchor_children": list(children),
+        "per_anchor": dict(base),
+        "static_per_anchor": dict(static),
+        "per_anchor_gpu_process_seconds": max(base.values()),
+        "static_per_anchor_gpu_process_seconds": max(static.values()),
+        "fixed_v0_children": list(fixed),
+        "fixed_v0_gpu_process_seconds": sum(run.charges(fixed)),
+    }
+
+
+def confirmatory_count(quantities: list[Record], w: Workloads, static_admitted: bool, measured: Record) -> Record:
+    """§9 stage 6: n = max(32, n*) sized on D1 only; the projection includes the fixed V0 term (R20 half-widths).
+
+    I3: the larger of the kernel projection and the measured whole-child projection decides `within_ceiling`.
+    """
     for seed, q in zip(ANCHORS, quantities, strict=True):
         if q["D1"] is None:
             raise InstrumentHold(f"D1 is undefined on anchor {seed} ({q['D1_reason']}); the count cannot be sized")
     sd_d1 = stats.sd([number(q["D1"]) for q in quantities])
     required, n = stats.confirmatory_count(sd_d1)
-    projection = project_confirmatory(n, w, stats.CONFIRMATORY_ARMS, w.fixed_v0)
-    static = with_static(n, w, stats.CONFIRMATORY_ARMS | STATIC_ARMS, w.fixed_v0) if static_admitted else None
+    fixed = number(measured["fixed_v0_gpu_process_seconds"])
+    projection = project_confirmatory(n, w, stats.CONFIRMATORY_ARMS, fixed)
+    per_anchor = number(measured["per_anchor_gpu_process_seconds"])
+    observed = measured_confirmatory(n, per_anchor, fixed, M0_CONFIRMATORY_SECONDS)
+    kernel_total = number(projection["projected_gpu_process_seconds"])
+    measured_total = number(observed["projected_gpu_process_seconds"])
+    larger = max(kernel_total, measured_total)
+    static: Json = None
+    static_measured: Json = None
+    if static_admitted:
+        static = with_static(n, w, stats.CONFIRMATORY_ARMS | STATIC_ARMS, fixed)
+        per_static = number(measured["static_per_anchor_gpu_process_seconds"])
+        static_measured = measured_confirmatory(n, per_static, fixed, M0_CONFIRMATORY_STATIC_SECONDS)
     return {
         "confirmatory_count": n,
         "n_star": required,
         "sd_d1": sd_d1,
         "projection": projection,
+        "measured_projection": observed,
+        "measured_charges": measured,
+        "projected_gpu_process_seconds": larger,
+        "projection_used": "measured" if measured_total > kernel_total else "kernel",
         "static_admitted": static_admitted,
         "static_projection": static,
-        "within_ceiling": projection["within_ceiling"],
+        "static_measured_projection": static_measured,
+        "within_ceiling": larger <= M0_CONFIRMATORY_SECONDS,
         **half_widths(quantities),
+    }
+
+
+def carried_projection(count: Record) -> Record:
+    """I3: what the confirmatory launcher re-reads to take the larger projection at its own n."""
+    measured = mapping(count["measured_charges"])
+    return {
+        "fixed_v0_gpu_process_seconds": measured["fixed_v0_gpu_process_seconds"],
+        "per_anchor_gpu_process_seconds": measured["per_anchor_gpu_process_seconds"],
+        "static_per_anchor_gpu_process_seconds": measured["static_per_anchor_gpu_process_seconds"],
+        "kernel_gpu_process_seconds": mapping(count["projection"])["projected_gpu_process_seconds"],
+        "measured_gpu_process_seconds": mapping(count["measured_projection"])["projected_gpu_process_seconds"],
+        "projected_gpu_process_seconds": count["projected_gpu_process_seconds"],
     }
 
 
@@ -747,6 +985,11 @@ def development_medians(quantities: list[Record], points: dict[float, tuple[floa
         "confirmatory_verdict": None,
         "medians": {key: median_or_none([q[key] for q in quantities]) for key in MEDIAN_KEYS},
         "frontier_fraction": stats.gain_fraction(gains, points, BOOTSTRAP_SEED).report(),
+        "headline": {
+            "frontier_fraction": "value, the median of the joint frontier bootstrap (point is the plug-in ratio)",
+            "frontier_slope": "per_doubling in 03-hosts.json, the plug-in OLS slope (lower and upper are bootstrap "
+            "order statistics)",
+        },
         "bootstrap_seed": BOOTSTRAP_SEED,
     }
     if "starved-pair" in extended:
@@ -791,7 +1034,11 @@ def pilot(root: Path, data: Path, certificate: Path) -> int:
     # Durable one-attempt custody across output roots and supervisor restarts; never removed or reset.
     claim_attempt(REPO / CUSTODY, root, dict(identity, environment=environment, certificate_sha256=certificate_sha))
     root.mkdir(parents=True, exist_ok=False)
-    run = Run(root, Supervisor(root, data, ceiling=M0_PILOT_SECONDS, per_card=1, module=WORKER))
+    run = Run(
+        root,
+        Supervisor(root, data, ceiling=M0_PILOT_SECONDS, per_card=1, module=WORKER),
+        text(identity["source_sha256"]),
+    )
     stage = "opening"
     try:
         # Everything after custody is inside the attempt, so any failure publishes pilot-result.json.
@@ -830,14 +1077,13 @@ def pilot(root: Path, data: Path, certificate: Path) -> int:
         stage = "core"
         anchors = stage_core(run, (checkpoints, checkpoints_b), admitted, raised)
         quantities = [stats.quantities(item.result, stats.PILOT_ARMS) for item in anchors]
-        slicing = mapping(instrument["slicing"])["known_answer"] is True
-        spread = spreads(anchors, quantities, sequence(replay["acceptance"]), slicing)
+        spread = spreads(anchors, quantities, recorded_v0(replay, instrument, hosts))
         publish(root / "05-spreads.json", spread)
         stage = "extended"
-        extended = stage_extended(run, admitted, (checkpoints, checkpoints_b))
+        extended = stage_extended(run, admitted, (checkpoints, checkpoints_b), w)
         publish(root / "05-extended.json", extended)
         stage = "confirmatory-count"
-        count = confirmatory_count(quantities, w, spread["static_admitted"] is True)
+        count = confirmatory_count(quantities, w, spread["static_admitted"] is True, measured_charges(run))
         publish(root / "06-confirmatory-count.json", count)
         if count["within_ceiling"] is not True:
             raise FeasibilityHold("the confirmatory count projects over its ceiling; stop before freeze, John's choice")
@@ -854,15 +1100,18 @@ def pilot(root: Path, data: Path, certificate: Path) -> int:
                 "reason": "pilot-filled values must be reviewed and committed before the confirmatory run",
                 "schedule": {"checkpoints": list(checkpoints), "checkpoints_b": list(checkpoints_b), "raised": raised},
                 "admitted_extended": list(admitted),
+                "extended_truncated": extended["extended_truncated"],
                 "confirmatory_count": count["confirmatory_count"],
+                "confirmatory_projection": carried_projection(count),
                 "static_admitted": spread["static_admitted"],
                 "charged_gpu_process_seconds": run.supervisor.charged,
+                **implementation(identity),
                 **protocol_identity(),
             },
         )
         return 0
     except Exception as error:
-        publish(root / "pilot-result.json", m0_stop_report(error, stage, run.supervisor.charged))
+        publish(root / "pilot-result.json", m0_stop_report(error, stage, run.supervisor.charged, identity))
         return 2
 
 
