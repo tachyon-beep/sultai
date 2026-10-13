@@ -32,6 +32,7 @@ from sultai_screen.m0.identity import (
     source_identity,
 )
 from sultai_screen.m0.provenance import envelope
+from sultai_screen.m0.seeds import BLOCKS, RESERVED_M2, admit, width_scale
 
 REPO = Path(__file__).resolve().parents[1]
 DOCUMENTS = (
@@ -129,6 +130,55 @@ class EnvelopeTests(unittest.TestCase):
             [sys.executable, "-B", "-c", probe], env={"PYTHONPATH": str(REPO / "src")}, text=True
         )
         self.assertEqual(out.strip(), "[]")
+
+
+class SeedTests(unittest.TestCase):
+    def test_blocks_match_appendix_a(self) -> None:
+        self.assertEqual(
+            BLOCKS,
+            {
+                "anchor": range(3000, 3006),
+                "frontier-0.5": range(6000, 6006),
+                "frontier-0.75": range(6006, 6012),
+                "frontier-1.5": range(6012, 6018),
+                "cooled-20": range(6018, 6024),
+                "frontier-0.25": range(6024, 6030),
+                "confirmatory": range(7500, 7600),
+                "restart": range(7700, 7800),
+            },
+        )
+        self.assertEqual(RESERVED_M2, range(6100, 6200))
+
+    def test_blocks_are_disjoint_from_each_other_and_from_reserved_and_gate3(self) -> None:
+        others = [RESERVED_M2, range(4000, 4364), range(5000, 5800)]
+        seen: set[int] = set()
+        for block in BLOCKS.values():
+            members = set(block)
+            self.assertFalse(members & seen)
+            seen |= members
+            for other in others:
+                self.assertFalse(members & set(other))
+
+    def test_admit(self) -> None:
+        self.assertEqual(admit(7500, "confirmatory"), 7500)
+        self.assertEqual(admit(3005, "anchor"), 3005)
+        with self.assertRaises(PilotHold):
+            admit(3000, "frontier-0.5")
+        with self.assertRaises(PilotHold):
+            admit(6100, "anchor")
+        with self.assertRaises(PilotHold):
+            admit(3006, "anchor")
+
+    def test_width_scale(self) -> None:
+        self.assertEqual(width_scale("anchor"), 1.0)
+        self.assertEqual(width_scale("cooled-20"), 1.0)
+        self.assertEqual(width_scale("frontier-0.25"), 0.25)
+        self.assertEqual(width_scale("frontier-0.5"), 0.5)
+        self.assertEqual(width_scale("frontier-0.75"), 0.75)
+        self.assertEqual(width_scale("frontier-1.5"), 1.5)
+        for lineage in ("confirmatory", "restart"):
+            with self.assertRaises(PilotHold):
+                width_scale(lineage)
 
 
 if __name__ == "__main__":
