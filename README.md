@@ -26,6 +26,7 @@ John subsequently authorized the bounded correction PR and normal merge workflow
 - [Gate-ladder amendment 1](docs/plans/2026-10-13-gate-ladder-amendment.md): prospective restatement of gates 3–7 under the efficient-capacity objective (accepted 2026-10-13).
 - [M0 freeze certificate](docs/certificates/2026-10-13-m0-freeze.md): the capacity frontier screen v3, STEERING.md and the amendment pinned by SHA-256 (2026-10-13); authorises no execution.
 - [M0 freeze certificate 2](docs/certificates/2026-10-13-m0-freeze-2.md): v4 with [gate-ladder amendment 2](docs/plans/2026-10-13-gate-ladder-amendment-2.md) (2026-10-13); the [implementation plan](docs/plans/2026-10-13-m0-implementation.md) implements v4.
+- [M0 pilot admission certificate](docs/certificates/2026-10-14-m0-pilot-admission.json): implementation commit `978850a` with its quality/runtime evidence ([results](docs/results/m0-implementation-2026-10-14/)) and the per-item exact-source reviews ([reviews](docs/reviews/m0-capacity/implementation/)); gate B pending, pilot not authorised.
 - [Correction evidence certificate](docs/certificates/2026-10-09-hybrid-correction.md): measured negatives and gate verdicts.
 - [Nyx confirmation handover](docs/NYX_CORRECTION_HANDOVER.md): exact source, checks, commands and stop rules.
 - [Nyx transfer recommendation](docs/plans/2026-10-09-nyx-transfer-proposal.md): distinct future experiment and unresolved owner choices.
