@@ -35,6 +35,7 @@ from sultai_screen.m0.stats import (
     sd,
     sign_test_bound,
 )
+from sultai_screen.m0.verdicts import labels, programme_reading, static_reading, v0, v1, v2
 
 SRC = Path(__file__).resolve().parents[1] / "src"
 SPREAD = torch.tensor([-0.1, 0.1, -0.05, 0.05], dtype=torch.float64)
@@ -410,6 +411,132 @@ class StatsTests(unittest.TestCase):
         )
         result = subprocess.run([sys.executable, "-B", "-c", code], env={"PYTHONPATH": str(SRC)}, check=False)
         self.assertEqual(result.returncode, 0)
+
+
+class VerdictTests(unittest.TestCase):
+    def v0_inputs(self) -> tuple[dict[str, bool], dict[str, bool], dict[str, bool], dict[str, bool]]:
+        return (
+            {"both_cards_bitwise": True},
+            {"a1_within_1e-4": True, "b3_fraction_every_anchor": True},
+            {"zero_module_identity": True, "printed_counts": True, "complement_hash": True, "static_step0": True},
+            {"known_answer": True},
+        )
+
+    def test_v0_passes_and_fold_residual_boundary(self) -> None:
+        r, i, d, s = self.v0_inputs()
+        self.assertEqual(v0(r, i, d, s, (0.005, -0.005)), {"passed": True, "failed": []})
+        failed = v0(r, i, d, s, (0.001, 0.006))
+        self.assertEqual(failed, {"passed": False, "failed": ["fold residual"]})
+
+    def test_v0_each_clause_named(self) -> None:
+        cases = (
+            ("replays", "both_cards_bitwise", "replay"),
+            ("instrument", "a1_within_1e-4", "A1"),
+            ("instrument", "b3_fraction_every_anchor", "B3"),
+            ("identities", "zero_module_identity", "zero-module identity"),
+            ("identities", "printed_counts", "printed counts"),
+            ("slicing", "known_answer", "slicing known answer"),
+            ("identities", "complement_hash", "complement hash"),
+            ("identities", "static_step0", "S-static step 0"),
+        )
+        for group, key, name in cases:
+            with self.subTest(name=name):
+                parts = dict(zip(("replays", "instrument", "identities", "slicing"), self.v0_inputs(), strict=True))
+                parts[group][key] = False
+                result = v0(parts["replays"], parts["instrument"], parts["identities"], parts["slicing"], (0.0,))
+                self.assertEqual(result, {"passed": False, "failed": [name]})
+
+    def test_v0_contract(self) -> None:
+        r, i, d, s = self.v0_inputs()
+        del d["complement_hash"]
+        with self.assertRaises(ContractViolation):
+            v0(r, i, d, s, (0.0,))
+        r, i, d, s = self.v0_inputs()
+        with self.assertRaises(ContractViolation):
+            v0(r, i, d, s, (math.nan,))
+        with self.assertRaises(ContractViolation):
+            v0(r, i, d, s, ())
+
+    def test_v1_branches(self) -> None:
+        self.assertEqual(v1(0.02, 0.05, 0.75, 0.0), "present")
+        self.assertEqual(v1(0.019, 0.05, 1.0, 0.0), "indeterminate")
+        self.assertEqual(v1(0.02, 0.05, 0.74, 0.0), "indeterminate")
+        self.assertEqual(v1(-0.01, 0.0199, 0.0, 0.75), "re-tuning equivalent")
+        self.assertEqual(v1(-0.01, 0.02, 0.0, 0.75), "indeterminate")
+        self.assertEqual(v1(-0.01, 0.0199, 0.0, 0.74), "indeterminate")
+
+    def test_v2_branches(self) -> None:
+        self.assertEqual(v2(0.01, 0.05, 0.75, 0.0), "helps")
+        self.assertEqual(v2(0.0099, 0.05, 1.0, 0.0), "indeterminate")
+        self.assertEqual(v2(0.01, 0.05, 0.74, 0.0), "indeterminate")
+        self.assertEqual(v2(-0.05, -0.0001, 0.0, 0.75), "hurts")
+        self.assertEqual(v2(-0.05, 0.0, 0.0, 0.75), "indeterminate")
+        self.assertEqual(v2(-0.05, -0.0001, 0.0, 0.74), "indeterminate")
+
+    def test_labels_each_branch_and_v1_unchanged(self) -> None:
+        self.assertEqual(labels(0.1, 0.0, 0.5, 0.0, 0.0), [])
+        self.assertIn("loss gain without accuracy movement", labels(0.0, 0.0, 0.5, 0.0, 0.0))
+        self.assertNotIn("loss gain without accuracy movement", labels(0.001, 0.0, 0.5, 0.0, 0.0))
+        self.assertIn("survives finishing", labels(0.1, 0.02, 0.5, 0.0, 0.0))
+        self.assertNotIn("survives finishing", labels(0.1, 0.019, 0.5, 0.0, 0.0))
+        self.assertIn("harvests undertraining", labels(0.1, -0.1, 0.0199, 0.0, 0.0))
+        self.assertNotIn("harvests undertraining", labels(0.1, -0.1, 0.02, 0.0, 0.0))
+        self.assertIn("beats every named re-tune", labels(0.1, 0.0, 0.5, 0.001, 0.0))
+        self.assertNotIn("beats every named re-tune", labels(0.1, 0.0, 0.5, 0.0, 0.0))
+        self.assertIn("fresh-data effect", labels(0.1, 0.0, 0.5, 0.0, 0.001))
+        self.assertNotIn("fresh-data effect", labels(0.1, 0.0, 0.5, 0.0, 0.0))
+        before = v1(0.02, 0.05, 0.75, 0.75)
+        labels(0.0, 0.03, 0.05, 0.1, 0.1)
+        self.assertEqual(v1(0.02, 0.05, 0.75, 0.75), before)
+
+    def test_static_reading(self) -> None:
+        self.assertIsNone(static_reading(0.5, True, 6))
+        self.assertIsNone(static_reading(0.5, False, 32))
+        self.assertIsNone(static_reading(0.02, True, 32))
+        self.assertIsNone(static_reading(0.5, True, 31))
+        self.assertEqual(static_reading(0.021, True, 32), "design-in beats insertion")
+
+    def test_programme_reading(self) -> None:
+        present = programme_reading("present", [])
+        self.assertEqual(present["rank"], 1)
+        self.assertEqual(present["outcome"], "more capacity at a small parameter cost")
+        self.assertTrue(present["opens_m1"])
+        equivalent = programme_reading("re-tuning equivalent", [])
+        self.assertEqual((equivalent["rank"], equivalent["opens_m1"]), (2, False))
+        self.assertEqual(equivalent["outcome"], "same loss with fewer retained parameters")
+        flat = programme_reading("indeterminate", [])
+        self.assertEqual((flat["rank"], flat["opens_m1"]), (3, False))
+        self.assertEqual(flat["outcome"], "no substantial change")
+        beating = ["beats every named re-tune"]
+        for verdict in ("present", "re-tuning equivalent", "indeterminate"):
+            plain = programme_reading(verdict, [])
+            graded = programme_reading(verdict, beating)
+            self.assertFalse(plain["beats_named_retunes"])
+            self.assertTrue(graded["beats_named_retunes"])
+            self.assertEqual(plain["opens_m1"], graded["opens_m1"])
+            self.assertEqual(plain["rank"], graded["rank"])
+        with self.assertRaises(ContractViolation):
+            programme_reading("maybe", [])
+
+    def test_non_finite_and_fraction_range(self) -> None:
+        with self.assertRaises(ContractViolation):
+            v1(math.nan, 0.0, 0.5, 0.5)
+        with self.assertRaises(ContractViolation):
+            v1(0.0, math.inf, 0.5, 0.5)
+        with self.assertRaises(ContractViolation):
+            v1(0.0, 0.0, 1.01, 0.5)
+        with self.assertRaises(ContractViolation):
+            v1(0.0, 0.0, 0.5, -0.01)
+        with self.assertRaises(ContractViolation):
+            v2(0.0, math.nan, 0.5, 0.5)
+        with self.assertRaises(ContractViolation):
+            v2(0.0, 0.0, 0.5, 1.5)
+        with self.assertRaises(ContractViolation):
+            labels(math.nan, 0.0, 0.0, 0.0, 0.0)
+        with self.assertRaises(ContractViolation):
+            labels(0.0, 0.0, 0.0, 0.0, math.inf)
+        with self.assertRaises(ContractViolation):
+            static_reading(math.nan, True, 32)
 
 
 def line_points() -> dict[float, tuple[float, ...]]:
