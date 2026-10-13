@@ -1113,7 +1113,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--noop-root", type=Path)
     parser.add_argument("--tcool-root", type=Path)
     parser.add_argument("--static-root", type=Path)
-    parser.add_argument("--epochs", type=int, default=10)
+    parser.add_argument("--epochs", type=int, default=10, help="training actions: 20 for cooled-20, else 10")
     args = parser.parse_args(argv)
     lineage = _lineage(args.lineage)
     if args.width != 0:
@@ -1125,7 +1125,7 @@ def main(argv: list[str] | None = None) -> int:
     except PilotHold as error:
         parser.error(str(error))
     epochs = 20 if lineage == "cooled-20" else 10
-    if args.epochs != epochs:
+    if args.action in TRAINING_ACTIONS and args.epochs != epochs:
         parser.error(f"lineage {lineage} trains exactly {epochs} epochs")
     if args.action == "cooled20" and lineage != "cooled-20":
         parser.error("cooled20 trains the cooled-20 lineage only")

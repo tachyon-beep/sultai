@@ -172,6 +172,23 @@ class WorkerTests(unittest.TestCase):
             )
         request = child.call_args.args[0]
         self.assertEqual((request.epochs, request.arms, request.widths), (20, ("M-sq", "M-aff"), REFERENCE_WIDTHS))
+        with patch("sultai_screen.m0.worker.worker", return_value=0) as child:
+            worker.main(
+                [
+                    "noop",
+                    "--output",
+                    "/x",
+                    "--data-root",
+                    "/y",
+                    "--seed",
+                    "6018",
+                    "--lineage",
+                    "cooled-20",
+                    "--scale",
+                    "1",
+                ]
+            )
+        self.assertEqual(child.call_args.args[0].lineage, "cooled-20")
 
     def test_attempt4_hashes_are_the_published_receipts(self) -> None:
         self.assertEqual(worker.DEV_ARTIFACT, REPO / "docs/results/gate3-split-2026-10-11/dev-indices-int32-le.bin")
@@ -386,6 +403,11 @@ class WorkerTests(unittest.TestCase):
         ):
             self.assertIs(payload[name], True, name)
         self.assertTrue(math.isfinite(float(str(payload["fold_residual"]))))
+        alone = payload_of(run("acceptance", self.root / "acceptance-alone"))
+        self.assertIs(alone["training_root_used"], False)
+        self.assertEqual(alone["resumed_epoch_state_sha256"], payload["resumed_epoch_state_sha256"])
+        for name in ("resume_bitwise", "checkpoint_bitwise", "evaluation_consistent", "fold_residual_reproducible"):
+            self.assertIs(alone[name], True, name)
 
     def test_timing_and_instrument_children(self) -> None:
         timing = payload_of(run("timing", self.root / "timing", 3000, "anchor", "--noop-root", str(self.root / "noop")))
@@ -396,7 +418,11 @@ class WorkerTests(unittest.TestCase):
             "development_evaluation_seconds",
         ):
             self.assertGreaterEqual(float(str(timing[name])), 0.0, name)
-        self.assertEqual(timing["front_rerun_steps"], 2)
+        self.assertEqual((timing["front_rerun_steps"], timing["host"]), (2, "N0"))
+        raw = payload_of(
+            run("timing", self.root / "timing-raw", 3000, "anchor", "--training-root", str(self.root / "train"))
+        )
+        self.assertEqual(raw["host"], "raw")
         with (
             patch("sultai_screen.m0.worker.materiality", return_value={"seed": 3000}) as materiality,
             patch("sultai_screen.m0.worker.posthoc", return_value={"alpha": 0.1}) as posthoc,
