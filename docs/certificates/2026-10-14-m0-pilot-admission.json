@@ -1,0 +1,120 @@
+{
+  "protocol_version": "m0-v4",
+  "protocol_sha256": "3a76c6dbe31ca3f80ec301ed0523b1f382148f8114ee02a164ae4ae9557f6e5d",
+  "preregistration_sha256": "c66599459adc898f96322ab11dfa3c6737cd3559e06c9432d79e377e00c03fd5",
+  "steering_sha256": "08a9e1aaf79d3048a5d6f6f4d6138a9c7049f32b61c0250e1505773a27fa3ffd",
+  "amendment_sha256": "af12d474a97aad83bc63405034fec3716170f7652f34364588750732c97b6a89",
+  "amendment_2_sha256": "b4740b147a4a1ced52a6f0721215679c1567078260d5c11a92c35fa2065c2d77",
+  "implementation_commit": "978850af411910cdc2a56f6cd95b49cae804c0a4",
+  "implementation_source_sha256": "47169fc0870e69e6f2397e3d3c081fb40f453ca608e7af61dd0e5ac75ab6a8da",
+  "quality_passed": true,
+  "runtime_tests_passed": true,
+  "independent_panel_accepted": true,
+  "evidence": [
+    {
+      "path": "docs/results/m0-implementation-2026-10-14/quality.json",
+      "sha256": "ae2e50f50d4361f803a1bad2a54187aad21671a8ebed573b5b679479db304407"
+    },
+    {
+      "path": "docs/results/m0-implementation-2026-10-14/runtime.json",
+      "sha256": "d1bdc1fadad61bae402bb342e511114002a3e307d30d54ab9b1d8e807067f9a7"
+    },
+    {
+      "path": "docs/results/m0-implementation-2026-10-14/runtime.txt",
+      "sha256": "d2ec325f34c1b0c3e9e2166221ea45521aa5849ae437648abc8176d494e41a3c"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/implementation/accuracy-evaluator.md",
+      "sha256": "9df56d0ff078b35a3a531320cad1a01609b877758b74d0b5fa22c1b57209b456"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/implementation/affine-fold-and-residual.md",
+      "sha256": "e88dbed2374466d549a5878790f83eba20569e221127576c452f8697ea5e021d"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/implementation/attempt4-pins-and-replay.md",
+      "sha256": "027ddf86dd02339bf3d01a3ecfb9568ebdef8ce6f9bbf85dfce9467da2d1e0da"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/implementation/calibration-and-noop.md",
+      "sha256": "1ca335357e4b06bc9ec36ceff599c8f067c3a2f5b276b9572278ac5461f7d74e"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/implementation/final-review-e1df6e1.md",
+      "sha256": "a309453c5b27b75ec861a4dbb51904677cd80416f23d24eca12a07d38237a0c9"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/implementation/fitter-and-checkpoint-bitwise.md",
+      "sha256": "d5aab498e45ff4a8231cd602ea1fa27625f6e5a22ad4cf976834e0ac21f404ad"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/implementation/modules-slicing-known-answer.md",
+      "sha256": "82f3f6a906b27ce86580b189d9e278426a63f0a18b7b7b3036cc7aa584cc05cc"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/implementation/p1-instrument-and-import-isolation.md",
+      "sha256": "b60f583cad56c1a48170b5496e12fd9cc4bb806c018c003ec722abf590346120"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/implementation/pilot-and-confirmatory-custody.md",
+      "sha256": "6930388eb14da6e0a9701faf40af192e73bbcda0f4c04ad7d581d974ca75c23a"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/implementation/post-review-978850a.md",
+      "sha256": "30f8d77fe8b18f0fb1b59107de89ee5d9f81fb84ff2d61ce02d6f81772231636"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/implementation/post-review-recheck.md",
+      "sha256": "1e6e052b52396b8dcd2a3a1a121df8c9ec6b61306bb2721c26664484c3f35d4c"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/implementation/retune-subsets-complement.md",
+      "sha256": "8c2cd6c78912a4ea2f3bee328efe81ea7c98ee243845a9aef3d7222b867ace36"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/implementation/seed-admission-and-identity.md",
+      "sha256": "d4a34e51b71257d0b3843d4bfc612984d4aaba981c503cf3bf14b2af027b3794"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/implementation/seen-fit-partition.md",
+      "sha256": "6f42023d8d2eb346a19a41965faa27b40663fd616aa1658b656fcc4896f46006"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/implementation/static-host.md",
+      "sha256": "9ef718a1b42b1cc93aaf9b3ddc6c4bebf0871042c5207ec34fbea4a1228b39fd"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/implementation/statistics-and-verdicts.md",
+      "sha256": "7351be492d4b9bb3075f34e8d05007445a329eab8d0a60f8ad14324a6abe0526"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/implementation/supervisor-ceiling-one-per-card-costs.md",
+      "sha256": "a4617548cdf44714eb1a76a1cf1d90ce8d6aba39418ea74f93201ba0529268e4"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/implementation/trainer-schedules-optimizer-state.md",
+      "sha256": "5fae723ff8b44b87193b1c5984a6503e48316575f00827ec4723ef5c2b8ae10b"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/implementation/width-tuple-host.md",
+      "sha256": "2ec59bec702151c0faccf4fc1222157b762b467c1895563b4402438853c079ac"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/implementation/worker-actions-and-receipts.md",
+      "sha256": "b2d8c0cbf6eebfa176b0898ff02c4c3fbb6d1ab83958b2306370e8cabb362803"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/implementation/final-review-e1df6e1.md",
+      "sha256": "a309453c5b27b75ec861a4dbb51904677cd80416f23d24eca12a07d38237a0c9"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/implementation/post-review-recheck.md",
+      "sha256": "1e6e052b52396b8dcd2a3a1a121df8c9ec6b61306bb2721c26664484c3f35d4c"
+    }
+  ],
+  "pilot_gpu_hour_ceiling": 4,
+  "pilot_gpu_process_seconds_ceiling": 14400,
+  "confirmation_cleared": false,
+  "pr_url": "https://github.com/tachyon-beep/sultai/pull/7",
+  "recorded_utc": "2026-10-13T21:30:03+00:00"
+}
