@@ -387,8 +387,9 @@ J0: mean dev cross-entropy is the sole primary unit; see §12]:
 - **re-tuning equivalent** if the upper bound of the median D1 < X and
   M-sq is certified on ≥ 75 percent of anchors. Said plainly: a true
   premium below about 0.016 nats under the measured correlation is
-  published as equivalent to re-tuning, and John has accepted that a
-  premium of that size from 272 parameters does not open rung M1;
+  published as equivalent to re-tuning. Taking X = 0.02 therefore accepts
+  that a premium of that size from 272 parameters does not open rung M1
+  (a consequence John has not yet seen stated; surfaced in the v3 report);
 - otherwise indeterminate, reported with the certification fractions.
 
 Labels attached to any V1 reading, moving no threshold: **"loss gain

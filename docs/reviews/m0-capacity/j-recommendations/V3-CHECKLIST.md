@@ -39,7 +39,7 @@
 - [x] STEERING §4 rule 1 (J0 taken, author's resolution), §5 M0 row (no guard), §6 → link
 - [x] DECISIONS D27 row
 - [x] README pointer to the amendment
-- [ ] tracker comment, memory (J0) — after the re-review
+- [x] tracker comment (sultai-3306ef3b07 #42), memory (J0), PR #3 body
 - [x] RESUME
 - [ ] fresh targeted re-review of v3 against this checklist, preserved and dispositioned
 
