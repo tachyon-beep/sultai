@@ -75,6 +75,34 @@ def losses(host: Host, data: Features, adapter: Adapter | None, *, check_finite:
     return values
 
 
+def logits(host: Host, data: Features, adapter: Adapter | None) -> Tensor:
+    """Sibling of losses(): the same padded EVAL_CHUNK loop, returning [N, 10] logits in caller order."""
+    count = len(data.labels)
+    if count == 0 or len(data.read) != count or len(data.base) != count:
+        raise ContractViolation("nonempty aligned read/base/labels required")
+    expected = state_hash(host)
+    assert_frozen(host, expected)
+    result = []
+    with torch.no_grad():
+        for start in range(0, count, EVAL_CHUNK):
+            stop = min(start + EVAL_CHUNK, count)
+            read, base = _padded(data.read[start:stop]), _padded(data.base[start:stop])
+            values = base if adapter is None else adapter.apply(read, base)
+            result.append(host.classify(values)[: stop - start])
+    values = torch.cat(result)
+    assert_frozen(host, expected)
+    return values
+
+
+def accuracy(host: Host, data: Features, adapter: Adapter | None) -> Tensor:
+    """Per-example 0/1 correctness [N] through the padded frozen evaluator."""
+    return (logits(host, data, adapter).argmax(1) == data.labels).float()
+
+
+def mean_accuracy(host: Host, data: Features, adapter: Adapter | None) -> float:
+    return float(accuracy(host, data, adapter).double().mean())
+
+
 def mean_loss(host: Host, data: Features, adapter: Adapter | None) -> float:
     return float(losses(host, data, adapter).double().mean())
 
