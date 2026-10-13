@@ -5,8 +5,8 @@
 John restated the objective after the Gate 3 attempt-4 hold: build new, more
 efficient capacity, measured as accuracy per retained parameter; repair is
 not the goal; Sultai is the add-and-remove alternative to Esper-lite's
-plug-in modules. Delivered on `codex/gate3-screen` (merge to `main` pending
-John):
+plug-in modules. Delivered on `codex/gate3-screen`, merged to `main` 2026-10-13 (`ae35dfe`)
+and frozen the same day:
 
 - [STEERING.md](STEERING.md): the objective verbatim, the drift diagnosis,
   measurement rules for every later preregistration, the progress ladder
@@ -23,7 +23,8 @@ John):
   answer kept as instrument validation; core and extended arm tiers with an
   overrun rule; decisions J0–J9 taken 2026-10-13 and recorded in §12 (J6 a
   4 GPU-hour ceiling; J9 a separate [gate-ladder amendment](plans/2026-10-13-gate-ladder-amendment.md)
-  whose text John accepted; J10 merge pending). v1 (`5aeee56`) was reviewed by
+  whose text John accepted; J10 merged 2026-10-13, `ae35dfe`; v3 frozen, see
+  [the freeze certificate](certificates/2026-10-13-m0-freeze.md)). v1 (`5aeee56`) was reviewed by
   three independent readers; reports and dispositions are under
   `docs/reviews/m0-capacity/`. On 2026-10-13 twelve further agents each
   took one of John's decisions J0–J9 and wrote a recommendation with the
