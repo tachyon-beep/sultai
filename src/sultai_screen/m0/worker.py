@@ -7,7 +7,9 @@ Run as `python -B -m sultai_screen.m0.worker <action> ...`. Never imports `sulta
 from __future__ import annotations
 
 import argparse
+import functools
 import hashlib
+import itertools
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -165,6 +167,8 @@ class Request:
     lineage: Lineage
     widths: Widths
     epochs: int
+    checkpoints: tuple[int, ...]
+    checkpoints_b: tuple[int, ...]
     arms: tuple[str, ...] | None
     training_root: Path | None
     noop_root: Path | None
@@ -502,10 +506,32 @@ class Collector:
     def __init__(self) -> None:
         self.records: Record = {}
         self.vectors: dict[str, dict[str, Tensor]] = {}
+        self.unavailable: list[str] = []
+
+    def attempt(self, names: tuple[str, ...], body: Callable[[], Json]) -> None:
+        """Run one arm, or a block of arms sharing one fit; with no finite candidate, each unrecorded arm is unavailable.
+
+        R11: the anchor is retained and the child continues; the arm keeps every candidate report and has no vectors.
+        """
+        try:
+            body()
+        except OracleUnavailable as error:
+            candidates: list[Json] = []
+            if error.candidates is not None:
+                candidates.extend(error.candidates)
+            for name in names:
+                if name not in self.records:
+                    self.records[name] = {"status": "unavailable", "error": str(error), "candidates": candidates}
+                    self.unavailable.append(name)
 
     def put(self, name: str, loss: Tensor, correct: Tensor, record: Record) -> Record:
         self.vectors[name] = {"loss": loss.detach().cpu(), "correct": correct.detach().cpu()}
-        full: Record = {"development_loss": _mean(loss), "development_accuracy": _mean(correct), **record}
+        full: Record = {
+            "status": "available",
+            "development_loss": _mean(loss),
+            "development_accuracy": _mean(correct),
+            **record,
+        }
         self.records[name] = full
         return full
 
@@ -588,106 +614,114 @@ def _harm(host: Host, development: Features, candidates: tuple[Candidate, ...]) 
     return inventory
 
 
-def _module_grid(
-    host: Host,
-    fit: Features,
-    selection: Features,
-    seed: int,
-    *,
-    start: Adapter | None = None,
-    hidden: int | None = None,
-    expanded: bool = False,
-    checkpoints: tuple[int, ...] | None = None,
-) -> Grid:
-    return grid(
-        host,
-        fit,
-        selection,
-        seed,
-        rates=MODULE_RATES,
-        checkpoints=CHECKPOINTS if checkpoints is None else checkpoints,
-        start=start,
-        hidden=hidden,
-        expanded=expanded,
-    )
+@dataclass(frozen=True)
+class Site:
+    """One host's fit, selection and development features and the schedule axis its module grids run on."""
+
+    host: Host
+    fit: Features
+    selection: Features
+    development: Features
+    seed: int
+    checkpoints: tuple[int, ...]
+
+    def grid(
+        self,
+        *,
+        fit: Features | None = None,
+        start: Adapter | None = None,
+        hidden: int | None = None,
+        expanded: bool = False,
+        checkpoints: tuple[int, ...] | None = None,
+    ) -> Grid:
+        """The module grid (rates MODULE_RATES) on this site; fit defaults to the seen fit features."""
+        return grid(
+            self.host,
+            self.fit if fit is None else fit,
+            self.selection,
+            self.seed,
+            rates=MODULE_RATES,
+            checkpoints=self.checkpoints if checkpoints is None else checkpoints,
+            start=start,
+            hidden=hidden,
+            expanded=expanded,
+        )
+
+    def affine(self) -> Grid:
+        """M-aff: the five-rate affine grid."""
+        return grid(
+            self.host,
+            self.fit,
+            self.selection,
+            self.seed,
+            rates=RETUNE_RATES,
+            checkpoints=self.checkpoints,
+            nonlinear=False,
+        )
 
 
-def _affine(host: Host, fit: Features, selection: Features, seed: int) -> Grid:
-    return grid(host, fit, selection, seed, rates=RETUNE_RATES, checkpoints=CHECKPOINTS, nonlinear=False)
+def _schedule(request: Request) -> Record:
+    return {"checkpoints": _ints(request.checkpoints), "checkpoints_b": _ints(request.checkpoints_b)}
 
 
 def modules_action(request: Request, data: Dataset, device: torch.device) -> Record:
-    """The module arms of one anchor on its published N0 (seen fit data, selection, development endpoint)."""
+    """The module arms of one anchor on its published N0 (seen fit data, selection, development endpoint).
+
+    An arm whose fit has no finite candidate is recorded unavailable with every candidate report and the child
+    continues (ruling R11: anchor retained, arm unavailable).
+    """
     arms = _arms(request.arms, MODULE_ARMS, MODULE_ARMS)
     wanted = set(arms)
-    seed = request.seed
     host, noop = _noop_host(request, device)
     cache = cached(host, data)
     fit_ids = seen_fit(data)
-    fit = features_from_images(host, data, fit_ids)
-    selection, development = cache.selection, cache.development
+    site = Site(
+        host,
+        features_from_images(host, data, fit_ids),
+        cache.selection,
+        cache.development,
+        request.seed,
+        request.checkpoints,
+    )
+    development = site.development
     collect = Collector()
     collect.vectors["N0"] = {
         "loss": losses(host, development, None).cpu(),
         "correct": accuracy(host, development, None).cpu(),
     }
-    payload: Record = {**_identity(request), "noop_sha256": text(noop["noop_sha256"]), "r_aff": None}
-    if "M-sq" in wanted:
-        collect.fitted("M-sq", host, development, _module_grid(host, fit, selection, seed))
-    if "M-aff" in wanted:
-        affine = _affine(host, fit, selection, seed)
-        folded = fold_affine(host, affine.best.adapter)
-        r_aff = fold_residual(host, affine.best.adapter, folded, development, data, data.development)
-        collect.fitted("M-aff", host, development, affine)["r_aff"] = r_aff
+    payload: Record = {**_identity(request), **_schedule(request), "noop_sha256": text(noop["noop_sha256"])}
+    payload["r_aff"] = None
+
+    def affine() -> None:
+        fitted = site.affine()
+        folded = fold_affine(host, fitted.best.adapter)
+        r_aff = fold_residual(host, fitted.best.adapter, folded, development, data, data.development)
+        collect.fitted("M-aff", host, development, fitted)["r_aff"] = r_aff
         payload["r_aff"] = r_aff
-    if "M-sq-fresh" in wanted:
-        collect.fitted("M-sq-fresh", host, development, _module_grid(host, cache.conditioning, selection, seed))
-    if wanted & WIDE_DEPENDENTS:
-        wide = _module_grid(host, fit, selection, seed, hidden=WIDE)
-        module = wide.best.adapter
-        if "M-wide" in wanted:
-            collect.fitted("M-wide", host, development, wide)
-        rank8 = rank_cut(module, fit.read, SMALL)
-        for kind, cut in (("rank", rank8), ("random", random_cut(module, fit.read, SMALL, seed))):
-            if f"M-wide→8:{kind}:sliced" in wanted:
-                collect.cut(f"M-wide→8:{kind}:sliced", host, development, cut)
-            if f"M-wide→8:{kind}:refit" in wanted:
-                refit = _module_grid(host, fit, selection, seed, start=cut.folded, hidden=SMALL)
-                collect.fitted(f"M-wide→8:{kind}:refit", host, development, refit)["survivors"] = _ints(cut.survivors)
-        if "M-wide→8:ablation" in wanted:
-            ablation = leave_one_out(host, fit, module)
-            collect.cut("M-wide→8:ablation", host, development, ablation_cut(module, fit.read, SMALL, ablation))
-        for h in SURVIVAL_CUTS:
-            if f"M-wide→{h}:sliced" not in wanted and f"M-wide→{h}:refit" not in wanted:
-                continue
-            cut = rank_cut(module, fit.read, h)
-            if f"M-wide→{h}:sliced" in wanted:
-                collect.cut(f"M-wide→{h}:sliced", host, development, cut)
-            if f"M-wide→{h}:refit" in wanted:
-                run = fit_sgd(
-                    host,
-                    fit,
-                    selection,
-                    seed=seed,
-                    rate=wide.best.rate,
-                    steps=SURVIVAL_REFIT_STEPS,
-                    minibatch=True,
-                    start=cut.folded,
-                    hidden=h,
-                )
-                collect.single(f"M-wide→{h}:refit", host, development, run)["survivors"] = _ints(cut.survivors)
-        if "lottery" in wanted:
-            start = lottery_start(seed, rank8.survivors, device)
-            lottery = _module_grid(host, fit, selection, seed, start=start, hidden=SMALL)
-            collect.fitted("lottery", host, development, lottery)["survivors"] = _ints(rank8.survivors)
-    if "M-small" in wanted:
-        collect.fitted("M-small", host, development, _module_grid(host, fit, selection, seed, hidden=SMALL))
-    if "M-small-B" in wanted:
-        small_b = _module_grid(host, fit, selection, seed, hidden=SMALL, checkpoints=CHECKPOINTS_B)
-        collect.fitted("M-small-B", host, development, small_b)
-    if "M-exp" in wanted:
-        expanded = _module_grid(host, fit, selection, seed, expanded=True)
-        collect.fitted("M-exp", host, development, expanded, contract(expanded.best.adapter))
+
+    def expanded() -> None:
+        fitted = site.grid(expanded=True)
+        collect.fitted("M-exp", host, development, fitted, contract(fitted.best.adapter))
+
+    plain: dict[str, Callable[[], Json]] = {
+        "M-sq": lambda: collect.fitted("M-sq", host, development, site.grid()),
+        "M-aff": affine,
+        "M-sq-fresh": lambda: collect.fitted("M-sq-fresh", host, development, site.grid(fit=cache.conditioning)),
+        "M-small": lambda: collect.fitted("M-small", host, development, site.grid(hidden=SMALL)),
+        "M-small-B": lambda: collect.fitted(
+            "M-small-B", host, development, site.grid(hidden=SMALL, checkpoints=request.checkpoints_b)
+        ),
+        "M-exp": expanded,
+    }
+    for name in ("M-sq", "M-aff", "M-sq-fresh"):
+        if name in wanted:
+            collect.attempt((name,), plain[name])
+    dependents = tuple(name for name in MODULE_ARMS if name in wanted & WIDE_DEPENDENTS)
+    if dependents:
+        collect.attempt(dependents, lambda: _wide_arms(site, wanted, collect, device))
+    for name in ("M-small", "M-small-B", "M-exp"):
+        if name in wanted:
+            collect.attempt((name,), plain[name])
     if wanted & TCOOL_ARMS:
         _tcool_arms(request, data, device, wanted, collect, payload)
     if wanted & {"R-temp", "R-cal"}:
@@ -699,6 +733,7 @@ def modules_action(request: Request, data: Dataset, device: torch.device) -> Rec
         {
             "arms_run": list(arms),
             "arms": collect.records,
+            "unavailable_arms": _texts(collect.unavailable),
             "n0": {
                 "development_loss": _mean(collect.vectors["N0"]["loss"]),
                 "development_accuracy": _mean(collect.vectors["N0"]["correct"]),
@@ -708,6 +743,61 @@ def modules_action(request: Request, data: Dataset, device: torch.device) -> Rec
         }
     )
     return payload
+
+
+def _wide_arms(site: Site, wanted: set[str], collect: Collector, device: torch.device) -> None:
+    """M-wide and everything cut from it; an unavailable M-wide makes every dependent arm unavailable (caller)."""
+    host, fit, development, seed = site.host, site.fit, site.development, site.seed
+    wide = site.grid(hidden=WIDE)
+    module = wide.best.adapter
+    if "M-wide" in wanted:
+        collect.fitted("M-wide", host, development, wide)
+    rank8 = rank_cut(module, fit.read, SMALL)
+    for kind, cut in (("rank", rank8), ("random", random_cut(module, fit.read, SMALL, seed))):
+        if f"M-wide→8:{kind}:sliced" in wanted:
+            collect.cut(f"M-wide→8:{kind}:sliced", host, development, cut)
+        name = f"M-wide→8:{kind}:refit"
+        if name in wanted:
+
+            def refit(name: str = name, cut: Cut = cut) -> None:
+                fitted = site.grid(start=cut.folded, hidden=SMALL)
+                collect.fitted(name, host, development, fitted)["survivors"] = _ints(cut.survivors)
+
+            collect.attempt((name,), refit)
+    if "M-wide→8:ablation" in wanted:
+        ablation = leave_one_out(host, fit, module)
+        collect.cut("M-wide→8:ablation", host, development, ablation_cut(module, fit.read, SMALL, ablation))
+    for h in SURVIVAL_CUTS:
+        if f"M-wide→{h}:sliced" not in wanted and f"M-wide→{h}:refit" not in wanted:
+            continue
+        cut = rank_cut(module, fit.read, h)
+        if f"M-wide→{h}:sliced" in wanted:
+            collect.cut(f"M-wide→{h}:sliced", host, development, cut)
+        name = f"M-wide→{h}:refit"
+        if name in wanted:
+
+            def single(name: str = name, cut: Cut = cut, h: int = h) -> None:
+                run = fit_sgd(
+                    host,
+                    fit,
+                    site.selection,
+                    seed=seed,
+                    rate=wide.best.rate,
+                    steps=SURVIVAL_REFIT_STEPS,
+                    minibatch=True,
+                    start=cut.folded,
+                    hidden=h,
+                )
+                collect.single(name, host, development, run)["survivors"] = _ints(cut.survivors)
+
+            collect.attempt((name,), single)
+    if "lottery" in wanted:
+
+        def lottery() -> None:
+            fitted = site.grid(start=lottery_start(seed, rank8.survivors, device), hidden=SMALL)
+            collect.fitted("lottery", host, development, fitted)["survivors"] = _ints(rank8.survivors)
+
+        collect.attempt(("lottery",), lottery)
 
 
 def _tcool_arms(
@@ -724,7 +814,8 @@ def _tcool_arms(
         collect.fixed("T-cool", host, cache.development, None, {"noop_choice": receipt["noop_choice"]})
     if "M-sq|T-cool" in wanted:
         fit = features_from_images(host, data, seen_fit(data))
-        collect.fitted("M-sq|T-cool", host, cache.development, _module_grid(host, fit, cache.selection, request.seed))
+        site = Site(host, fit, cache.selection, cache.development, request.seed, request.checkpoints)
+        collect.attempt(("M-sq|T-cool",), lambda: collect.fitted("M-sq|T-cool", host, cache.development, site.grid()))
 
 
 def _calibration_arms(host: Host, development: Features, noop: Record, wanted: set[str], collect: Collector) -> None:
@@ -774,10 +865,18 @@ def _static_arms(
     if "S-static" in wanted:
         collect.fixed("S-static", static.host, development, module, {})
     if "S-static:refit" in wanted:
-        fit = static_features(static, data, seen_fit(data))
-        selection = static_features(static, data, data.selection)
-        refit = _module_grid(static.host, fit, selection, request.seed, start=module)
-        collect.fitted("S-static:refit", static.host, development, refit)
+        site = Site(
+            static.host,
+            static_features(static, data, seen_fit(data)),
+            static_features(static, data, data.selection),
+            development,
+            request.seed,
+            request.checkpoints,
+        )
+        collect.attempt(
+            ("S-static:refit",),
+            lambda: collect.fitted("S-static:refit", static.host, development, site.grid(start=module)),
+        )
 
 
 # --- re-tune arms ------------------------------------------------------------------------------------------------
@@ -833,11 +932,12 @@ def retune_action(request: Request, data: Dataset, device: torch.device) -> Reco
         return features_from_images(candidate, data, data.development)
 
     plans: dict[str, tuple[Subset, bool, tuple[int, ...]]] = {
-        "R-272s": (R272S(host), False, CHECKPOINTS),
-        "R-aff": (RAFF(host), True, CHECKPOINTS),
+        "R-272s": (R272S(host), False, request.checkpoints),
+        "R-aff": (RAFF(host), True, request.checkpoints),
         "R-all": (RALL(host), True, RALL_CHECKPOINTS),
     }
-    for name in arms:
+
+    def arm(name: str) -> None:
         subset, images, checkpoints = plans[name]
         evaluate = from_images if images else cached_site
         fit = retune_grid(
@@ -852,34 +952,42 @@ def retune_action(request: Request, data: Dataset, device: torch.device) -> Reco
             from_images=images,
         )
         record = _retune_record(fit, subset, host, evaluate)
+        record["checkpoints"] = _ints(checkpoints)
         chosen = fit.best
-        if name == "R-all":
-            pre = chosen
-            chosen = recalibrate_after(pre, data, fit_ids, data.selection)
-            pre_features = evaluate(pre.host)
-            pre_loss = losses(pre.host, pre_features, None)
-            pre_correct = accuracy(pre.host, pre_features, None)
-            record.update(
-                {
-                    "selection_loss": chosen.selection,
-                    "pre_recalibration_selection_loss": pre.selection,
-                    "pre_recalibration_state_sha256": state_hash(pre.host),
-                    "pre_recalibration_development_loss": _mean(pre_loss),
-                    "pre_recalibration_development_accuracy": _mean(pre_correct),
-                    "recalibrated_state_sha256": state_hash(chosen.host),
-                }
-            )
+        if name != "R-all":
+            features = evaluate(chosen.host)
+            collect.put(name, losses(chosen.host, features, None), accuracy(chosen.host, features, None), record)
+            return
+        pre = chosen
+        chosen = recalibrate_after(pre, data, fit_ids, data.selection)
+        pre_features = evaluate(pre.host)
+        pre_loss = losses(pre.host, pre_features, None)
+        pre_correct = accuracy(pre.host, pre_features, None)
+        record.update(
+            {
+                "selection_loss": chosen.selection,
+                "pre_recalibration_selection_loss": pre.selection,
+                "pre_recalibration_state_sha256": state_hash(pre.host),
+                "pre_recalibration_development_loss": _mean(pre_loss),
+                "pre_recalibration_development_accuracy": _mean(pre_correct),
+                "recalibrated_state_sha256": state_hash(chosen.host),
+            }
+        )
         features = evaluate(chosen.host)
         collect.put(name, losses(chosen.host, features, None), accuracy(chosen.host, features, None), record)
-        if name == "R-all":
-            collect.vectors[name]["pre_recalibration_loss"] = pre_loss.cpu()
-            collect.vectors[name]["pre_recalibration_correct"] = pre_correct.cpu()
+        collect.vectors[name]["pre_recalibration_loss"] = pre_loss.cpu()
+        collect.vectors[name]["pre_recalibration_correct"] = pre_correct.cpu()
+
+    for name in arms:
+        collect.attempt((name,), functools.partial(arm, name))
     torch.save(collect.vectors, request.output / VECTORS)
     return {
         **_identity(request),
+        **_schedule(request),
         "noop_sha256": text(noop["noop_sha256"]),
         "arms_run": list(arms),
         "arms": collect.records,
+        "unavailable_arms": _texts(collect.unavailable),
         "fit_examples": len(fit_ids),
         "vectors_sha256": file_sha(request.output / VECTORS),
     }
@@ -906,7 +1014,8 @@ def timing_action(request: Request, data: Dataset, device: torch.device) -> Reco
     fit = features_from_images(host, data, fit_ids)
     _sync(device)
     started = time.monotonic()
-    module = _module_grid(host, fit, cache.selection, request.seed)
+    site = Site(host, fit, cache.selection, cache.development, request.seed, request.checkpoints)
+    module = site.grid()
     _sync(device)
     module_seconds = time.monotonic() - started
     started = time.monotonic()
@@ -918,12 +1027,12 @@ def timing_action(request: Request, data: Dataset, device: torch.device) -> Reco
         selection_indices=data.selection,
         seed=request.seed,
         rates=RETUNE_RATES,
-        checkpoints=CHECKPOINTS,
+        checkpoints=request.checkpoints,
         from_images=True,
     )
     _sync(device)
     front_seconds = time.monotonic() - started
-    steps = len(RETUNE_RATES) * CHECKPOINTS[-1]
+    steps = len(RETUNE_RATES) * request.checkpoints[-1]
     started = time.monotonic()
     _ = mean_loss(host, cache.development, None)
     _sync(device)
@@ -931,7 +1040,8 @@ def timing_action(request: Request, data: Dataset, device: torch.device) -> Reco
         **_identity(request),
         "host": kind,
         "module_grid_seconds": module_seconds,
-        "module_grid_steps": len(MODULE_RATES) * CHECKPOINTS[-1],
+        **_schedule(request),
+        "module_grid_steps": len(MODULE_RATES) * request.checkpoints[-1],
         "module_grid_finite": module.best.selection is not None,
         "front_rerun_grid_seconds": front_seconds,
         "front_rerun_steps": steps,
@@ -982,10 +1092,11 @@ def acceptance_action(request: Request, data: Dataset, device: torch.device) -> 
     # (ii) one checkpointed grid against separate runs of each checkpoint length at the selected rate.
     cache = cached(host, data)
     fit = features_from_images(host, data, seen_fit(data))
-    module = _module_grid(host, fit, cache.selection, seed)
+    site = Site(host, fit, cache.selection, cache.development, seed, request.checkpoints)
+    module = site.grid()
     rate = module.best.rate
     checkpoint_bitwise = True
-    for steps in CHECKPOINTS:
+    for steps in request.checkpoints:
         separate = fit_sgd(host, fit, cache.selection, seed=seed, rate=rate, steps=steps, minibatch=True)
         snapshot = next(c for c in module.candidates if c.rate == rate and c.steps == steps)
         same = all(torch.equal(a, b) for a, b in zip(snapshot.adapter.weights, separate.adapter.weights, strict=True))
@@ -1008,7 +1119,7 @@ def acceptance_action(request: Request, data: Dataset, device: torch.device) -> 
         accuracy(host, development, None), argmax
     )
     # (v) the M-aff fold residual recomputed from a fresh fold agrees within 1e-6.
-    affine = _affine(host, fit, cache.selection, seed)
+    affine = site.affine()
     adapter = affine.best.adapter
     first = fold_residual(host, adapter, fold_affine(host, adapter), development, data, data.development)
     second = fold_residual(host, adapter, fold_affine(host, adapter), development, data, data.development)
@@ -1022,7 +1133,7 @@ def acceptance_action(request: Request, data: Dataset, device: torch.device) -> 
         "resumed_epoch_state_sha256": _texts(resumed_hashes),
         "checkpoint_bitwise": checkpoint_bitwise,
         "checkpoint_rate": rate,
-        "checkpoints": _ints(CHECKPOINTS),
+        **_schedule(request),
         "static_step0_bitwise": static_step0_bitwise,
         "evaluation_consistent": evaluation_consistent,
         "loss_max_difference": loss_difference,
@@ -1091,6 +1202,17 @@ def worker(request: Request) -> int:
         raise
 
 
+def _checkpoints(value: str) -> tuple[int, ...]:
+    """A schedule axis from the CLI: comma-separated positive integers, strictly increasing (04-schedule.json)."""
+    try:
+        steps = tuple(int(item) for item in value.split(","))
+    except ValueError as error:
+        raise argparse.ArgumentTypeError(f"checkpoints must be comma-separated integers: {value}") from error
+    if not steps or steps[0] <= 0 or any(a >= b for a, b in itertools.pairwise(steps)):
+        raise argparse.ArgumentTypeError(f"checkpoints must be positive and strictly increasing: {value}")
+    return steps
+
+
 def _lineage(value: str) -> Lineage:
     for lineage in BLOCKS:
         if lineage == value:
@@ -1114,6 +1236,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--tcool-root", type=Path)
     parser.add_argument("--static-root", type=Path)
     parser.add_argument("--epochs", type=int, default=10, help="training actions: 20 for cooled-20, else 10")
+    parser.add_argument("--checkpoints", type=_checkpoints, default=CHECKPOINTS, help="module and re-tune axis")
+    parser.add_argument("--checkpoints-b", type=_checkpoints, default=CHECKPOINTS_B, help="M-small-B axis")
     args = parser.parse_args(argv)
     lineage = _lineage(args.lineage)
     if args.width != 0:
@@ -1139,6 +1263,8 @@ def main(argv: list[str] | None = None) -> int:
             lineage=lineage,
             widths=FRONTIER_WIDTHS[width_scale(lineage)],
             epochs=args.epochs,
+            checkpoints=args.checkpoints,
+            checkpoints_b=args.checkpoints_b,
             arms=arms,
             training_root=args.training_root,
             noop_root=args.noop_root,

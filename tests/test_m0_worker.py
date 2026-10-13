@@ -9,7 +9,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import ExitStack, contextmanager, redirect_stderr
 from pathlib import Path
 from unittest.mock import patch
@@ -19,10 +19,12 @@ from torch import Tensor
 
 from sultai_screen.contracts import Json, PilotHold, Record, file_sha, mapping, publish, read_record, sequence
 from sultai_screen.data import Dataset, Seal
-from sultai_screen.host import REFERENCE_WIDTHS, state_hash
+from sultai_screen.fit import Adapter, Candidate, Grid, fit_sgd, grid
+from sultai_screen.host import REFERENCE_WIDTHS, Features, Host, state_hash
 from sultai_screen.m0 import worker
 from sultai_screen.m0.calibrate import load_noop
 from sultai_screen.m0.identity import protocol_identity
+from sultai_screen.m0.retune import RetuneGrid, Subset, retune_grid
 from sultai_screen.m0.stats import CORE_ARMS, PILOT_ARMS, AnchorResult, ArmResult, quantities
 
 REPO = Path(__file__).resolve().parents[1]
@@ -40,6 +42,92 @@ CUT_ARMS = (
     "M-wide→2:sliced",
 )
 LABEL = re.compile(r"^[0-9.e+-]+@[0-9]+$")
+
+
+OVERFLOW = (1e300,)
+
+
+def overflowing(kind: str) -> Callable[..., Grid]:
+    """fit.grid with the rate list replaced by an overflowing rate for one kind of grid ("expanded" or "wide")."""
+
+    def wrapped(
+        host: Host,
+        conditioning: Features,
+        selection: Features,
+        seed: int,
+        *,
+        rates: tuple[float, ...],
+        checkpoints: tuple[int, ...],
+        start: Adapter | None = None,
+        hidden: int | None = None,
+        nonlinear: bool = True,
+        expanded: bool = False,
+    ) -> Grid:
+        hit = expanded if kind == "expanded" else hidden == 64
+        return grid(
+            host,
+            conditioning,
+            selection,
+            seed,
+            rates=OVERFLOW if hit else rates,
+            checkpoints=checkpoints,
+            start=start,
+            hidden=hidden,
+            nonlinear=nonlinear,
+            expanded=expanded,
+        )
+
+    return wrapped
+
+
+def overflowing_refit(
+    host: Host,
+    conditioning: Features,
+    selection: Features,
+    *,
+    seed: int,
+    rate: float,
+    steps: int,
+    minibatch: bool,
+    start: Adapter | None = None,
+    hidden: int | None = None,
+) -> Candidate:
+    return fit_sgd(
+        host,
+        conditioning,
+        selection,
+        seed=seed,
+        rate=OVERFLOW[0],
+        steps=steps,
+        minibatch=minibatch,
+        start=start,
+        hidden=hidden,
+    )
+
+
+def overflowing_retune(
+    host: Host,
+    subset: Subset,
+    *,
+    data: Dataset,
+    fit_indices: Tensor,
+    selection_indices: Tensor,
+    seed: int,
+    rates: tuple[float, ...],
+    checkpoints: tuple[int, ...],
+    from_images: bool,
+) -> RetuneGrid:
+    return retune_grid(
+        host,
+        subset,
+        data=data,
+        fit_indices=fit_indices,
+        selection_indices=selection_indices,
+        seed=seed,
+        rates=OVERFLOW if from_images else rates,
+        checkpoints=checkpoints,
+        from_images=from_images,
+    )
 
 
 def fixture() -> Dataset:
@@ -433,6 +521,83 @@ class WorkerTests(unittest.TestCase):
         self.assertEqual(instrument, {"seed": 3000, "materiality": {"seed": 3000}, "posthoc": {"alpha": 0.1}})
         self.assertEqual(materiality.call_count, 1)
         self.assertEqual(posthoc.call_args.args[3], self.root / "instrument")
+
+    def test_schedule_flags_set_every_axis_and_refuse_a_non_increasing_list(self) -> None:
+        base = ["modules", "--output", "/x", "--data-root", "/y", "--seed", "3000", "--lineage", "anchor"]
+        base += ["--scale", "1.0"]
+        for extra in (
+            ["--checkpoints", "2,2"],
+            ["--checkpoints", "3,1"],
+            ["--checkpoints-b", "0,4"],
+            ["--checkpoints", "a"],
+        ):
+            with self.subTest(extra=extra), redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as raised:
+                worker.main([*base, *extra])
+            self.assertEqual(raised.exception.code, 2)
+        with patch("sultai_screen.m0.worker.worker", return_value=0) as child:
+            worker.main([*base, "--checkpoints", "1,2", "--checkpoints-b", "2,4"])
+        request = child.call_args.args[0]
+        self.assertEqual((request.checkpoints, request.checkpoints_b), ((1, 2), (2, 4)))
+        with patch("sultai_screen.m0.worker.worker", return_value=0) as child:
+            worker.main(base)
+        request = child.call_args.args[0]
+        self.assertEqual((request.checkpoints, request.checkpoints_b), ((200, 800, 3200), (400, 1600, 6400)))
+        # The fixture patches the defaults to (1, 2) and (2, 4); the flags must override them.
+        axes = ("--checkpoints", "1,3", "--checkpoints-b", "2,5")
+        noop = ("--noop-root", str(self.root / "noop"))
+        payload = payload_of(
+            run("modules", self.root / "modules-axis", 3000, "anchor", "--arms", "M-sq,M-small-B", *axes, *noop)
+        )
+        self.assertEqual((payload["checkpoints"], payload["checkpoints_b"]), ([1, 3], [2, 5]))
+
+        def steps(arm: Json) -> set[int]:
+            return {int(str(mapping(c)["steps"])) for c in sequence(mapping(mapping(arm)["report"])["candidates"])}
+
+        arms = mapping(payload["arms"])
+        self.assertEqual(steps(arms["M-sq"]), {1, 3})
+        self.assertEqual(steps(arms["M-small-B"]), {2, 5})
+        retuned = payload_of(run("retune", self.root / "retune-axis", 3000, "anchor", *axes, *noop))
+        self.assertEqual(steps(mapping(retuned["arms"])["R-272s"]), {1, 3})
+        self.assertEqual(steps(mapping(retuned["arms"])["R-aff"]), {1, 3})
+        timing = payload_of(run("timing", self.root / "timing-axis", 3000, "anchor", *axes, *noop))
+        self.assertEqual((timing["front_rerun_steps"], timing["checkpoints"]), (3, [1, 3]))
+
+    def test_unavailable_arms_are_recorded_and_the_child_continues(self) -> None:
+        out = self.root / "modules-unavailable"
+        arms = "M-sq,M-exp,M-wide→4:sliced,M-wide→4:refit"
+        with (
+            patch("sultai_screen.m0.worker.grid", side_effect=overflowing("expanded")),
+            patch("sultai_screen.m0.worker.fit_sgd", side_effect=overflowing_refit),
+        ):
+            payload = payload_of(run("modules", out, 3000, "anchor", "--arms", arms, *self.roots()))
+        records = mapping(payload["arms"])
+        self.assertEqual(set(sequence(payload["unavailable_arms"])), {"M-exp", "M-wide→4:refit"})
+        for name in ("M-exp", "M-wide→4:refit"):
+            record = mapping(records[name])
+            self.assertEqual(record["status"], "unavailable")
+            candidates = sequence(record["candidates"])
+            self.assertTrue(candidates)
+            self.assertTrue(all(mapping(c)["finite"] is False for c in candidates))
+            self.assertNotIn("development_loss", record)
+        self.assertEqual(len(sequence(mapping(records["M-exp"])["candidates"])), 2)
+        for name in ("M-sq", "M-wide→4:sliced"):
+            self.assertEqual(mapping(records[name])["status"], "available")
+        self.assertEqual(set(vectors(out)), {"N0", "M-sq", "M-wide→4:sliced"})
+        wide = self.root / "modules-wide-unavailable"
+        with patch("sultai_screen.m0.worker.grid", side_effect=overflowing("wide")):
+            payload = payload_of(
+                run(
+                    "modules", wide, 3000, "anchor", "--arms", "M-sq,M-wide,M-wide→8:rank:sliced,lottery", *self.roots()
+                )
+            )
+        self.assertEqual(sequence(payload["unavailable_arms"]), ["M-wide", "M-wide→8:rank:sliced", "lottery"])
+        self.assertEqual(mapping(mapping(payload["arms"])["M-sq"])["status"], "available")
+        noop = ("--noop-root", str(self.root / "noop"))
+        with patch("sultai_screen.m0.worker.retune_grid", side_effect=overflowing_retune):
+            retuned = payload_of(run("retune", self.root / "retune-unavailable", 3000, "anchor", *noop))
+        self.assertEqual(sequence(retuned["unavailable_arms"]), ["R-aff"])
+        self.assertEqual(mapping(mapping(retuned["arms"])["R-aff"])["status"], "unavailable")
+        self.assertIs(mapping(mapping(retuned["arms"])["R-272s"])["complement_unchanged"], True)
 
     def test_failing_action_publishes_an_m0_failure_receipt_and_reraises(self) -> None:
         out = self.root / "modules-bad"
