@@ -77,17 +77,18 @@ exactly the controls the recut study puts between the module and a
 
 ## 4. Rules for every preregistration from here on
 
-1. **The primary endpoint is stated in retained-parameter and loss units,
-   with an accuracy guard.** Every arm reports a point on the plane
-   (physically retained parameters, development loss) with its compute
-   booked. John said "accuracy" and then clarified that accuracy was
-   Esper-lite's reward currency, not a required unit. The author's
-   formalisation is mean development cross-entropy as the primary unit,
+1. **The primary endpoint is stated in retained-parameter and loss
+   units.** Every arm reports a point on the plane (physically retained
+   parameters, development loss) with its compute booked. John said
+   "accuracy" and then clarified that accuracy was Esper-lite's reward
+   currency, not a required unit. Decision J0, taken 2026-10-13 as the
+   author's resolution of a split between the J0 reviewers under John's
+   clarification: mean development cross-entropy is the sole primary unit,
    because it is what every arm optimises and what the instrument measures
-   with paired-bootstrap intervals; whether a dev-accuracy co-read remains a
-   condition of any "present" verdict is open. John fixes the unit and the
-   guard (decision J0; the recommendations are under
-   `reviews/m0-capacity/j-recommendations/`).
+   with paired-bootstrap intervals; development accuracy is reported beside
+   every loss as a labelled secondary that conditions no verdict. John can
+   reverse this in one line before the M0 freeze (the recommendations are
+   under `reviews/m0-capacity/j-recommendations/`).
 2. **"Efficient" is a comparison against named cheaper routes to the same
    loss**, never against zero: re-tuning an equal count of the host's own
    parameters on the same data; more training of the host; the same
@@ -109,7 +110,7 @@ exactly the controls the recut study puts between the module and a
 
 | Rung | Question | Primary measure | What beats it |
 |---|---|---|---|
-| **M0** (next: [capacity frontier screen](plans/2026-10-13-capacity-frontier-screen.md)) | Fitted on data the host already saw, does a nonlinear module at a known site buy loss that calibration, a foldable affine module, re-tuning the host's own parameters and a decayed finish do not; and does an overgrown module physically cut to the small budget keep more of its gain than the plug-in module built small at matched budget? | Per-anchor paired gain differences in nats at matched retained parameters, matched data and matched budget, with an accuracy guard; the width frontier's slope as the scale | Any cheaper route equal to the module; built-small equal to cut-down |
+| **M0** (next: [capacity frontier screen](plans/2026-10-13-capacity-frontier-screen.md)) | Fitted on data the host already saw, does a nonlinear module at a known site buy loss that calibration, a foldable affine module, re-tuning the host's own parameters and a decayed finish do not; and does an overgrown module physically cut to the small budget keep more of its gain than the plug-in module built small at matched budget? | Per-anchor paired gain differences in nats at matched retained parameters, matched data and matched budget, with development accuracy reported beside; the width frontier's slope as the scale | Any cheaper route equal to the module; built-small equal to cut-down |
 | **M1** | Can a learned or generated builder find that capacity at lower cost, or better, than the SGD fit, on hosts it has not seen? | Recovered fraction of the SGD-fit gain at zero task-gradient steps, against retrieval and a deterministic hypernetwork at matched evidence | Retrieval equal to generation; or SGD in a few steps equal to both |
 | **M2** | Starting from a near-empty host (D02; the starting point is John's decision J-D02), does grow-and-remove during training reach the frontier at fewer retained parameters than static width? | Frontier excess in nats at the retained count, at matched compute, against static capacity and the cut-down architecture retrained from scratch | Static capacity at the same count equal or better |
 | **M3** | The half-retained-parameters claim | Loss of the grown model against the from-scratch width sweep at matched or larger compute, all cost ledgers disclosed | The sweep at half the parameters |
@@ -124,19 +125,23 @@ M3 opens on an M2 "present". A negative at any rung is a published finding,
 not a reason to move the goalposts. Site S1 in M0 is a privileged, known
 site; site discovery belongs to M2.
 
-## 6. Gate reinterpretation (proposed, pending John)
+## 6. Gate ladder under the restated objective
 
 The frozen [correction protocol](plans/2026-10-09-correction-protocol.md)
-words gates 3 to 5 as repair gates. Proposed reading under this statement,
-not an edit of the frozen text: Gate 3 "useful repair headroom" is closed on
-the attempt-4 finding; the M0 screen stands in its place as "useful capacity
-headroom"; Gate 5 "benefit after removal" stays open and is read by rung
-M2, not by M0's truncation contrast. Gates 4, 6 and 7 are unchanged. John confirms or amends this
-reading before the M0 freeze.
+words gates 3 to 5 as repair gates and its bytes are pinned, so a
+"reinterpretation" written here would leave a later reader of that file
+misled. Decision J9 (2026-10-13): the ladder is restated in a separate,
+dated, SHA-pinned, prospective
+[gate-ladder amendment](plans/2026-10-13-gate-ladder-amendment.md), bound
+into the M0 identity. In outline: Gate 3 is retired as not established and
+replaced by the capacity-headroom requirement read by rungs M0 and M1; Gate
+5 is next read by rung M2, never by M0's truncation contrast; Gate 7's
+predecessors are restated as M0–M3 plus gates 4 and 6. **The amendment's
+text awaits John's acceptance before the M0 freeze.**
 
 ## 7. Where to look
 
 The recut study is [the capacity frontier screen draft](plans/2026-10-13-capacity-frontier-screen.md);
 its reviews are under `reviews/m0-capacity/`; the repair screen's closure is
 [the attempt-4 final disposition](certificates/2026-10-13-gate3-linked-pilot-3-final-disposition.md);
-the decision is D26 in [DECISIONS.md](DECISIONS.md).
+the decisions are D26 and D27 in [DECISIONS.md](DECISIONS.md).

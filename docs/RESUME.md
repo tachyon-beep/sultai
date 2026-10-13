@@ -10,16 +10,20 @@ John):
 
 - [STEERING.md](STEERING.md): the objective verbatim, the drift diagnosis,
   measurement rules for every later preregistration, the progress ladder
-  M0–M3, and a proposed reinterpretation of correction-protocol gates 3–5.
-- [Capacity frontier screen, draft v2](plans/2026-10-13-capacity-frontier-screen.md)
+  M0–M3, and (§6) a pointer to the separate gate-ladder amendment that
+  restates correction-protocol gates 3–7 (text awaiting John).
+- [Capacity frontier screen, draft v3](plans/2026-10-13-capacity-frontier-screen.md)
   (rung M0): on data the host already trained on, a nonlinear 272-parameter
   module against a recalibrated no-op, a foldable affine module of equal
   count, structured re-tunes of existing parameters and a decayed finish
-  (V1, with an accuracy guard); overgrow-then-physically-cut versus the
+  (V1, loss as the sole primary unit, accuracy a labelled secondary);
+  overgrow-then-physically-cut versus the
   plug-in module built small at matched budget (V2); same-recipe width
   frontier as the scale; static-from-step-zero as a descriptive; P1 known
   answer kept as instrument validation; core and extended arm tiers with an
-  overrun rule; decisions J0–J10 for John. v1 (`5aeee56`) was reviewed by
+  overrun rule; decisions J0–J9 taken 2026-10-13 and recorded in §12 (J6 a
+  4 GPU-hour ceiling; J9 a separate [gate-ladder amendment](plans/2026-10-13-gate-ladder-amendment.md)
+  whose text awaits John; J10 merge pending). v1 (`5aeee56`) was reviewed by
   three independent readers; reports and dispositions are under
   `docs/reviews/m0-capacity/`. On 2026-10-13 twelve further agents each
   took one of John's decisions J0–J9 and wrote a recommendation with the
