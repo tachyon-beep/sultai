@@ -118,6 +118,8 @@ class Plan:
     custody: str
     binding: Record
     projection: Record
+    # Amendment 5 (A5.2 item 1): the pilot's recorded environment, compared field by field at launch, never refused.
+    pilot_environment: Record
 
     def block(self) -> Record:
         return {"lineage": self.lineage, "first": self.seeds[0], "last": self.seeds[-1], "count": len(self.seeds)}
@@ -263,6 +265,9 @@ def admit_launch(approved: Record, identity: Record, pilot_result: Path, static:
     binding["implementation_source"] = source_binding(approved, identity, pilot)
     admission = pilot_result.parent / "04-admission.json"
     binding["pilot_admission"] = evidenced(approved, admission, "the pilot's measured kernels")
+    opening = pilot_result.parent / "00-opening.json"
+    binding["pilot_opening"] = evidenced(approved, opening, "the pilot's opening record")
+    pilot_environment = mapping(field(read_record(opening), "environment", "the pilot's 00-opening.json"))
     if static and field(pilot, "static_admitted", "the pilot result") is not True:
         raise PilotHold("S-static joins only if the pilot's SD(D5) rule admitted it")
     if static and not ("confirmatory_ceiling_hours" in approved and approved["confirmatory_ceiling_hours"] == 14):
@@ -311,7 +316,30 @@ def admit_launch(approved: Record, identity: Record, pilot_result: Path, static:
     }
     if larger > ceiling:
         raise FeasibilityHold("the confirmatory projects over its ceiling from the pilot's kernels or measured charges")
-    return Plan(lineage, seeds, (checkpoints, checkpoints_b), arms, static, ceiling, custody, binding, projection)
+    return Plan(
+        lineage,
+        seeds,
+        (checkpoints, checkpoints_b),
+        arms,
+        static,
+        ceiling,
+        custody,
+        binding,
+        projection,
+        pilot_environment,
+    )
+
+
+def environment_vs_pilot(pilot: Record, current: Record) -> Record:
+    """Amendment 5 (A5.2 item 1): every field of either record, with both values and whether they are equal."""
+    return {
+        key: {
+            "pilot": pilot[key] if key in pilot else None,
+            "confirmatory": current[key] if key in current else None,
+            "equal": key in pilot and key in current and pilot[key] == current[key],
+        }
+        for key in [*pilot, *(key for key in current if key not in pilot)]
+    }
 
 
 # --- V0 on the fresh anchors ---------------------------------------------------------------------------------------
@@ -595,6 +623,7 @@ def confirmatory(
             {
                 "cards": cards,
                 "environment": environment,
+                "environment_vs_pilot": environment_vs_pilot(plan.pilot_environment, environment),
                 "implementation_commit": text(identity["commit"]),
                 "certificate_sha256": certificate_sha,
                 "custody": plan.custody,

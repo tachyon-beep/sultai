@@ -1339,6 +1339,8 @@ class ConfirmatoryTests(unittest.TestCase):
         self.pilot_result = self.results / "pilot-result.json"
         self.write_pilot()
         (self.results / "04-admission.json").write_text(json.dumps({"workloads": workloads_record(workloads())}))
+        self.opening = self.results / "00-opening.json"
+        self.opening.write_text(json.dumps({"environment": {"torch": "fake", "cuda": "12.8", "driver": "999.1"}}))
         self.disposition = self.repo / "docs/certificates/m0-confirmatory-restart-disposition.md"
         self.disposition.parent.mkdir(parents=True)
         self.disposition.write_text("John: one restart from the restart block.\n")
@@ -1378,7 +1380,8 @@ class ConfirmatoryTests(unittest.TestCase):
 
     def certificate(self, hours: int = 12, *, disposition: bool = False, source_change: str | None = None) -> Path:
         """`source_change`: "named" names the source-change disposition only; "listed" also hash-lists it."""
-        paths = [self.pilot_result, self.results / "04-admission.json", *([self.disposition] if disposition else [])]
+        paths = [self.pilot_result, self.results / "04-admission.json", self.opening]
+        paths += [self.disposition] if disposition else []
         paths += [self.source_disposition] if source_change == "listed" else []
         evidence = [{"path": str(path.relative_to(self.repo)), "sha256": file_sha(path)} for path in paths]
         named = (
@@ -1425,6 +1428,16 @@ class ConfirmatoryTests(unittest.TestCase):
     def arms_of(self, cluster: FakeCluster, name: str) -> set[str]:
         flags = next(flags for launched, _, _, flags, _ in cluster.launched if launched == name)
         return set(flags["--arms"].split(","))
+
+    def test_the_pilots_opening_record_must_be_hash_listed_for_the_environment_comparison(self) -> None:
+        # Amendment 5 (A5.2 item 1): the comparison reads the pilot's 00-opening.json, bound like every pilot receipt.
+        self.opening.write_text(json.dumps({"environment": {"torch": "other"}}))
+        certificate = self.certificate()
+        self.opening.write_text(json.dumps({"environment": {"torch": "fake"}}))
+        self.assert_refused(certificate, "opening record .* not hash-listed")
+        listed = self.certificate()
+        self.opening.unlink()
+        self.assert_refused(listed, "opening record")
 
     def test_refuses_a_pilot_result_that_is_not_clean_or_carries_another_identity(self) -> None:
         self.write_pilot(pilot_clean=False)
@@ -1697,8 +1710,21 @@ class ConfirmatoryTests(unittest.TestCase):
         self.assertEqual(set(replay["compared"]), {"raw_sha256", "recalibrated_sha256", "noop_sha256"})
         self.assertIs(result["v0"]["noop_replay_both_cards_bitwise"], True)
         # Amendment 5 (A5.2 item 4): the terminal record carries the certificate hash and the custody path.
-        self.assertEqual(result["certificate_sha256"], read_record(root / "00-opening.json")["certificate_sha256"])
+        opening = read_record(root / "00-opening.json")
+        self.assertEqual(result["certificate_sha256"], opening["certificate_sha256"])
         self.assertEqual(result["custody"], CONFIRMATORY_CUSTODY)
+        # Amendment 5 (A5.2 item 1): the environment compared field by field with the pilot's record, never refused.
+        self.assertEqual(
+            opening["environment_vs_pilot"],
+            {
+                "torch": {"pilot": "fake", "confirmatory": "fake", "equal": True},
+                "cuda": {"pilot": "12.8", "confirmatory": None, "equal": False},
+                "driver": {"pilot": "999.1", "confirmatory": None, "equal": False},
+            },
+        )
+        self.assertEqual(
+            opening["binding"]["pilot_opening"], {"docs/results/m0-pilot/00-opening.json": file_sha(self.opening)}
+        )
         # B3: 02-v0.json publishes every fresh anchor's recorded R25 zero-module flags, not a literal.
         flags = read_record(root / "02-v0.json")["zero_module_identity_flags"]
         self.assertEqual(set(flags), {str(seed) for seed in range(7500, 7532)})
@@ -1973,6 +1999,7 @@ class ReadOnceTests(unittest.TestCase):
             custody="",
             binding={},
             projection={},
+            pilot_environment={},
         )
         anchors: list[Anchor] = []
         quantities_list: list[Record] = []
