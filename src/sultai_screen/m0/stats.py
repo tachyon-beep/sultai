@@ -189,7 +189,8 @@ def quantities(result: AnchorResult, required: frozenset[str] = PILOT_ARMS) -> R
     """Per-anchor §6 quantities in nats; G(arm) = mean(N0 loss) - mean(arm loss).
 
     `required` is the arm set the stage runs by design (PILOT_ARMS, CONFIRMATORY_ARMS or STARVED_PAIR_ARMS); a
-    missing required arm raises, except a survival-curve arm (SURVIVAL_CURVE_ARMS), which `survival_absent` names. Every quantity `k` carries `k_reason`: None when computed, otherwise
+    missing required arm raises, except a survival-curve arm (SURVIVAL_CURVE_ARMS), which `survival_absent`
+    names. Every quantity `k` carries `k_reason`: None when computed, otherwise
     "<arm> not run" for the first absent arm it needs, or "denominator ≤ 0" for a ratio whose denominator is not
     positive, with `k` itself None.
     """

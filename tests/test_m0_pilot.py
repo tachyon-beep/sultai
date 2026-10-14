@@ -1160,6 +1160,13 @@ class ReceiptTests(unittest.TestCase):
         self.assertEqual(record["survival_absent"], ["M-wide→4:refit"])
         self.assertEqual(set(record["survival"]["refit"]), {"16", "8", "2"})
         self.assertEqual(set(record["survival"]["sliced"]), {"16", "8", "4", "2"})
+        # The exemption's upper bound: M-wide, the h = 8 cuts and every other required arm still hold at the receipt.
+        for name in ("M-wide", "M-wide→8:rank:sliced", "M-wide→8:random:refit", "M-small", "R-temp"):
+            records, vectors = anchor_sources(3004, PILOT_ARMS)
+            records[name] = {"status": "unavailable", "cause": name, "error": "nonfinite", "candidates": []}
+            del vectors[name]
+            with self.subTest(arm=name), self.assertRaisesRegex(InstrumentHold, r"3004.*required arm"):
+                anchor(3004, (source("modules-3004", 3004, records, vectors),), PILOT_ARMS)
 
     def test_raw_candidates_parse_the_rate_and_unavailable_arms_list_their_nonfinite_candidates(self) -> None:
         records, vectors = anchor_sources(3001, PILOT_ARMS)
