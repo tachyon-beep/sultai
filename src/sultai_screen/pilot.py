@@ -56,6 +56,7 @@ class Job:
     gpu: int
     training: Path | None = None
     magnitudes: Path | None = None
+    extra: tuple[str, ...] = ()
 
 
 @dataclass
@@ -129,10 +130,23 @@ def verify_replay(expected: Record, actual: Record) -> None:
 
 
 class Supervisor:
-    def __init__(self, root: Path, data: Path, opening_charge: float = 0.0) -> None:
+    def __init__(
+        self,
+        root: Path,
+        data: Path,
+        opening_charge: float = 0.0,
+        *,
+        ceiling: float | None = None,
+        per_card: int = 3,
+        module: str = "sultai_screen.screen",
+    ) -> None:
+        # Resolved at call time so a patched PILOT_SECONDS binds; Gate 3 ledgers keep PILOT_SECONDS by default.
+        self.ceiling: float = PILOT_SECONDS if ceiling is None else ceiling
+        self.per_card = per_card
+        self.module = module
         self.root = root
         self.data = data
-        if not 0 <= opening_charge < PILOT_SECONDS:
+        if not 0 <= opening_charge < self.ceiling:
             raise PilotHold("opening charge must fit within the unchanged aggregate ceiling")
         self.opening_charge = opening_charge
         self.charged = opening_charge
@@ -143,11 +157,12 @@ class Supervisor:
         if (
             not jobs
             or any(j.gpu not in (0, 1) for j in jobs)
-            or any(sum(j.gpu == gpu for j in jobs) > 3 for gpu in (0, 1))
+            or any(sum(j.gpu == gpu for j in jobs) > self.per_card for gpu in (0, 1))
             or len({j.name for j in jobs}) != len(jobs)
         ):
-            raise PilotHold("unique jobs, pinned cards and reviewed maximum three processes/card required")
-        remaining = PILOT_SECONDS - self.charged
+            limit = "three" if self.per_card == 3 else str(self.per_card)
+            raise PilotHold(f"unique jobs, pinned cards and reviewed maximum {limit} processes/card required")
+        remaining = self.ceiling - self.charged
         if remaining <= 10 * len(jobs):
             raise PilotHold("aggregate pilot GPU-hour cap exhausted")
         # n concurrent GPU processes consume n seconds of this conservative budget per second.
@@ -167,7 +182,7 @@ class Supervisor:
                     sys.executable,
                     "-B",
                     "-m",
-                    "sultai_screen.screen",
+                    self.module,
                     job.action,
                     "--output",
                     str(output),
@@ -182,6 +197,7 @@ class Supervisor:
                     command += ["--training-root", str(job.training)]
                 if job.magnitudes is not None:
                     command += ["--magnitudes", str(job.magnitudes)]
+                command += list(job.extra)
                 env = dict(os.environ)
                 env.update(
                     CUDA_VISIBLE_DEVICES=str(job.gpu),
@@ -265,7 +281,7 @@ class Supervisor:
                 self.root / f"ledger-{self.serial:03}.json",
                 {
                     "charged_gpu_process_seconds": self.charged,
-                    "ceiling_gpu_process_seconds": PILOT_SECONDS,
+                    "ceiling_gpu_process_seconds": self.ceiling,
                     "opening_charge_gpu_process_seconds": self.opening_charge,
                     "entries": list(self.ledger),
                 },
@@ -275,7 +291,7 @@ class Supervisor:
             if failure.startswith("instrument unavailable:"):
                 raise InstrumentHold(failure)
             raise PilotHold(failure)
-        if self.charged > PILOT_SECONDS:
+        if self.charged > self.ceiling:
             raise PilotHold("aggregate cap reached during cleanup; no further work")
         for entry in running:
             record = read_record(self.root / entry.job.name / "result.json")

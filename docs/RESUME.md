@@ -10,7 +10,17 @@ and frozen the same day; v4 (three amendments John took on 2026-10-13 after
 the implementation plan's two reviews, §14) is frozen by
 [freeze certificate 2](certificates/2026-10-13-m0-freeze-2.md), identity
 `m0-v4`; the [implementation plan](plans/2026-10-13-m0-implementation.md)
-awaits gate A on PR #6:
+was accepted at gate A (PR #6, `b79f145`) and implemented on
+`nyx/m0-implementation` on 2026-10-13/14: nineteen tasks, each with a
+scoped review, a whole-branch final review with two fix rounds, seventeen
+per-item exact-source reviews with dispositions and one post-review
+commit rechecked clean — certified implementation commit `978850a`
+(410 tests; evidence under `results/m0-implementation-2026-10-14/`,
+reviews under `reviews/m0-capacity/implementation/`, admission
+certificate `certificates/2026-10-14-m0-pilot-admission.json`). Gate B
+(the code PR reviewed and ready) is John's next decision; nothing has run
+on GPU. The controller's 34 rulings are in the SDD ledger on Nyx
+(`.superpowers/sdd/2026-10-13-m0-implementation/progress.md`, ignored):
 
 - [STEERING.md](STEERING.md): the objective verbatim, the drift diagnosis,
   measurement rules for every later preregistration, the progress ladder
