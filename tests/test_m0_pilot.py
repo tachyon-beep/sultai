@@ -435,7 +435,7 @@ class PilotRunTests(unittest.TestCase):
         result = read_record(root / "pilot-result.json")
         self.assertEqual(result["stage"], stage)
         self.assertEqual(result["verdict"], verdict)
-        self.assertEqual(result["protocol_version"], "m0-v4.2")
+        self.assertEqual(result["protocol_version"], "m0-v4.3")
         self.assertEqual(result["amendment_2_sha256"], protocol_identity()["amendment_2_sha256"])
         self.assertFalse(result["pilot_clean"])
         return result
@@ -447,7 +447,7 @@ class PilotRunTests(unittest.TestCase):
         self.assertEqual([name for name in published if name in RECEIPTS], list(RECEIPTS))
         result = read_record(root / "pilot-result.json")
         self.assertTrue(result["pilot_clean"])
-        self.assertEqual(result["protocol_version"], "m0-v4.2")
+        self.assertEqual(result["protocol_version"], "m0-v4.3")
         # Every child is the M0 worker, carries its lineage and scale, and one job list never doubles a card.
         for name, _, _, flags, module in cluster.launched:
             self.assertEqual(module, "sultai_screen.m0.worker", name)
@@ -901,7 +901,7 @@ class PilotRunTests(unittest.TestCase):
         self.assertTrue(cluster.launched)
         self.assertEqual(cluster.violations, [])
         custody = read_record(self.repo / CUSTODY)
-        self.assertEqual(custody["identity"]["protocol_version"], "m0-v4.2")
+        self.assertEqual(custody["identity"]["protocol_version"], "m0-v4.3")
         with self.assertRaisesRegex(PilotHold, "custody"):
             self.launch("another-root")
         self.assertFalse((self.base / "another-root").exists())
@@ -1606,7 +1606,7 @@ class ConfirmatoryTests(unittest.TestCase):
         self.assertEqual(projection["projected_gpu_process_seconds"], 600.0 + 32 * 1_041.5)
         # Its own custody; the pilot's and Gate 3's receipts are never written.
         custody = read_record(self.repo / CONFIRMATORY_CUSTODY)
-        self.assertEqual(custody["identity"]["protocol_version"], "m0-v4.2")
+        self.assertEqual(custody["identity"]["protocol_version"], "m0-v4.3")
         listed = {"docs/results/m0-pilot/pilot-result.json": file_sha(self.pilot_result)}
         self.assertEqual(custody["identity"]["pilot_result"], listed)
         self.assertFalse((self.repo / CUSTODY).exists())

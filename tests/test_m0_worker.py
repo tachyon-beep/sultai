@@ -350,7 +350,7 @@ class WorkerTests(unittest.TestCase):
 
     def test_train_binds_host_optimiser_and_stream_and_load_training_reads_the_width_tuple(self) -> None:
         record = run("train", self.root / "train-check")
-        self.assertEqual(mapping(record["identity"])["protocol_version"], "m0-v4.2")
+        self.assertEqual(mapping(record["identity"])["protocol_version"], "m0-v4.3")
         self.assertEqual(record["peak_cuda_bytes"], 0)
         payload = payload_of(record)
         out = self.root / "train-check"
@@ -876,7 +876,7 @@ class WorkerTests(unittest.TestCase):
         with self.assertRaisesRegex(PilotHold, "M-bogus"):
             run("modules", out, 3000, "anchor", "--arms", "M-sq,M-bogus", *self.roots())
         failure = read_record(out / "failure.json")
-        self.assertEqual(mapping(failure["identity"])["protocol_version"], "m0-v4.2")
+        self.assertEqual(mapping(failure["identity"])["protocol_version"], "m0-v4.3")
         self.assertEqual((failure["error_type"], failure["software_valid"]), ("PilotHold", False))
         self.assertFalse((out / "result.json").exists())
         bad = self.root / "bad-train"
