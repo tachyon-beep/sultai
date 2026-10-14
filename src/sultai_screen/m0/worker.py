@@ -412,13 +412,18 @@ def replay_action(request: Request, data: Dataset, device: torch.device) -> Reco
 def _noop_rule(host: Host, checkpoint: Path, request: Request, data: Dataset, device: torch.device) -> Record:
     """§4 N0 on a frozen host saved at checkpoint: R-bn on an unsealed copy versus raw, decided on selection."""
     unsealed = load_host(checkpoint, request.seed, 0, device, widths=request.widths, frozen=False)
-    recalibrated = recalibrate_bn(unsealed, data.images, seen_fit(data))
-    chosen, label = no_op(host, recalibrated, data)
+    fit_ids = seen_fit(data)
+    recalibrated = recalibrate_bn(unsealed, data.images, fit_ids)
+    choice = no_op(host, recalibrated, data)
     return {
-        "noop_choice": label,
-        "noop_sha256": save_noop(chosen, request.output),
+        "noop_choice": choice.label,
+        "noop_sha256": save_noop(choice.model, request.output),
         "raw_sha256": state_hash(host),
         "recalibrated_sha256": state_hash(recalibrated),
+        # Amendment 5 (A5.2 item 2): the fit indices the recalibration consumed and the two losses that decided.
+        "fit_indices_sha256": tensor_sha(fit_ids),
+        "raw_selection_loss": choice.raw_selection_loss,
+        "rbn_selection_loss": choice.recalibrated_selection_loss,
     }
 
 
@@ -539,7 +544,8 @@ def noop_action(request: Request, data: Dataset, device: torch.device) -> Record
     unsealed, _ = _request_training(request, device, frozen=False)
     fit_ids = seen_fit(data)
     recalibrated = recalibrate_bn(unsealed, data.images, fit_ids)
-    chosen, label = no_op(raw, recalibrated, data)
+    choice = no_op(raw, recalibrated, data)
+    chosen, label = choice.model, choice.label
     noop_sha = save_noop(chosen, request.output)
     fit = features_from_images(chosen, data, fit_ids)
     fit_logits = logits(chosen, fit, None)
@@ -554,10 +560,11 @@ def noop_action(request: Request, data: Dataset, device: torch.device) -> Record
         "noop_sha256": noop_sha,
         "raw_sha256": state_hash(raw),
         "recalibrated_sha256": state_hash(recalibrated),
+        "fit_indices_sha256": tensor_sha(fit_ids),
         "temperature": t,
         "class_bias": [t_cal, *(float(value) for value in bias.double().cpu().unbind())],
-        "raw_selection_loss": mean_loss(raw, features_from_images(raw, data, data.selection), None),
-        "rbn_selection_loss": mean_loss(recalibrated, features_from_images(recalibrated, data, data.selection), None),
+        "raw_selection_loss": choice.raw_selection_loss,
+        "rbn_selection_loss": choice.recalibrated_selection_loss,
         "rtemp_selection_loss": _calibrated_loss(selection_logits / t, selection.labels),
         "rcal_selection_loss": _calibrated_loss(apply_calibration(selection_logits, t_cal, bias), selection.labels),
         "fit_examples": len(fit_ids),

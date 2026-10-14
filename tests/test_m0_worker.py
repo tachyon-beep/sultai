@@ -398,6 +398,9 @@ class WorkerTests(unittest.TestCase):
         self.assertNotEqual(tcool["final_state_sha256"], tcool["source_final_state_sha256"])
         noop = load_noop(self.root / "tcool", 3000, REFERENCE_WIDTHS, str(tcool["noop_sha256"]), CPU)
         self.assertEqual(state_hash(noop), tcool["noop_sha256"])
+        # Amendment 5 (A5.2 item 2): T-cool's no-op rule publishes the two losses that decided it and the fit indices.
+        self.assertEqual(tcool["noop_choice"] == "R-bn", tcool["rbn_selection_loss"] < tcool["raw_selection_loss"])
+        self.assertEqual(tcool["fit_indices_sha256"], worker.tensor_sha(SEEN))
         static = payload_of(read_record(self.root / "static/result.json"))
         self.assertEqual(static["module_sha256"], file_sha(self.root / "static/static-module.pt"))
         self.assertEqual(static["checkpoint_sha256"], file_sha(self.root / "static/host.pt"))
@@ -448,6 +451,9 @@ class WorkerTests(unittest.TestCase):
         self.assertEqual(state_hash(noop), payload["noop_sha256"])
         chosen = payload["recalibrated_sha256"] if payload["noop_choice"] == "R-bn" else payload["raw_sha256"]
         self.assertEqual(chosen, payload["noop_sha256"])
+        # Amendment 5 (A5.2 item 2): the fit-index tensor the recalibration consumed, by hash, beside both losses.
+        self.assertEqual(payload["fit_indices_sha256"], worker.tensor_sha(SEEN))
+        self.assertEqual(payload["noop_choice"] == "R-bn", payload["rbn_selection_loss"] < payload["raw_selection_loss"])
         bias = payload["class_bias"]
         assert isinstance(bias, list)
         self.assertEqual(len(bias), 11)

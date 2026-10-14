@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
 
@@ -106,7 +107,17 @@ def apply_calibration(logits: Tensor, t: float, bias: Tensor) -> Tensor:
     return logits / t + bias.to(logits.device, logits.dtype)
 
 
-def no_op(raw: Host, recalibrated: Host, data: Dataset) -> tuple[Host, str]:
+@dataclass(frozen=True)
+class NoOpChoice:
+    """The N0 outcome: the chosen host, its label and both selection losses that decided it (amendment 5, A5.2)."""
+
+    model: Host
+    label: str
+    raw_selection_loss: float
+    recalibrated_selection_loss: float
+
+
+def no_op(raw: Host, recalibrated: Host, data: Dataset) -> NoOpChoice:
     """N0: the lower mean selection loss of raw and R-bn, each on selection features recomputed from itself.
 
     R-bn changes the front's BatchNorm buffers, so the raw host's cached site is not the recalibrated host's.
@@ -115,8 +126,8 @@ def no_op(raw: Host, recalibrated: Host, data: Dataset) -> tuple[Host, str]:
     raw_loss = mean_loss(raw, cached(raw, data).selection, None)
     recalibrated_loss = mean_loss(recalibrated, cached(recalibrated, data).selection, None)
     if recalibrated_loss < raw_loss:
-        return recalibrated, "R-bn"
-    return raw, "raw"
+        return NoOpChoice(recalibrated, "R-bn", raw_loss, recalibrated_loss)
+    return NoOpChoice(raw, "raw", raw_loss, recalibrated_loss)
 
 
 def save_noop(host: Host, output: Path) -> str:

@@ -497,7 +497,11 @@ class CalibrateTests(unittest.TestCase):
             return SelectionOnly(cached(host, source), seen)
 
         with patch("sultai_screen.m0.calibrate.cached", side_effect=wrapper):
-            return no_op(raw, recalibrated, data), seen
+            choice = no_op(raw, recalibrated, data)
+        # Amendment 5 (A5.2 item 2): the choice carries both selection losses that decided it, consistently.
+        self.assertEqual(choice.label == "R-bn", choice.recalibrated_selection_loss < choice.raw_selection_loss)
+        self.assertIs(choice.model, recalibrated if choice.label == "R-bn" else raw)
+        return (choice.model, choice.label), seen
 
     def test_recalibrate_refuses_a_sealed_host_before_any_forward(self) -> None:
         host = load_host(self.checkpoint, 3000, 0, CPU, frozen=True)
