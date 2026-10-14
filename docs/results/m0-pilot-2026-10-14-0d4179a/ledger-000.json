@@ -1,0 +1,1 @@
+{"ceiling_gpu_process_seconds":14400,"charged_gpu_process_seconds":90.02650531707332,"entries":[{"charged_gpu_process_seconds":45.014529142994434,"gpu":0,"job":"replay-3000-gpu0","pid":1615705,"returncode":0},{"charged_gpu_process_seconds":45.01197617407888,"gpu":1,"job":"replay-3000-gpu1","pid":1615706,"returncode":0}],"opening_charge_gpu_process_seconds":0.0}

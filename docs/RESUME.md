@@ -37,9 +37,20 @@ gate B (`086f123`, PR #8). John then took gate-B decision 2, option (ii):
 commit `c49a4de` (420 tests; evidence under
 `results/m0-amendment-4-2026-10-14/`, review under
 `reviews/m0-capacity/amendment-4/`, admission certificate
-`certificates/2026-10-14-m0-pilot-admission-3.json`). The third gate B
-(that PR reviewed and ready) is John's next decision; nothing has run on
-GPU. The controller's 34 rulings are in the SDD ledger on Nyx
+`certificates/2026-10-14-m0-pilot-admission-3.json`), merged at the third
+gate B (`0d4179a`). **The M0 pilot ran on 2026-10-14 under John's go from
+`0d4179a` and finished pilot-clean** (exit 0, 1 h 22 min wall, 9,572 of the
+14,400 one-per-card process-seconds charged, both cards verified idle after):
+V0 passed on both cards bitwise, every instrument check true, the static
+host admitted, all seven extended arms admitted and completed, confirmatory
+count 32 (n* = 1 under the D1 half-width rule, so the preregistered floor
+binds), projected 24,261 process-seconds against the 43,200 ceiling, or
+27,247 against the 50,400 (14 h) static ceiling with S-static included.
+Sanitized evidence under `results/m0-pilot-2026-10-14-0d4179a/` (receipts,
+process records, custody copy, hash manifest; weights, loss streams and raw
+logs stay in ignored `runs/`). **Gate C, John's read of the pilot, is the
+next decision; the confirmatory run is not authorised.** The controller's
+37 rulings are in the SDD ledger on Nyx
 (`.superpowers/sdd/2026-10-13-m0-implementation/progress.md`, ignored):
 
 - [STEERING.md](STEERING.md): the objective verbatim, the drift diagnosis,
