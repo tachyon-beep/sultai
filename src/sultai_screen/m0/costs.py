@@ -24,7 +24,7 @@ from sultai_screen.m0.stats import CONFIRMATORY_ARMS, KNOWN_ARMS, PILOT_ARMS, ST
 
 DEVELOPMENT_ANCHORS: Final = 6
 CONFIRMATORY_MINIMUM: Final = 32
-GRID_KINDS: Final = frozenset(("module", "module-B", "aff", "retune", "refit", "refit-single"))
+GRID_KINDS: Final = frozenset(("module", "module-B", "aff", "retune", "refit", "refit-bound"))
 STATIC_ARMS: Final = frozenset(("S-static", "S-static:refit"))
 
 Arms = tuple[str, ...] | frozenset[str]
@@ -37,8 +37,8 @@ class Workloads:
     `host` per width scale (one 10-epoch host); `tcool` one T-cool resume; `static` one S-static host trained from
     step zero; `grid` per grid kind: "module" (three-rate checkpointed module grid), "module-B" (M-small-B's doubled
     schedule), "aff" (M-aff five-rate grid with fold and residual), "retune" (cached-site re-tune grid, R-272s),
-    "refit" (M-wide→8 refit with the full module grid), "refit-single" (one 800-step refit at the M-wide rate,
-    h = 16/4/2); `front_rerun` seconds per 1,000 front-re-running optimiser steps (the first front-re-running arm is
+    "refit" (M-wide→8 refit with the full module grid), "refit-bound" (one rate across the last checkpoint, the
+    bound on the h = 16/4/2 refit at M-wide's selected (rate, step) pair, amendment 5); `front_rerun` seconds per 1,000 front-re-running optimiser steps (the first front-re-running arm is
     measured in stage 4 and divided by its steps, R9); `fold_and_calibrations`
     one anchor's N0 and its twin, R-temp and R-cal, cuts, folds, leave-one-out and their evaluations (the §8 30 s
     line); `evaluation` one development evaluation of a new host (from images); `fixed_v0` the fixed V0 stage total;
@@ -106,10 +106,10 @@ ARM_UNITS: Final[dict[str, tuple[str, ...]]] = {
     "M-wide→16:sliced": (),
     "M-wide→4:sliced": (),
     "M-wide→2:sliced": (),
-    # Amendment 3 (A3.1): each survival refit is its single 800-step run plus one development evaluation.
-    "M-wide→16:refit": ("grid:refit-single", "evaluation"),
-    "M-wide→4:refit": ("grid:refit-single", "evaluation"),
-    "M-wide→2:refit": ("grid:refit-single", "evaluation"),
+    # Amendment 5 (A5.1): each survival refit is one run bounded by the last checkpoint plus one development evaluation.
+    "M-wide→16:refit": ("grid:refit-bound", "evaluation"),
+    "M-wide→4:refit": ("grid:refit-bound", "evaluation"),
+    "M-wide→2:refit": ("grid:refit-bound", "evaluation"),
     "M-wide→8:ablation": (),
     "M-small": ("grid:module",),
     "M-small-B": ("grid:module-B",),

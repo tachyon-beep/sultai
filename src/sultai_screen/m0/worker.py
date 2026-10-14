@@ -12,7 +12,7 @@ import functools
 import hashlib
 import itertools
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
@@ -132,8 +132,7 @@ ATTEMPT4_FINAL_STATE: Final[dict[int, str]] = {
     3004: "f9a39442fb96fd2667894d65c707ec0db070ad021644189e64b1d95c2a505777",
     3005: "aa5b5af44ceef02eb555cb62b0f492d34893b4d210b505b08484a6874abdedb9",
 }
-# §5: M-wide→{16, 4, 2} refit is one run at the selected M-wide rate for 800 steps, not the grid.
-SURVIVAL_REFIT_STEPS: Final = 800
+# §5 as amended by amendment 5 (A5.1): M-wide→{16, 4, 2} refit is one run at M-wide's selected (rate, step) pair.
 SURVIVAL_CUTS: Final = (16, 4, 2)
 WIDE: Final = 64
 SMALL: Final = 8
@@ -214,6 +213,24 @@ def tensor_sha(values: Tensor) -> str:
 
 def _ints(values: tuple[int, ...]) -> list[Json]:
     return [int(value) for value in values]
+
+
+def _position(value: float, grid: list[float], ends: tuple[str, str]) -> str:
+    if len(grid) == 1:
+        return "single"
+    if value == grid[0]:
+        return ends[0]
+    return ends[1] if value == grid[-1] else "interior"
+
+
+def corner(rate: float, steps: int, rates: Iterable[float], checkpoints: Iterable[int]) -> Record:
+    """Amendment 5 (A5.2 item 7): where the selected (rate, step) sits on its grid, beside the edge-of-grid flag:
+    the rate at the grid's lowest, highest or an interior value; the step at the first, last or an interior
+    checkpoint ("single" on a one-value axis)."""
+    return {
+        "rate": _position(rate, sorted(set(rates)), ("lowest", "highest")),
+        "step": _position(float(steps), sorted(float(c) for c in set(checkpoints)), ("first", "last")),
+    }
 
 
 def _texts(values: list[str]) -> list[Json]:
@@ -413,13 +430,18 @@ def replay_action(request: Request, data: Dataset, device: torch.device) -> Reco
 def _noop_rule(host: Host, checkpoint: Path, request: Request, data: Dataset, device: torch.device) -> Record:
     """§4 N0 on a frozen host saved at checkpoint: R-bn on an unsealed copy versus raw, decided on selection."""
     unsealed = load_host(checkpoint, request.seed, 0, device, widths=request.widths, frozen=False)
-    recalibrated = recalibrate_bn(unsealed, data.images, seen_fit(data))
-    chosen, label = no_op(host, recalibrated, data)
+    fit_ids = seen_fit(data)
+    recalibrated = recalibrate_bn(unsealed, data.images, fit_ids)
+    choice = no_op(host, recalibrated, data)
     return {
-        "noop_choice": label,
-        "noop_sha256": save_noop(chosen, request.output),
+        "noop_choice": choice.label,
+        "noop_sha256": save_noop(choice.model, request.output),
         "raw_sha256": state_hash(host),
         "recalibrated_sha256": state_hash(recalibrated),
+        # Amendment 5 (A5.2 item 2): the fit indices the recalibration consumed and the two losses that decided.
+        "fit_indices_sha256": tensor_sha(fit_ids),
+        "raw_selection_loss": choice.raw_selection_loss,
+        "rbn_selection_loss": choice.recalibrated_selection_loss,
     }
 
 
@@ -484,6 +506,7 @@ def static_action(request: Request, data: Dataset, device: torch.device) -> Reco
         "checkpoint_sha256": file_sha(request.output / "host.pt"),
         "training_seconds": elapsed,
         "noop_choice": choice.label,
+        "fit_indices_sha256": tensor_sha(seen_fit(data)),
         "raw_static_sha256": raw["static_sha256"],
         "recalibrated_static_sha256": static_hash(recalibrated),
         "raw_selection_loss": choice.raw_selection_loss,
@@ -540,7 +563,8 @@ def noop_action(request: Request, data: Dataset, device: torch.device) -> Record
     unsealed, _ = _request_training(request, device, frozen=False)
     fit_ids = seen_fit(data)
     recalibrated = recalibrate_bn(unsealed, data.images, fit_ids)
-    chosen, label = no_op(raw, recalibrated, data)
+    choice = no_op(raw, recalibrated, data)
+    chosen, label = choice.model, choice.label
     noop_sha = save_noop(chosen, request.output)
     fit = features_from_images(chosen, data, fit_ids)
     fit_logits = logits(chosen, fit, None)
@@ -555,10 +579,11 @@ def noop_action(request: Request, data: Dataset, device: torch.device) -> Record
         "noop_sha256": noop_sha,
         "raw_sha256": state_hash(raw),
         "recalibrated_sha256": state_hash(recalibrated),
+        "fit_indices_sha256": tensor_sha(fit_ids),
         "temperature": t,
         "class_bias": [t_cal, *(float(value) for value in bias.double().cpu().unbind())],
-        "raw_selection_loss": mean_loss(raw, features_from_images(raw, data, data.selection), None),
-        "rbn_selection_loss": mean_loss(recalibrated, features_from_images(recalibrated, data, data.selection), None),
+        "raw_selection_loss": choice.raw_selection_loss,
+        "rbn_selection_loss": choice.recalibrated_selection_loss,
         "rtemp_selection_loss": _calibrated_loss(selection_logits / t, selection.labels),
         "rcal_selection_loss": _calibrated_loss(apply_calibration(selection_logits, t_cal, bias), selection.labels),
         "fit_examples": len(fit_ids),
@@ -654,6 +679,7 @@ class Collector:
             "rate": None,
             "steps": None,
             "edge_of_grid": None,
+            "corner": None,
             "step0_selection_loss": None,
             "retained_parameters": 0 if adapter is None else adapter.count(),
             "report": None,
@@ -678,6 +704,9 @@ class Collector:
             "rate": fit.best.rate,
             "steps": fit.best.steps,
             "edge_of_grid": fit.edge_of_grid,
+            "corner": corner(
+                fit.best.rate, fit.best.steps, (c.rate for c in fit.candidates), (c.steps for c in fit.candidates)
+            ),
             "step0_selection_loss": fit.best.step0_selection,
             "selection_loss": fit.best.selection,
             "retained_parameters": chosen.count(),
@@ -696,6 +725,7 @@ class Collector:
             "rate": run.rate,
             "steps": run.steps,
             "edge_of_grid": None,
+            "corner": None,
             "step0_selection_loss": run.step0_selection,
             "selection_loss": run.selection,
             "retained_parameters": run.adapter.count(),
@@ -935,7 +965,7 @@ def _wide_arms(site: Site, wanted: set[str], collect: Collector, device: torch.d
                     site.selection,
                     seed=seed,
                     rate=wide.best.rate,
-                    steps=SURVIVAL_REFIT_STEPS,
+                    steps=wide.best.steps,
                     minibatch=True,
                     start=cut.folded,
                     hidden=h,
@@ -1051,6 +1081,7 @@ def _retune_record(fit: RetuneGrid, subset: Subset, source: Host, evaluate: Call
         "rate": best.rate,
         "steps": best.steps,
         "edge_of_grid": fit.edge_of_grid,
+        "corner": corner(best.rate, best.steps, (c.rate for c in fit.candidates), (c.steps for c in fit.candidates)),
         "step0_selection_loss": None,
         "selection_loss": best.selection,
         "retained_parameters": 0,

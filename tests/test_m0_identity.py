@@ -16,6 +16,8 @@ from sultai_screen.m0.identity import (
     AMENDMENT_3_SHA,
     AMENDMENT_4_PATH,
     AMENDMENT_4_SHA,
+    AMENDMENT_5_PATH,
+    AMENDMENT_5_SHA,
     AMENDMENT_PATH,
     AMENDMENT_SHA,
     CERTIFIED_FRACTION,
@@ -54,6 +56,7 @@ DOCUMENTS = (
     (AMENDMENT_2_PATH, "amendment 2"),
     (AMENDMENT_3_PATH, "amendment 3"),
     (AMENDMENT_4_PATH, "amendment 4"),
+    (AMENDMENT_5_PATH, "amendment 5"),
 )
 
 
@@ -83,16 +86,18 @@ class IdentityTests(unittest.TestCase):
         self.assertEqual(file_sha(REPO / AMENDMENT_2_PATH), AMENDMENT_2_SHA)
         self.assertEqual(file_sha(REPO / AMENDMENT_3_PATH), AMENDMENT_3_SHA)
         self.assertEqual(file_sha(REPO / AMENDMENT_4_PATH), AMENDMENT_4_SHA)
+        self.assertEqual(file_sha(REPO / AMENDMENT_5_PATH), AMENDMENT_5_SHA)
         # Amendment 3 (2026-10-14) is composed fifth under the Gate 3 v4.1 rule; the v4 identity 3a76c6db… stays on
         # record in freeze certificate 2 and the gate-B admission certificate for 978850a.
         composed = hashlib.sha256(
-            f"m0-v4.2\n{PREREG_SHA}\n{STEERING_SHA}\n{AMENDMENT_SHA}\n{AMENDMENT_2_SHA}\n{AMENDMENT_3_SHA}\n{AMENDMENT_4_SHA}\n".encode()
+            f"m0-v4.3\n{PREREG_SHA}\n{STEERING_SHA}\n{AMENDMENT_SHA}\n{AMENDMENT_2_SHA}\n{AMENDMENT_3_SHA}\n{AMENDMENT_4_SHA}\n{AMENDMENT_5_SHA}\n".encode()
         ).hexdigest()
-        self.assertEqual(PROTOCOL_VERSION, "m0-v4.2")
+        self.assertEqual(PROTOCOL_VERSION, "m0-v4.3")
         self.assertEqual(AMENDMENT_3_SHA, "6dcfd9f2a781dc56d39c6e4fe548fc4728c2c743a8e5a978d0e4b9741459e862")
         self.assertEqual(PROTOCOL_SHA, composed)
         self.assertEqual(AMENDMENT_4_SHA, "d8dd571bb39718946af06a442ec74302b704c1bede090c83eeaed9d59dcdcc34")
-        self.assertEqual(PROTOCOL_SHA, "a2c1e55deffb144c9ab596ed7817bc6546f88ac045a02fc0447ae25896db6007")
+        self.assertEqual(AMENDMENT_5_SHA, "0f6c2fa3bf8240e6f52a038a25c0d5d543e8f0592eeb2681a1072c2df1a5b6ed")
+        self.assertEqual(PROTOCOL_SHA, "bde550df1ac6ca179dd1fe18ed3a2d040eef1225522f913fd46b983fb24cc395")
         self.assertEqual(
             set(protocol_identity()),
             {
@@ -104,6 +109,7 @@ class IdentityTests(unittest.TestCase):
                 "amendment_2_sha256",
                 "amendment_3_sha256",
                 "amendment_4_sha256",
+                "amendment_5_sha256",
             },
         )
 

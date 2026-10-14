@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import itertools
 import math
 import statistics
 import subprocess
@@ -39,6 +40,7 @@ from sultai_screen.m0.stats import (
     gain_fraction,
     median,
     paired_bound,
+    projected_half_width,
     quantities,
     sd,
     sign_test_bound,
@@ -441,6 +443,16 @@ class StatsTests(unittest.TestCase):
     def test_achieved_half_width(self) -> None:
         expected = max(0.035 - SAMPLE_LOWER, SAMPLE_UPPER - 0.035)
         self.assertAlmostEqual(achieved_half_width(SAMPLE, 0), expected, places=15)
+
+    def test_projected_half_width_resamples_n_anchors_and_narrows_with_n(self) -> None:
+        # Amendment 5 (A5.2 item 6): the same percentile anchor bootstrap of the median at n draws from the sample.
+        self.assertAlmostEqual(projected_half_width(SAMPLE, len(SAMPLE), 0), achieved_half_width(SAMPLE, 0), places=15)
+        widths = [projected_half_width(SAMPLE, n, 0) for n in (6, 12, 32, 128)]
+        self.assertTrue(all(later <= earlier for earlier, later in itertools.pairwise(widths)), widths)
+        self.assertLess(widths[-1], widths[0] / 2)
+        self.assertEqual(projected_half_width(SAMPLE, 32, 0), projected_half_width(SAMPLE, 32, 0))
+        with self.assertRaises(ContractViolation):
+            projected_half_width(SAMPLE, 0, 0)
 
     def test_sign_test_bound_order_statistics(self) -> None:
         six = (0.05, 0.01, 0.06, 0.03, 0.02, 0.04)

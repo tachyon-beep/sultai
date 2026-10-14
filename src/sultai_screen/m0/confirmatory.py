@@ -49,12 +49,15 @@ from sultai_screen.m0.identity import (
     FOLD_TOLERANCE,
     M0_CONFIRMATORY_SECONDS,
     M0_CONFIRMATORY_STATIC_SECONDS,
+    MODULE_RATES,
     protocol_identity,
 )
 from sultai_screen.m0.identity import REPO as M0_REPO
 from sultai_screen.m0.pilot import (
+    ANCHORS,
     WORKER,
     Run,
+    anchor_host,
     axis,
     check_cards,
     check_certificate,
@@ -93,6 +96,11 @@ CERTIFIED: Final = ("M-aff", "M-sq", "M-small-B", "M-wide→8:rank:refit")
 # Amendment 3 (A3.2): the quantities a verdict or label reads hold the reading when undefined on an anchor; every other
 # §6 quantity the §10 set defines is published beside with bounds and the sign test, undefined with the anchor named.
 VERDICT_KEYS: Final = ("D1", "D1prime", "D2", "D3", "delta_acc")
+# Amendment 5 (A5.1): the one pilot of record ran under m0-v4.2 (admission certificate 3) and is not re-run; a clean
+# pilot result under that identity is admitted beside one under the current identity. No other past identity is.
+ADMITTED_PILOT_IDENTITIES: Final = {"m0-v4.2": "a2c1e55deffb144c9ab596ed7817bc6546f88ac045a02fc0447ae25896db6007"}
+# Amendment 5 (A5.1): the three survival refits per anchor whose booking moved from 800 steps to the last checkpoint.
+SURVIVAL_REFITS: Final = tuple(name for name in sorted(stats.SURVIVAL_CURVE_ARMS) if name.endswith(":refit"))
 BESIDE_KEYS: Final = ("D2s", "D2_random", "D2s_random", "G_tcool", "r_aff", "G_rtemp", "G_rcal")
 STOP_ONLY_PILOT: Final = ("pilot_clean", "confirmatory_ready")
 
@@ -110,6 +118,8 @@ class Plan:
     custody: str
     binding: Record
     projection: Record
+    # Amendment 5 (A5.2 item 1): the pilot's recorded environment, compared field by field at launch, never refused.
+    pilot_environment: Record
 
     def block(self) -> Record:
         return {"lineage": self.lineage, "first": self.seeds[0], "last": self.seeds[-1], "count": len(self.seeds)}
@@ -174,19 +184,50 @@ def failed_prior(custody: Record) -> Record | None:
     return {str(result): file_sha(result)}
 
 
-def workloads_of(record: Record) -> Workloads:
-    """The pilot's measured kernels from 04-admission.json (the inverse of receipts.workloads_record)."""
-    return Workloads(
+def workloads_of(record: Record) -> tuple[Workloads, float]:
+    """The pilot's measured kernels from 04-admission.json (the inverse of receipts.workloads_record), and the
+    per-anchor survival refit uplift (amendment 5, A5.1): a pilot that measured the 800-step `refit-single` kernel
+    has its refit booked at one rate across the last checkpoint (`refit-bound` = module grid / rates), and its
+    measured per-anchor charge is raised by the three refits' difference."""
+    grid = {kind: number(value) for kind, value in mapping(record["grid"]).items()}
+    uplift = 0.0
+    if "refit-single" in grid and "refit-bound" not in grid:
+        single = grid.pop("refit-single")
+        grid["refit-bound"] = grid["module"] / len(MODULE_RATES)
+        uplift = len(SURVIVAL_REFITS) * max(0.0, grid["refit-bound"] - single)
+    w = Workloads(
         host={float(scale): number(value) for scale, value in mapping(record["host"]).items()},
         tcool=number(record["tcool"]),
         static=number(record["static"]),
-        grid={kind: number(value) for kind, value in mapping(record["grid"]).items()},
+        grid=grid,
         front_rerun=number(record["front_rerun"]),
         fold_and_calibrations=number(record["fold_and_calibrations"]),
         evaluation=number(record["evaluation"]),
         fixed_v0=number(record["fixed_v0"]),
         noop_evaluate={float(scale): number(value) for scale, value in mapping(record["noop_evaluate"]).items()},
     )
+    return w, uplift
+
+
+def pilot_protocol(pilot: Record) -> Record:
+    """The identity the pilot result carries: the current one, or an identity amendment 5 admits as the pilot of
+    record (m0-v4.2, certificate 3); any other holds before custody."""
+    current = protocol_identity()
+    version = text(field(pilot, "protocol_version", "the pilot result"))
+    sha = text(field(pilot, "protocol_sha256", "the pilot result"))
+    if all(key in pilot and pilot[key] == value for key, value in current.items()):
+        return {"protocol_version": version, "protocol_sha256": sha, "same_protocol": True}
+    if version == current["protocol_version"]:
+        differing = next(key for key, value in current.items() if key not in pilot or pilot[key] != value)
+        raise PilotHold(f"the pilot result carries another protocol identity ({differing})")
+    if version in ADMITTED_PILOT_IDENTITIES and sha == ADMITTED_PILOT_IDENTITIES[version]:
+        return {
+            "protocol_version": version,
+            "protocol_sha256": sha,
+            "same_protocol": False,
+            "admitted_by": "amendment 5 (A5.1): the pilot of record ran under m0-v4.2 and is not re-run",
+        }
+    raise PilotHold(f"the pilot result carries another protocol identity ({version})")
 
 
 def source_binding(approved: Record, identity: Record, pilot: Record) -> Record:
@@ -220,12 +261,13 @@ def admit_launch(approved: Record, identity: Record, pilot_result: Path, static:
     pilot = read_record(pilot_result)
     if field(pilot, "pilot_clean", "the pilot result") is not True:
         raise PilotHold("the confirmatory requires a clean pilot result")
-    for key, value in protocol_identity().items():
-        if key not in pilot or pilot[key] != value:
-            raise PilotHold(f"the pilot result carries another protocol identity ({key})")
+    binding["pilot_protocol"] = pilot_protocol(pilot)
     binding["implementation_source"] = source_binding(approved, identity, pilot)
     admission = pilot_result.parent / "04-admission.json"
     binding["pilot_admission"] = evidenced(approved, admission, "the pilot's measured kernels")
+    opening = pilot_result.parent / "00-opening.json"
+    binding["pilot_opening"] = evidenced(approved, opening, "the pilot's opening record")
+    pilot_environment = mapping(field(read_record(opening), "environment", "the pilot's 00-opening.json"))
     if static and field(pilot, "static_admitted", "the pilot result") is not True:
         raise PilotHold("S-static joins only if the pilot's SD(D5) rule admitted it")
     if static and not ("confirmatory_ceiling_hours" in approved and approved["confirmatory_ceiling_hours"] == 14):
@@ -251,7 +293,7 @@ def admit_launch(approved: Record, identity: Record, pilot_result: Path, static:
     n = integer(field(pilot, "confirmatory_count", "the pilot result"))
     start = BLOCKS[lineage].start
     seeds = tuple(admit(seed, lineage) for seed in range(start, start + n))
-    w = workloads_of(mapping(field(read_record(admission), "workloads", "the pilot's 04-admission.json")))
+    w, uplift = workloads_of(mapping(field(read_record(admission), "workloads", "the pilot's 04-admission.json")))
     arms = stats.CONFIRMATORY_ARMS | (STATIC_ARMS if static else frozenset())
     ceiling = M0_CONFIRMATORY_STATIC_SECONDS if static else M0_CONFIRMATORY_SECONDS
     # I3 and M7: the fixed term is the pilot's replay and acceptance charge; the larger of the kernel projection and
@@ -261,22 +303,68 @@ def admit_launch(approved: Record, identity: Record, pilot_result: Path, static:
     per = "static_per_anchor_gpu_process_seconds" if static else "per_anchor_gpu_process_seconds"
     kernel = (with_static if static else project_confirmatory)(n, w, arms, fixed)
     measured = measured_confirmatory(
-        n, number(field(carried, per, "the pilot's confirmatory projection")), fixed, ceiling
+        n, number(field(carried, per, "the pilot's confirmatory projection")) + uplift, fixed, ceiling
     )
     larger = max(number(kernel["projected_gpu_process_seconds"]), number(measured["projected_gpu_process_seconds"]))
     projection: Record = {
         "kernel": kernel,
         "measured": measured,
+        "survival_refit_uplift_seconds": uplift,
         "projected_gpu_process_seconds": larger,
         "ceiling_seconds": ceiling,
         "within_ceiling": larger <= ceiling,
     }
     if larger > ceiling:
         raise FeasibilityHold("the confirmatory projects over its ceiling from the pilot's kernels or measured charges")
-    return Plan(lineage, seeds, (checkpoints, checkpoints_b), arms, static, ceiling, custody, binding, projection)
+    return Plan(
+        lineage,
+        seeds,
+        (checkpoints, checkpoints_b),
+        arms,
+        static,
+        ceiling,
+        custody,
+        binding,
+        projection,
+        pilot_environment,
+    )
+
+
+def environment_vs_pilot(pilot: Record, current: Record) -> Record:
+    """Amendment 5 (A5.2 item 1): every field of either record, with both values and whether they are equal."""
+    return {
+        key: {
+            "pilot": pilot[key] if key in pilot else None,
+            "confirmatory": current[key] if key in current else None,
+            "equal": key in pilot and key in current and pilot[key] == current[key],
+        }
+        for key in [*pilot, *(key for key in current if key not in pilot)]
+    }
 
 
 # --- V0 on the fresh anchors ---------------------------------------------------------------------------------------
+
+
+NOOP_REPLAY_KEYS: Final = ("raw_sha256", "recalibrated_sha256", "noop_sha256", "fit_indices_sha256")
+
+
+def replay_noop(run: Run) -> Record:
+    """Amendment 5 (A5.2 item 3): the attempt-4 anchor's no-op child on both cards from the same replayed host; the
+    raw, recalibrated and chosen state hashes must agree bitwise, else an instrument failure. Charged in V0."""
+    names = ("noop-3000-gpu0", "noop-3000-gpu1")
+    training = run.path(anchor_host(ANCHORS[0]))
+    run.run([job(name, "noop", ANCHORS[0], "anchor", training=training, gpu=gpu) for gpu, name in enumerate(names)])
+    records = [run.payload(name, "noop", ANCHORS[0], "anchor") for name in names]
+    differing = [key for key in NOOP_REPLAY_KEYS if records[0][key] != records[1][key]]
+    if differing:
+        raise InstrumentHold(f"V0 no-op replay: the recalibrated no-op host differs across cards on {differing}")
+    return {
+        "children": list(names),
+        "training_root": str(training),
+        "compared": list(NOOP_REPLAY_KEYS),
+        "both_cards_bitwise": True,
+        **{key: records[0][key] for key in NOOP_REPLAY_KEYS},
+    }
 
 
 def stage_v0(run: Run, plan: Plan) -> Record:
@@ -285,6 +373,7 @@ def stage_v0(run: Run, plan: Plan) -> Record:
     slicing = slicing_known_answer()
     if slicing["known_answer"] is not True:
         raise InstrumentHold("V0 slicing known answer failed")
+    noop_replay = replay_noop(run)
     run.run([job(f"train-{s}", "train", s, lineage) for s in seeds])
     for s in seeds:
         bound(run.path(f"train-{s}"), run.payload(f"train-{s}", "train", s, lineage), TRAINING_FILES)
@@ -320,6 +409,7 @@ def stage_v0(run: Run, plan: Plan) -> Record:
         residuals[str(s)] = r_aff
     return {
         "slicing": slicing,
+        "noop_replay": noop_replay,
         "zero_module_identity": True,
         # B3: the per-anchor flags the clause was read from (pilot M3/R25), not the literal beside them.
         "zero_module_identity_flags": recorded,
@@ -533,6 +623,7 @@ def confirmatory(
             {
                 "cards": cards,
                 "environment": environment,
+                "environment_vs_pilot": environment_vs_pilot(plan.pilot_environment, environment),
                 "implementation_commit": text(identity["commit"]),
                 "certificate_sha256": certificate_sha,
                 "custody": plan.custody,
@@ -579,6 +670,7 @@ def confirmatory(
                     "printed_counts": True,
                     "complement_unchanged": True,
                     "zero_module_identity": True,
+                    "noop_replay_both_cards_bitwise": True,
                     "not_rerun": "P1 instrument (A1, B3): development-anchor clauses of the clean pilot's V0 (§7)",
                 },
                 **reading,
@@ -588,6 +680,9 @@ def confirmatory(
                 "arms": json_value(sorted(plan.arms)),
                 "ceiling_gpu_process_seconds": plan.ceiling,
                 "charged_gpu_process_seconds": run.supervisor.charged,
+                # Amendment 5 (A5.2 item 4): the admission certificate and the custody this attempt ran under.
+                "certificate_sha256": certificate_sha,
+                "custody": plan.custody,
                 # B4 (R27): the certified implementation source this reading was produced by.
                 **implementation(identity),
                 **protocol_identity(),
@@ -595,7 +690,14 @@ def confirmatory(
         )
         return 0
     except Exception as error:
-        publish(root / "confirmatory-result.json", stopped(error, stage, run, plan, identity))
+        publish(
+            root / "confirmatory-result.json",
+            {
+                **stopped(error, stage, run, plan, identity),
+                "certificate_sha256": certificate_sha,
+                "custody": plan.custody,
+            },
+        )
         return 2
 
 

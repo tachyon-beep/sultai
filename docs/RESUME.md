@@ -44,13 +44,23 @@ gate B (`0d4179a`). **The M0 pilot ran on 2026-10-14 under John's go from
 V0 passed on both cards bitwise, every instrument check true, the static
 host admitted, all seven extended arms admitted and completed, confirmatory
 count 32 (n* = 1 under the D1 half-width rule, so the preregistered floor
-binds), projected 24,261 process-seconds against the 43,200 ceiling, or
-27,247 against the 50,400 (14 h) static ceiling with S-static included.
-Sanitized evidence under `results/m0-pilot-2026-10-14-0d4179a/` (receipts,
-process records, custody copy, hash manifest; weights, loss streams and raw
-logs stay in ignored `runs/`). **Gate C, John's read of the pilot, is the
-next decision; the confirmatory run is not authorised.** The controller's
-38 rulings are in the SDD ledger on Nyx
+binds). Sanitized evidence under `results/m0-pilot-2026-10-14-0d4179a/` and
+three independent reviews of the receipts under `reviews/m0-capacity/pilot/`
+(PR #10). John then said "fix all the majors and minors":
+[amendment 5](plans/2026-10-14-m0-amendment-5.md) carries the survival
+refit's selected step count with its rate and the receipt additions the
+reviews asked for, frozen by
+[freeze certificate 5](certificates/2026-10-14-m0-freeze-5.md) as identity
+`m0-v4.3`; implemented on `nyx/m0-amendment-5`, certified implementation
+commit `13989d9` (430 tests; evidence under
+`results/m0-amendment-5-2026-10-14/`, reviews under
+`reviews/m0-capacity/amendment-5/`, admission certificate
+`certificates/2026-10-14-m0-pilot-admission-4.json` with the
+[source-change disposition](certificates/2026-10-14-m0-source-change-disposition.md)
+that admits it over the pilot's source). **The fourth gate B, gate C (John's
+read of the pilot) and the confirmatory go, with its ceiling, are John's
+next decisions; the confirmatory has not run.** The controller's 41 rulings
+are in the SDD ledger on Nyx
 (`.superpowers/sdd/2026-10-13-m0-implementation/progress.md`, ignored):
 
 - [STEERING.md](STEERING.md): the objective verbatim, the drift diagnosis,

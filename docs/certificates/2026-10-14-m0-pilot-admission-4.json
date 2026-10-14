@@ -1,0 +1,74 @@
+{
+  "protocol_version": "m0-v4.3",
+  "protocol_sha256": "bde550df1ac6ca179dd1fe18ed3a2d040eef1225522f913fd46b983fb24cc395",
+  "preregistration_sha256": "c66599459adc898f96322ab11dfa3c6737cd3559e06c9432d79e377e00c03fd5",
+  "steering_sha256": "08a9e1aaf79d3048a5d6f6f4d6138a9c7049f32b61c0250e1505773a27fa3ffd",
+  "amendment_sha256": "af12d474a97aad83bc63405034fec3716170f7652f34364588750732c97b6a89",
+  "amendment_2_sha256": "b4740b147a4a1ced52a6f0721215679c1567078260d5c11a92c35fa2065c2d77",
+  "amendment_3_sha256": "6dcfd9f2a781dc56d39c6e4fe548fc4728c2c743a8e5a978d0e4b9741459e862",
+  "amendment_4_sha256": "d8dd571bb39718946af06a442ec74302b704c1bede090c83eeaed9d59dcdcc34",
+  "amendment_5_sha256": "0f6c2fa3bf8240e6f52a038a25c0d5d543e8f0592eeb2681a1072c2df1a5b6ed",
+  "implementation_commit": "13989d949aad7e9c1e0c81488fa1a267b7c29adc",
+  "implementation_source_sha256": "b2c3553715abf7816ed690eeadbb59531cf1bdbab3aa9a6dd17a3609e5a83083",
+  "source_change_disposition": "docs/certificates/2026-10-14-m0-source-change-disposition.md",
+  "supersedes": "docs/certificates/2026-10-14-m0-pilot-admission-3.json",
+  "pilot_of_record": "docs/results/m0-pilot-2026-10-14-0d4179a/pilot-result.json",
+  "quality_passed": true,
+  "runtime_tests_passed": true,
+  "independent_panel_accepted": true,
+  "evidence": [
+    {
+      "path": "docs/results/m0-amendment-5-2026-10-14/quality.json",
+      "sha256": "0a9cdb31b17990e16d299392e64aa23e449805cd2abc96dfc00832e28c78d008"
+    },
+    {
+      "path": "docs/results/m0-amendment-5-2026-10-14/runtime.json",
+      "sha256": "83fa437017d553d8db7622b3ffc1669ae725cca06f617de0a2218037b8423c4e"
+    },
+    {
+      "path": "docs/results/m0-amendment-5-2026-10-14/runtime.txt",
+      "sha256": "ed71687f676c2e6ed97ef6c9f4da76bbd5ddd7f988d750ee323e2a44a4a45e75"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/amendment-5/determinism-and-receipts.md",
+      "sha256": "4c4b83fea7c1f743c217d2c2abbddf37d78b5d1a3091aac75615472afc1951fe"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/amendment-5/dispositions.md",
+      "sha256": "7094566023a00a1564bcf011169a1b6e53fb4f44121d99ecc66902ba8fd3a1c8"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/amendment-5/statistics-and-protocol.md",
+      "sha256": "9d0fe6f5089ee5dd81be2ded73a9e44fcd1149da8ed8b68631066282d03f8c80"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/implementation/final-review-e1df6e1.md",
+      "sha256": "a309453c5b27b75ec861a4dbb51904677cd80416f23d24eca12a07d38237a0c9"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/implementation/post-review-recheck.md",
+      "sha256": "1e6e052b52396b8dcd2a3a1a121df8c9ec6b61306bb2721c26664484c3f35d4c"
+    },
+    {
+      "path": "docs/results/m0-pilot-2026-10-14-0d4179a/pilot-result.json",
+      "sha256": "2caec7b5c5d3b9c27cfaf61313fd89d308587a7ce115ada39f80656572f4419b"
+    },
+    {
+      "path": "docs/results/m0-pilot-2026-10-14-0d4179a/04-admission.json",
+      "sha256": "de1fc26260314e1607544a7bb4f5ff9f5aa1ab2d09b31bd45510748e38d408e5"
+    },
+    {
+      "path": "docs/results/m0-pilot-2026-10-14-0d4179a/00-opening.json",
+      "sha256": "32f9e2b3ca60c731f105429fc6fde9d6daa73b7632422b2d784def04034ecacc"
+    },
+    {
+      "path": "docs/certificates/2026-10-14-m0-source-change-disposition.md",
+      "sha256": "84d43cfe6e7a32b6d971e52fcfb09659b84a00cccce0828dc07b740139b37f93"
+    }
+  ],
+  "pilot_gpu_hour_ceiling": 4,
+  "pilot_gpu_process_seconds_ceiling": 14400,
+  "confirmation_cleared": false,
+  "pr_url": "https://github.com/tachyon-beep/sultai/pull/12",
+  "recorded_utc": "2026-10-14T10:23:39+00:00"
+}

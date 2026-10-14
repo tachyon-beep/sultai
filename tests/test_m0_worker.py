@@ -177,7 +177,6 @@ def patched(rates: tuple[tuple[float, ...], tuple[float, ...]] = ((0.1,), (0.1,)
             ("MODULE_RATES", rates[0]),
             ("RETUNE_RATES", rates[1]),
             ("RALL_CHECKPOINTS", (1, 2)),
-            ("SURVIVAL_REFIT_STEPS", 3),
         ):
             stack.enter_context(patch(f"sultai_screen.m0.worker.{target}", constant))
         stack.enter_context(patch("sultai_screen.fit.PLATEAU_WINDOW", 1))
@@ -323,12 +322,23 @@ class WorkerTests(unittest.TestCase):
             )
         self.assertEqual(child.call_args.args[0].lineage, "cooled-20")
 
+    def test_corner_classifies_the_selected_rate_and_step_on_their_own_axes(self) -> None:
+        # Amendment 5 (A5.2 item 7): lowest/highest/interior by the grid's rates, first/last/interior by its
+        # checkpoints, "single" on a one-value axis; the grid is read from the candidates, so M-small-B's doubled
+        # axis classifies on 400/1,600/6,400.
+        rates, steps = (1.0, 0.3, 0.1), (200, 800, 3200)
+        self.assertEqual(worker.corner(0.1, 200, rates, steps), {"rate": "lowest", "step": "first"})
+        self.assertEqual(worker.corner(1.0, 3200, rates, steps), {"rate": "highest", "step": "last"})
+        self.assertEqual(worker.corner(0.3, 800, rates, steps), {"rate": "interior", "step": "interior"})
+        self.assertEqual(worker.corner(0.3, 400, rates, (400, 1600, 6400)), {"rate": "interior", "step": "first"})
+        self.assertEqual(worker.corner(0.1, 2, (0.1,), (1, 2)), {"rate": "single", "step": "last"})
+        self.assertEqual(worker.corner(0.1, 1, (0.1, 0.1), (1,)), {"rate": "single", "step": "single"})
+
     def test_attempt4_hashes_are_the_published_receipts(self) -> None:
         self.assertEqual(worker.DEV_ARTIFACT, REPO / "docs/results/gate3-split-2026-10-11/dev-indices-int32-le.bin")
         self.assertTrue(worker.DEV_ARTIFACT.is_file())
-        self.assertEqual(
-            (worker.SURVIVAL_REFIT_STEPS, worker.RALL_CHECKPOINTS[0], worker.RALL_CHECKPOINTS[-1]), (800, 40, 800)
-        )
+        self.assertEqual((worker.RALL_CHECKPOINTS[0], worker.RALL_CHECKPOINTS[-1]), (40, 800))
+        self.assertFalse(hasattr(worker, "SURVIVAL_REFIT_STEPS"))
         self.assertEqual(len(worker.RALL_CHECKPOINTS), 20)
         self.assertEqual(set(worker.ATTEMPT4_FINAL_STATE), set(range(3000, 3006)))
         for seed, pinned in worker.ATTEMPT4_FINAL_STATE.items():
@@ -350,7 +360,7 @@ class WorkerTests(unittest.TestCase):
 
     def test_train_binds_host_optimiser_and_stream_and_load_training_reads_the_width_tuple(self) -> None:
         record = run("train", self.root / "train-check")
-        self.assertEqual(mapping(record["identity"])["protocol_version"], "m0-v4.2")
+        self.assertEqual(mapping(record["identity"])["protocol_version"], "m0-v4.3")
         self.assertEqual(record["peak_cuda_bytes"], 0)
         payload = payload_of(record)
         out = self.root / "train-check"
@@ -400,6 +410,9 @@ class WorkerTests(unittest.TestCase):
         self.assertNotEqual(tcool["final_state_sha256"], tcool["source_final_state_sha256"])
         noop = load_noop(self.root / "tcool", 3000, REFERENCE_WIDTHS, str(tcool["noop_sha256"]), CPU)
         self.assertEqual(state_hash(noop), tcool["noop_sha256"])
+        # Amendment 5 (A5.2 item 2): T-cool's no-op rule publishes the two losses that decided it and the fit indices.
+        self.assertEqual(tcool["noop_choice"] == "R-bn", tcool["rbn_selection_loss"] < tcool["raw_selection_loss"])
+        self.assertEqual(tcool["fit_indices_sha256"], worker.tensor_sha(SEEN))
         static = payload_of(read_record(self.root / "static/result.json"))
         self.assertEqual(static["module_sha256"], file_sha(self.root / "static/static-module.pt"))
         self.assertEqual(static["checkpoint_sha256"], file_sha(self.root / "static/host.pt"))
@@ -413,6 +426,8 @@ class WorkerTests(unittest.TestCase):
         self.assertNotEqual(static["raw_static_sha256"], static["recalibrated_static_sha256"])
         self.assertGreater(static["noop_seconds"], 0.0)
         self.assertEqual(static["noop_choice"] == "R-bn", static["rbn_selection_loss"] < static["raw_selection_loss"])
+        # Amendment 5 (A5.2 item 2): the static host's no-op application names the fit indices it consumed.
+        self.assertEqual(static["fit_indices_sha256"], worker.tensor_sha(SEEN))
         published = load_static(self.root / "static", 3000, REFERENCE_WIDTHS, CPU, str(static["static_sha256"]))
         self.assertEqual(static_hash(published), static["static_sha256"])
         self.assertEqual(static["host_sha256"], state_hash(published.host))
@@ -450,6 +465,11 @@ class WorkerTests(unittest.TestCase):
         self.assertEqual(state_hash(noop), payload["noop_sha256"])
         chosen = payload["recalibrated_sha256"] if payload["noop_choice"] == "R-bn" else payload["raw_sha256"]
         self.assertEqual(chosen, payload["noop_sha256"])
+        # Amendment 5 (A5.2 item 2): the fit-index tensor the recalibration consumed, by hash, beside both losses.
+        self.assertEqual(payload["fit_indices_sha256"], worker.tensor_sha(SEEN))
+        self.assertEqual(
+            payload["noop_choice"] == "R-bn", payload["rbn_selection_loss"] < payload["raw_selection_loss"]
+        )
         bias = payload["class_bias"]
         assert isinstance(bias, list)
         self.assertEqual(len(bias), 11)
@@ -501,18 +521,29 @@ class WorkerTests(unittest.TestCase):
             self.assertIn("unfolded_development_loss", arm)
             self.assertEqual(saved[name]["unfolded_loss"].shape, (16,))
         wide_rate = mapping(arms["M-wide"])["rate"]
+        wide_steps = mapping(arms["M-wide"])["steps"]
         for h in (16, 4, 2):
             arm = mapping(arms[f"M-wide→{h}:refit"])
             report = mapping(arm["report"])
             candidates = report["candidates"]
             assert isinstance(candidates, list)
             self.assertEqual(len(candidates), 1)
-            self.assertEqual(mapping(candidates[0])["steps"], 3)
+            # Amendment 5 (A5.1): the refit carries M-wide's selected (rate, step) pair, never a fixed step count.
+            self.assertEqual(mapping(candidates[0])["steps"], wide_steps)
+            self.assertEqual(arm["steps"], wide_steps)
             self.assertEqual(arm["rate"], wide_rate)
             self.assertEqual(len(mapping(arm["harm_inventory"])), 1)
         refit = mapping(arms["M-wide→8:rank:refit"])
         self.assertIsNotNone(refit["step0_selection_loss"])
         # M5: every grid or single-run arm books its final-checkpoint candidates (whole runs), §4 units.
+        # Amendment 5 (A5.2 item 7): every grid arm names its selected (rate, step) corner; a single run has none.
+        for name in ("M-sq", "M-small-B", "M-wide", "M-wide→8:rank:refit", "M-exp"):
+            corner = mapping(mapping(arms[name])["corner"])
+            self.assertEqual(corner["rate"], "single", name)
+            axis = (2, 4) if name == "M-small-B" else (1, 2)
+            self.assertEqual(corner["step"], "first" if mapping(arms[name])["steps"] == axis[0] else "last", name)
+        self.assertIsNone(mapping(arms["M-wide→4:refit"])["corner"])
+        self.assertIsNone(mapping(arms["M-wide→4:sliced"])["corner"])
         for name in ("M-sq", "M-small-B", "M-wide", "M-wide→8:rank:refit", "M-wide→4:refit", "M-exp"):
             arm = mapping(arms[name])
             candidates = [mapping(c) for c in sequence(mapping(arm["report"])["candidates"])]
@@ -876,7 +907,7 @@ class WorkerTests(unittest.TestCase):
         with self.assertRaisesRegex(PilotHold, "M-bogus"):
             run("modules", out, 3000, "anchor", "--arms", "M-sq,M-bogus", *self.roots())
         failure = read_record(out / "failure.json")
-        self.assertEqual(mapping(failure["identity"])["protocol_version"], "m0-v4.2")
+        self.assertEqual(mapping(failure["identity"])["protocol_version"], "m0-v4.3")
         self.assertEqual((failure["error_type"], failure["software_valid"]), ("PilotHold", False))
         self.assertFalse((out / "result.json").exists())
         bad = self.root / "bad-train"
