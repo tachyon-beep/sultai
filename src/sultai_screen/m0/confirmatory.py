@@ -339,6 +339,7 @@ def stage_hosts(run: Run, plan: Plan) -> Record:
     )
     tcool: Record = {}
     static: Record = {}
+    static_noop: Record = {}
     for s in seeds:
         resumed = run.payload(f"tcool-{s}", "tcool", s, lineage)
         if resumed["source_final_state_sha256"] != run.payload(f"train-{s}", "train", s, lineage)["final_state_sha256"]:
@@ -348,7 +349,13 @@ def stage_hosts(run: Run, plan: Plan) -> Record:
             payload = run.payload(f"static-{s}", "static", s, lineage)
             bound(run.path(f"static-{s}"), payload, STATIC_FILES)
             static[str(s)] = payload["static_sha256"]
-    return {"tcool_final_state_sha256": tcool, "static_sha256": static if plan.static else None}
+            # Amendment 4 (A4.1): the static model's own no-op choice, for the record (the bound receipt has the hashes).
+            static_noop[str(s)] = payload["noop_choice"]
+    return {
+        "tcool_final_state_sha256": tcool,
+        "static_sha256": static if plan.static else None,
+        "static_noop_choice": static_noop if plan.static else None,
+    }
 
 
 def stage_core(run: Run, plan: Plan) -> None:

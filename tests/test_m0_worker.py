@@ -42,7 +42,7 @@ from sultai_screen.m0 import receipts, worker
 from sultai_screen.m0.calibrate import load_noop
 from sultai_screen.m0.identity import protocol_identity
 from sultai_screen.m0.retune import RetuneGrid, Subset, retune_grid
-from sultai_screen.m0.static import StaticHost
+from sultai_screen.m0.static import StaticChoice, StaticHost, load_static, static_hash
 from sultai_screen.m0.stats import CORE_ARMS, PILOT_ARMS, SURVIVAL_WIDTHS, AnchorResult, ArmResult, quantities
 
 REPO = Path(__file__).resolve().parents[1]
@@ -350,7 +350,7 @@ class WorkerTests(unittest.TestCase):
 
     def test_train_binds_host_optimiser_and_stream_and_load_training_reads_the_width_tuple(self) -> None:
         record = run("train", self.root / "train-check")
-        self.assertEqual(mapping(record["identity"])["protocol_version"], "m0-v4.1")
+        self.assertEqual(mapping(record["identity"])["protocol_version"], "m0-v4.2")
         self.assertEqual(record["peak_cuda_bytes"], 0)
         payload = payload_of(record)
         out = self.root / "train-check"
@@ -404,9 +404,44 @@ class WorkerTests(unittest.TestCase):
         self.assertEqual(static["module_sha256"], file_sha(self.root / "static/static-module.pt"))
         self.assertEqual(static["checkpoint_sha256"], file_sha(self.root / "static/host.pt"))
         self.assertIn("static_sha256", static)
+        # Amendment 4 (A4.1): the static child applies the no-op rule to the complete model and publishes the chosen one.
+        self.assertIn(static["noop_choice"], ("R-bn", "raw"))
+        chosen = (
+            static["recalibrated_static_sha256"] if static["noop_choice"] == "R-bn" else static["raw_static_sha256"]
+        )
+        self.assertEqual(static["static_sha256"], chosen)
+        self.assertNotEqual(static["raw_static_sha256"], static["recalibrated_static_sha256"])
+        self.assertGreater(static["noop_seconds"], 0.0)
+        self.assertEqual(static["noop_choice"] == "R-bn", static["rbn_selection_loss"] < static["raw_selection_loss"])
+        published = load_static(self.root / "static", 3000, REFERENCE_WIDTHS, CPU, str(static["static_sha256"]))
+        self.assertEqual(static_hash(published), static["static_sha256"])
+        self.assertEqual(static["host_sha256"], state_hash(published.host))
         # M8: S-static's inner host at step zero is the anchor's make_host state.
         train = payload_of(read_record(self.root / "train/result.json"))
         self.assertEqual(static["initial_state_sha256"], train["initial_state_sha256"])
+
+    def test_static_action_publishes_the_raw_model_when_the_rule_keeps_it(self) -> None:
+        # Amendment 4 (A4.1): the branch the 64-image fixture does not take (it picks R-bn): forced raw, the files are
+        # the raw model, its hash is the recorded one, and the module bytes are those of the R-bn run.
+        def keep_raw(raw: StaticHost, recalibrated: StaticHost, data: object) -> StaticChoice:
+            return StaticChoice(raw, "raw", 1.0, 2.0)
+
+        output = self.root / "static-raw"
+        with patch("sultai_screen.m0.worker.static_no_op", keep_raw):
+            run("static", output)
+        static = payload_of(read_record(output / "result.json"))
+        self.assertEqual(static["noop_choice"], "raw")
+        self.assertEqual(static["static_sha256"], static["raw_static_sha256"])
+        self.assertEqual((static["raw_selection_loss"], static["rbn_selection_loss"]), (1.0, 2.0))
+        self.assertEqual(static["checkpoint_sha256"], file_sha(output / "host.pt"))
+        self.assertEqual(static["module_sha256"], file_sha(output / "static-module.pt"))
+        published = load_static(output, 3000, REFERENCE_WIDTHS, CPU, str(static["static_sha256"]))
+        self.assertEqual(static_hash(published), static["raw_static_sha256"])
+        rbn_run = payload_of(read_record(self.root / "static/result.json"))
+        self.assertEqual(static["module_sha256"], rbn_run["module_sha256"])
+        self.assertEqual(static["raw_static_sha256"], rbn_run["raw_static_sha256"])
+        self.assertEqual(static["recalibrated_static_sha256"], rbn_run["recalibrated_static_sha256"])
+        self.assertNotEqual(static["checkpoint_sha256"], rbn_run["checkpoint_sha256"])
 
     def test_noop_publishes_the_choice_and_never_a_development_number(self) -> None:
         payload = payload_of(read_record(self.root / "noop/result.json"))
@@ -841,7 +876,7 @@ class WorkerTests(unittest.TestCase):
         with self.assertRaisesRegex(PilotHold, "M-bogus"):
             run("modules", out, 3000, "anchor", "--arms", "M-sq,M-bogus", *self.roots())
         failure = read_record(out / "failure.json")
-        self.assertEqual(mapping(failure["identity"])["protocol_version"], "m0-v4.1")
+        self.assertEqual(mapping(failure["identity"])["protocol_version"], "m0-v4.2")
         self.assertEqual((failure["error_type"], failure["software_valid"]), ("PilotHold", False))
         self.assertFalse((out / "result.json").exists())
         bad = self.root / "bad-train"

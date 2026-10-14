@@ -309,12 +309,23 @@ class FakeCluster:
                 "source_final_state_sha256": source["final_state_sha256"],
                 "final_state_sha256": f"tcool-{seed}",
                 "noop_sha256": f"tcool-noop-{seed}",
+                "noop_choice": "raw",
             }
         if action == "static":
             files = {"host.pt": "checkpoint_sha256", "static-module.pt": "module_sha256"}
             written = write_files(output, {**files, "loss-stream.bin": "loss_stream_sha256"}, seed)
             initial = "0" * 64 if seed in self.static_step0_mismatch else f"init-{scale}-{seed}"
-            return {**base, **written, "static_sha256": f"static-{seed}", "initial_state_sha256": initial}
+            # Amendment 4: a seed-dependent choice, so a pilot that hard-coded one could not pass.
+            rbn = seed % 3 == 0
+            return {
+                **base,
+                **written,
+                "static_sha256": f"static-{seed}",
+                "initial_state_sha256": initial,
+                "noop_choice": "R-bn" if rbn else "raw",
+                "raw_static_sha256": f"static-raw-{seed}" if rbn else f"static-{seed}",
+                "recalibrated_static_sha256": f"static-{seed}" if rbn else f"static-rbn-{seed}",
+            }
         if action in ("modules", "retune"):
             n0 = noop_loss(seed, scale)
             records: Record = {}
@@ -424,7 +435,7 @@ class PilotRunTests(unittest.TestCase):
         result = read_record(root / "pilot-result.json")
         self.assertEqual(result["stage"], stage)
         self.assertEqual(result["verdict"], verdict)
-        self.assertEqual(result["protocol_version"], "m0-v4.1")
+        self.assertEqual(result["protocol_version"], "m0-v4.2")
         self.assertEqual(result["amendment_2_sha256"], protocol_identity()["amendment_2_sha256"])
         self.assertFalse(result["pilot_clean"])
         return result
@@ -436,7 +447,7 @@ class PilotRunTests(unittest.TestCase):
         self.assertEqual([name for name in published if name in RECEIPTS], list(RECEIPTS))
         result = read_record(root / "pilot-result.json")
         self.assertTrue(result["pilot_clean"])
-        self.assertEqual(result["protocol_version"], "m0-v4.1")
+        self.assertEqual(result["protocol_version"], "m0-v4.2")
         # Every child is the M0 worker, carries its lineage and scale, and one job list never doubles a card.
         for name, _, _, flags, module in cluster.launched:
             self.assertEqual(module, "sultai_screen.m0.worker", name)
@@ -529,6 +540,20 @@ class PilotRunTests(unittest.TestCase):
         hosts = read_record(root / "03-hosts.json")
         self.assertTrue(all(entry["matches"] for entry in hosts["static_step0"].values()))
         self.assertEqual(hosts["static_step0"]["3000"]["anchor"], "init-1.0-3000")
+        # Amendment 4 (A4.1): the static model's no-op choice and both state hashes, per anchor, beside T-cool's.
+        for seed in range(3000, 3006):
+            rbn = seed % 3 == 0
+            self.assertEqual(
+                hosts["static_noop"][str(seed)],
+                {
+                    "noop_choice": "R-bn" if rbn else "raw",
+                    "raw_static_sha256": f"static-raw-{seed}" if rbn else f"static-{seed}",
+                    "recalibrated_static_sha256": f"static-{seed}" if rbn else f"static-rbn-{seed}",
+                },
+            )
+            self.assertEqual(
+                hosts["tcool_noop"][str(seed)], {"noop_choice": "raw", "noop_sha256": f"tcool-noop-{seed}"}
+            )
         self.assertTrue(all(spreads["v0_recorded"].values()))
         # M5: §4's parameter-step disclosure of the two D2 routes, 23.1 M against 5.4 M per anchor.
         ratio = spreads["d2_parameter_step_ratio"]
@@ -876,7 +901,7 @@ class PilotRunTests(unittest.TestCase):
         self.assertTrue(cluster.launched)
         self.assertEqual(cluster.violations, [])
         custody = read_record(self.repo / CUSTODY)
-        self.assertEqual(custody["identity"]["protocol_version"], "m0-v4.1")
+        self.assertEqual(custody["identity"]["protocol_version"], "m0-v4.2")
         with self.assertRaisesRegex(PilotHold, "custody"):
             self.launch("another-root")
         self.assertFalse((self.base / "another-root").exists())
@@ -1581,7 +1606,7 @@ class ConfirmatoryTests(unittest.TestCase):
         self.assertEqual(projection["projected_gpu_process_seconds"], 600.0 + 32 * 1_041.5)
         # Its own custody; the pilot's and Gate 3's receipts are never written.
         custody = read_record(self.repo / CONFIRMATORY_CUSTODY)
-        self.assertEqual(custody["identity"]["protocol_version"], "m0-v4.1")
+        self.assertEqual(custody["identity"]["protocol_version"], "m0-v4.2")
         listed = {"docs/results/m0-pilot/pilot-result.json": file_sha(self.pilot_result)}
         self.assertEqual(custody["identity"]["pilot_result"], listed)
         self.assertFalse((self.repo / CUSTODY).exists())

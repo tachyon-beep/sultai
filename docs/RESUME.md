@@ -28,7 +28,16 @@ beside every reported quantity), frozen by
 commit `c54fb7c` (417 tests; evidence under
 `results/m0-amendment-3-2026-10-14/`, reviews under
 `reviews/m0-capacity/amendment-3/`, admission certificate
-`certificates/2026-10-14-m0-pilot-admission-2.json`). The second gate B
+`certificates/2026-10-14-m0-pilot-admission-2.json`), merged at the second
+gate B (`086f123`, PR #8). John then took gate-B decision 2, option (ii):
+[amendment 4](plans/2026-10-14-m0-amendment-4.md) gives the static host the
+§4 no-op rule before any reading, frozen by
+[freeze certificate 4](certificates/2026-10-14-m0-freeze-4.md) as identity
+`m0-v4.2`; implemented on `nyx/m0-amendment-4`, certified implementation
+commit `c49a4de` (420 tests; evidence under
+`results/m0-amendment-4-2026-10-14/`, review under
+`reviews/m0-capacity/amendment-4/`, admission certificate
+`certificates/2026-10-14-m0-pilot-admission-3.json`). The third gate B
 (that PR reviewed and ready) is John's next decision; nothing has run on
 GPU. The controller's 34 rulings are in the SDD ledger on Nyx
 (`.superpowers/sdd/2026-10-13-m0-implementation/progress.md`, ignored):

@@ -586,16 +586,25 @@ def stage_hosts(run: Run, reference: list[tuple[int, int, float]]) -> tuple[Reco
         + [job(f"static-{s}", "static", s, "anchor") for s in ANCHORS]
     )
     tcool: Record = {}
+    tcool_noop: Record = {}
     static: Record = {}
+    static_noop: Record = {}
     step0: Record = {}
     for s in ANCHORS:
         resumed = run.payload(f"tcool-{s}", "tcool", s, "anchor")
         if resumed["source_final_state_sha256"] != ATTEMPT4_FINAL_STATE[s]:
             raise PilotHold(f"T-cool on anchor {s} resumed another host")
         tcool[str(s)] = resumed["final_state_sha256"]
+        tcool_noop[str(s)] = {"noop_choice": resumed["noop_choice"], "noop_sha256": resumed["noop_sha256"]}
         payload = run.payload(f"static-{s}", "static", s, "anchor")
         bound(run.path(f"static-{s}"), payload, STATIC_FILES)
         static[str(s)] = payload["static_sha256"]
+        # Amendment 4 (A4.1): the static model's own no-op choice and both state hashes, beside T-cool's.
+        static_noop[str(s)] = {
+            "noop_choice": payload["noop_choice"],
+            "raw_static_sha256": payload["raw_static_sha256"],
+            "recalibrated_static_sha256": payload["recalibrated_static_sha256"],
+        }
         # M8 (§7 V0): S-static's inner host at step zero is the anchor's make_host state.
         anchor_state = text(run.payload(anchor_host(s), "replay", s, "anchor")["initial_state_sha256"])
         static_state = text(payload["initial_state_sha256"])
@@ -610,7 +619,9 @@ def stage_hosts(run: Run, reference: list[tuple[int, int, float]]) -> tuple[Reco
     record: Record = {
         "frontier": {lineage: [list(host) for host in hosts] for lineage, hosts in frontier.items()},
         "tcool_final_state_sha256": tcool,
+        "tcool_noop": tcool_noop,
         "static_sha256": static,
+        "static_noop": static_noop,
         "static_step0": step0,
         "static_step0_matches": all(mapping(entry)["matches"] is True for entry in step0.values()),
         "frontier_slope": slope.report(),
