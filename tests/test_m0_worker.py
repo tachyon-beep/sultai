@@ -453,7 +453,9 @@ class WorkerTests(unittest.TestCase):
         self.assertEqual(chosen, payload["noop_sha256"])
         # Amendment 5 (A5.2 item 2): the fit-index tensor the recalibration consumed, by hash, beside both losses.
         self.assertEqual(payload["fit_indices_sha256"], worker.tensor_sha(SEEN))
-        self.assertEqual(payload["noop_choice"] == "R-bn", payload["rbn_selection_loss"] < payload["raw_selection_loss"])
+        self.assertEqual(
+            payload["noop_choice"] == "R-bn", payload["rbn_selection_loss"] < payload["raw_selection_loss"]
+        )
         bias = payload["class_bias"]
         assert isinstance(bias, list)
         self.assertEqual(len(bias), 11)
@@ -520,6 +522,14 @@ class WorkerTests(unittest.TestCase):
         refit = mapping(arms["M-wide→8:rank:refit"])
         self.assertIsNotNone(refit["step0_selection_loss"])
         # M5: every grid or single-run arm books its final-checkpoint candidates (whole runs), §4 units.
+        # Amendment 5 (A5.2 item 7): every grid arm names its selected (rate, step) corner; a single run has none.
+        for name in ("M-sq", "M-small-B", "M-wide", "M-wide→8:rank:refit", "M-exp"):
+            corner = mapping(mapping(arms[name])["corner"])
+            self.assertEqual(corner["rate"], "single", name)
+            axis = (2, 4) if name == "M-small-B" else (1, 2)
+            self.assertEqual(corner["step"], "first" if mapping(arms[name])["steps"] == axis[0] else "last", name)
+        self.assertIsNone(mapping(arms["M-wide→4:refit"])["corner"])
+        self.assertIsNone(mapping(arms["M-wide→4:sliced"])["corner"])
         for name in ("M-sq", "M-small-B", "M-wide", "M-wide→8:rank:refit", "M-wide→4:refit", "M-exp"):
             arm = mapping(arms[name])
             candidates = [mapping(c) for c in sequence(mapping(arm["report"])["candidates"])]

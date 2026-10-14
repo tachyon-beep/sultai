@@ -163,6 +163,14 @@ def _optional(value: Json) -> float | None:
     return None if value is None else number(value)
 
 
+def _corner(record: Record) -> str | None:
+    """Amendment 5 (A5.2 item 7): a grid arm's selected corner, "<rate>@<step>"; absent or null means no grid."""
+    if "corner" not in record or record["corner"] is None:
+        return None
+    corner = mapping(record["corner"])
+    return f"{text(corner['rate'])}@{text(corner['step'])}"
+
+
 def candidate_rate(label: str) -> float:
     """The rate of a worker harm label "<rate>@<steps>" (ruling R12)."""
     rate, separator, steps = label.partition("@")
@@ -229,6 +237,7 @@ def anchor(seed: int, sources: tuple[Source, ...], required: frozenset[str]) -> 
             _flag(record["certified"]),
             _optional(record["rate"]),
             _flag(record["edge_of_grid"]),
+            _corner(record),
         )
         for name, record in available.items()
     }

@@ -54,8 +54,10 @@ from sultai_screen.m0.identity import (
 )
 from sultai_screen.m0.identity import REPO as M0_REPO
 from sultai_screen.m0.pilot import (
+    ANCHORS,
     WORKER,
     Run,
+    anchor_host,
     axis,
     check_cards,
     check_certificate,
@@ -315,12 +317,35 @@ def admit_launch(approved: Record, identity: Record, pilot_result: Path, static:
 # --- V0 on the fresh anchors ---------------------------------------------------------------------------------------
 
 
+NOOP_REPLAY_KEYS: Final = ("raw_sha256", "recalibrated_sha256", "noop_sha256")
+
+
+def replay_noop(run: Run) -> Record:
+    """Amendment 5 (A5.2 item 3): the attempt-4 anchor's no-op child on both cards from the same replayed host; the
+    raw, recalibrated and chosen state hashes must agree bitwise, else an instrument failure. Charged in V0."""
+    names = ("noop-3000-gpu0", "noop-3000-gpu1")
+    training = run.path(anchor_host(ANCHORS[0]))
+    run.run([job(name, "noop", ANCHORS[0], "anchor", training=training, gpu=gpu) for gpu, name in enumerate(names)])
+    records = [run.payload(name, "noop", ANCHORS[0], "anchor") for name in names]
+    differing = [key for key in NOOP_REPLAY_KEYS if records[0][key] != records[1][key]]
+    if differing:
+        raise InstrumentHold(f"V0 no-op replay: the recalibrated no-op host differs across cards on {differing}")
+    return {
+        "children": list(names),
+        "training_root": str(training),
+        "compared": list(NOOP_REPLAY_KEYS),
+        "both_cards_bitwise": True,
+        **{key: records[0][key] for key in NOOP_REPLAY_KEYS},
+    }
+
+
 def stage_v0(run: Run, plan: Plan) -> Record:
     """Every anchor's host and N0; M-aff with the fold residual on every anchor; the fold-check after the first."""
     lineage, seeds = plan.lineage, plan.seeds
     slicing = slicing_known_answer()
     if slicing["known_answer"] is not True:
         raise InstrumentHold("V0 slicing known answer failed")
+    noop_replay = replay_noop(run)
     run.run([job(f"train-{s}", "train", s, lineage) for s in seeds])
     for s in seeds:
         bound(run.path(f"train-{s}"), run.payload(f"train-{s}", "train", s, lineage), TRAINING_FILES)
@@ -356,6 +381,7 @@ def stage_v0(run: Run, plan: Plan) -> Record:
         residuals[str(s)] = r_aff
     return {
         "slicing": slicing,
+        "noop_replay": noop_replay,
         "zero_module_identity": True,
         # B3: the per-anchor flags the clause was read from (pilot M3/R25), not the literal beside them.
         "zero_module_identity_flags": recorded,
@@ -615,6 +641,7 @@ def confirmatory(
                     "printed_counts": True,
                     "complement_unchanged": True,
                     "zero_module_identity": True,
+                    "noop_replay_both_cards_bitwise": True,
                     "not_rerun": "P1 instrument (A1, B3): development-anchor clauses of the clean pilot's V0 (§7)",
                 },
                 **reading,
@@ -624,6 +651,9 @@ def confirmatory(
                 "arms": json_value(sorted(plan.arms)),
                 "ceiling_gpu_process_seconds": plan.ceiling,
                 "charged_gpu_process_seconds": run.supervisor.charged,
+                # Amendment 5 (A5.2 item 4): the admission certificate and the custody this attempt ran under.
+                "certificate_sha256": certificate_sha,
+                "custody": plan.custody,
                 # B4 (R27): the certified implementation source this reading was produced by.
                 **implementation(identity),
                 **protocol_identity(),
@@ -631,7 +661,14 @@ def confirmatory(
         )
         return 0
     except Exception as error:
-        publish(root / "confirmatory-result.json", stopped(error, stage, run, plan, identity))
+        publish(
+            root / "confirmatory-result.json",
+            {
+                **stopped(error, stage, run, plan, identity),
+                "certificate_sha256": certificate_sha,
+                "custody": plan.custody,
+            },
+        )
         return 2
 
 

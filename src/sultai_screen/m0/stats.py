@@ -141,6 +141,8 @@ class ArmResult:
     certified: bool | None
     rate: float | None
     edge_of_grid: bool | None
+    # Amendment 5 (A5.2 item 7): the selected (rate, step) corner of a grid arm as "<rate>@<step>", else None.
+    corner: str | None = None
 
     def __post_init__(self) -> None:
         _vector(self.loss, "arm loss")
@@ -395,17 +397,32 @@ def _check_samples(samples: int) -> None:
         raise ContractViolation("bootstrap sample count must be a positive multiple of 20")
 
 
-def anchor_bound(values: Sequence[float], seed: int, *, lower: bool, samples: int = BOOTSTRAP_SAMPLES) -> float:
-    """Percentile anchor bootstrap of the median: one (samples, n) draw under generator(seed, "anchor-bootstrap")."""
+def anchor_bound(
+    values: Sequence[float], seed: int, *, lower: bool, samples: int = BOOTSTRAP_SAMPLES, size: int | None = None
+) -> float:
+    """Percentile anchor bootstrap of the median: one (samples, n) draw under generator(seed, "anchor-bootstrap");
+    `size` draws that many anchors per replicate instead of n (amendment 5: the projection to confirmatory n)."""
     _check_samples(samples)
     data = torch.tensor(_values(values), dtype=torch.float64)
-    indices = torch.randint(len(data), (samples, len(data)), generator=generator(seed, "anchor-bootstrap"))
+    draws = len(data) if size is None else size
+    if draws < 1:
+        raise ContractViolation("an anchor bootstrap draws at least one anchor per replicate")
+    indices = torch.randint(len(data), (samples, draws), generator=generator(seed, "anchor-bootstrap"))
     return _order_statistic(_row_medians(data[indices]), lower=lower)
 
 
 def achieved_half_width(values: Sequence[float], seed: int) -> float:
     centre = median(values)
     return max(centre - anchor_bound(values, seed, lower=True), anchor_bound(values, seed, lower=False) - centre)
+
+
+def projected_half_width(values: Sequence[float], n: int, seed: int) -> float:
+    """Amendment 5 (A5.2 item 6): the half-width the median's anchor bootstrap projects to at n anchors drawn from
+    the development sample; at n = len(values) it is the achieved half-width."""
+    centre = median(values)
+    lower = anchor_bound(values, seed, lower=True, size=n)
+    upper = anchor_bound(values, seed, lower=False, size=n)
+    return max(centre - lower, upper - centre)
 
 
 def _sign_rank(n: int) -> int:

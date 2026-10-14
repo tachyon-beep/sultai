@@ -12,7 +12,7 @@ import functools
 import hashlib
 import itertools
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
@@ -213,6 +213,24 @@ def tensor_sha(values: Tensor) -> str:
 
 def _ints(values: tuple[int, ...]) -> list[Json]:
     return [int(value) for value in values]
+
+
+def _position(value: float, grid: list[float], ends: tuple[str, str]) -> str:
+    if len(grid) == 1:
+        return "single"
+    if value == grid[0]:
+        return ends[0]
+    return ends[1] if value == grid[-1] else "interior"
+
+
+def corner(rate: float, steps: int, rates: Iterable[float], checkpoints: Iterable[int]) -> Record:
+    """Amendment 5 (A5.2 item 7): where the selected (rate, step) sits on its grid, beside the edge-of-grid flag:
+    the rate at the grid's lowest, highest or an interior value; the step at the first, last or an interior
+    checkpoint ("single" on a one-value axis)."""
+    return {
+        "rate": _position(rate, sorted(set(rates)), ("lowest", "highest")),
+        "step": _position(float(steps), sorted(float(c) for c in set(checkpoints)), ("first", "last")),
+    }
 
 
 def _texts(values: list[str]) -> list[Json]:
@@ -660,6 +678,7 @@ class Collector:
             "rate": None,
             "steps": None,
             "edge_of_grid": None,
+            "corner": None,
             "step0_selection_loss": None,
             "retained_parameters": 0 if adapter is None else adapter.count(),
             "report": None,
@@ -684,6 +703,9 @@ class Collector:
             "rate": fit.best.rate,
             "steps": fit.best.steps,
             "edge_of_grid": fit.edge_of_grid,
+            "corner": corner(
+                fit.best.rate, fit.best.steps, (c.rate for c in fit.candidates), (c.steps for c in fit.candidates)
+            ),
             "step0_selection_loss": fit.best.step0_selection,
             "selection_loss": fit.best.selection,
             "retained_parameters": chosen.count(),
@@ -702,6 +724,7 @@ class Collector:
             "rate": run.rate,
             "steps": run.steps,
             "edge_of_grid": None,
+            "corner": None,
             "step0_selection_loss": run.step0_selection,
             "selection_loss": run.selection,
             "retained_parameters": run.adapter.count(),
@@ -1057,6 +1080,7 @@ def _retune_record(fit: RetuneGrid, subset: Subset, source: Host, evaluate: Call
         "rate": best.rate,
         "steps": best.steps,
         "edge_of_grid": fit.edge_of_grid,
+        "corner": corner(best.rate, best.steps, (c.rate for c in fit.candidates), (c.steps for c in fit.candidates)),
         "step0_selection_loss": None,
         "selection_loss": best.selection,
         "retained_parameters": 0,

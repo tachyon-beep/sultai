@@ -359,12 +359,25 @@ class Run:
 
     def run(self, jobs: list[Job]) -> None:
         """One process per card (R24): every job keeps its card; each Supervisor.run takes at most one card-0 and one
-        card-1 job, each card's jobs in their given order."""
+        card-1 job, each card's jobs in their given order. Amendment 5 (A5.2 item 5): each child's return code and
+        charge are published beside its process record, from the ledger, whether or not the batch stopped."""
         queues = [[item for item in jobs if item.gpu == gpu] for gpu in (0, 1)]
         if len(queues[0]) + len(queues[1]) != len(jobs):
             raise PilotHold("every M0 job is pinned to card 0 or 1")
         for pair in itertools.zip_longest(*queues):
-            self.supervisor.run(tuple(item for item in pair if item is not None))
+            before = len(self.supervisor.ledger)
+            try:
+                self.supervisor.run(tuple(item for item in pair if item is not None))
+            finally:
+                for entry in self.supervisor.ledger[before:]:
+                    record = mapping(entry)
+                    publish(
+                        self.root / f"{text(record['job'])}.exit.json",
+                        {
+                            key: record[key]
+                            for key in ("job", "pid", "gpu", "returncode", "charged_gpu_process_seconds")
+                        },
+                    )
 
     def path(self, name: str) -> Path:
         return self.root / name
@@ -816,8 +829,27 @@ def spreads(anchors: list[Anchor], quantities: list[Record], recorded: Record) -
         "s_static_sd_limit": S_STATIC_SD_LIMIT,
         "static_admitted": sd_d5 is not None and number(sd_d5) <= S_STATIC_SD_LIMIT,
         "plateau_fractions": {name: sum(flags) / len(flags) for name, flags in sorted(certified.items())},
+        **grid_corners(anchors),
         "d2_parameter_step_ratio": parameter_step_ratio(anchors),
         "anchors": [{**item.report, "quantities": q} for item, q in zip(anchors, quantities, strict=True)],
+    }
+
+
+def grid_corners(anchors: list[Anchor]) -> Record:
+    """Amendment 5 (A5.2 item 7): each grid arm's selected (rate, step) corner per anchor, and the per-arm counts,
+    beside the preregistered edge-of-grid flag."""
+    corners: dict[str, dict[str, str]] = {}
+    for item in anchors:
+        for name, arm in item.result.arms.items():
+            if arm.corner is not None:
+                corners.setdefault(name, {})[str(item.seed)] = arm.corner
+    counts: Record = {
+        name: {label: sum(1 for value in by_seed.values() if value == label) for label in sorted(set(by_seed.values()))}
+        for name, by_seed in sorted(corners.items())
+    }
+    return {
+        "grid_corners": {name: dict(by_seed) for name, by_seed in sorted(corners.items())},
+        "grid_corner_counts": counts,
     }
 
 
@@ -1083,7 +1115,7 @@ def confirmatory_count(quantities: list[Record], w: Workloads, static_admitted: 
         "static_projection": static,
         "static_measured_projection": static_measured,
         "within_ceiling": larger <= M0_CONFIRMATORY_SECONDS,
-        **half_widths(quantities),
+        **half_widths(quantities, n),
     }
 
 
@@ -1100,21 +1132,27 @@ def carried_projection(count: Record) -> Record:
     }
 
 
-def half_widths(quantities: list[Record]) -> Record:
-    """§9 stage 6 (R20): D2, D3 and D5 at their achieved half-widths over the development anchors."""
+def half_widths(quantities: list[Record], n: int) -> Record:
+    """§9 stage 6 (R20): D2, D3 and D5 at their achieved half-widths over the development anchors; amendment 5
+    (A5.2 item 6): the half-width each of D1, D2, D3 and D5 projects to at the confirmatory count n, beside."""
     widths: Record = {}
     reasons: Record = {}
-    for key in ("D2", "D3", "D5"):
+    projected: Record = {}
+    for key in ("D1", "D2", "D3", "D5"):
         values = [q[key] for q in quantities]
         defined = None not in values
-        widths[key] = (
-            stats.achieved_half_width([number(v) for v in values if v is not None], BOOTSTRAP_SEED) if defined else None
-        )
-        reasons[key] = None if defined else f"{key} undefined on an anchor"
+        numbers = [number(v) for v in values if v is not None]
+        if key != "D1":
+            widths[key] = stats.achieved_half_width(numbers, BOOTSTRAP_SEED) if defined else None
+            reasons[key] = None if defined else f"{key} undefined on an anchor"
+        projected[key] = stats.projected_half_width(numbers, n, BOOTSTRAP_SEED) if defined else None
     return {
         "achieved_half_width": widths,
         "achieved_half_width_reasons": reasons,
         "achieved_half_width_development_only": True,
+        "projected_half_width": projected,
+        "projected_half_width_anchors": n,
+        "projected_half_width_development_only": True,
         "bootstrap_seed": BOOTSTRAP_SEED,
     }
 
@@ -1269,13 +1307,23 @@ def pilot(root: Path, data: Path, certificate: Path) -> int:
                 "confirmatory_projection": carried_projection(count),
                 "static_admitted": spread["static_admitted"],
                 "charged_gpu_process_seconds": run.supervisor.charged,
+                # Amendment 5 (A5.2 item 4): the admission certificate and the custody this attempt ran under.
+                "certificate_sha256": certificate_sha,
+                "custody": CUSTODY,
                 **implementation(identity),
                 **protocol_identity(),
             },
         )
         return 0
     except Exception as error:
-        publish(root / "pilot-result.json", m0_stop_report(error, stage, run.supervisor.charged, identity))
+        publish(
+            root / "pilot-result.json",
+            {
+                **m0_stop_report(error, stage, run.supervisor.charged, identity),
+                "certificate_sha256": certificate_sha,
+                "custody": CUSTODY,
+            },
+        )
         return 2
 
 

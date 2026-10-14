@@ -154,6 +154,7 @@ def arm_record(
             edge_of_grid=False,
             step0_selection_loss=1.0,
             harm_inventory={"0.3@3200": float(loss.double().mean()), "1.0@200": None},
+            corner={"rate": "interior", "step": "last"},
         )
     if width is not None:
         record.update(retained_parameters=33 * width + 16, survivors=list(range(width)))
@@ -209,6 +210,7 @@ class FakeCluster:
         self.boost = scenario.pop("boost", {})
         self.zero_identity_failed = scenario.pop("zero_identity_failed", frozenset())
         self.static_step0_mismatch = scenario.pop("static_step0_mismatch", frozenset())
+        self.noop_replay_mismatch = scenario.pop("noop_replay_mismatch", False)
         if scenario:
             raise AssertionError(f"unknown scenario keys {sorted(scenario)}")
         self.launched: list[tuple[str, str, str, dict[str, str], str]] = []
@@ -299,7 +301,15 @@ class FakeCluster:
         if action == "noop":
             failed = seed in self.zero_identity_failed
             identity = {kind: not (failed and kind == "hidden-8") for kind in ZERO_MODULE_KINDS}
-            return {**base, "noop_choice": "raw", "noop_sha256": f"noop-{seed}", "zero_module_identity": identity}
+            chosen = "0" * 64 if self.noop_replay_mismatch and output.name == "noop-3000-gpu1" else f"noop-{seed}"
+            return {
+                **base,
+                "noop_choice": "raw",
+                "noop_sha256": chosen,
+                "raw_sha256": f"raw-{seed}",
+                "recalibrated_sha256": f"rbn-{seed}",
+                "zero_module_identity": identity,
+            }
         if action == "tcool":
             source = read_record(Path(flags["--training-root"]) / "result.json")["payload"]
             files = write_files(output, {"host.pt": "checkpoint_sha256", "loss-stream.bin": "loss_stream_sha256"}, seed)
@@ -448,6 +458,20 @@ class PilotRunTests(unittest.TestCase):
         result = read_record(root / "pilot-result.json")
         self.assertTrue(result["pilot_clean"])
         self.assertEqual(result["protocol_version"], "m0-v4.3")
+        # Amendment 5 (A5.2 item 4): the terminal record carries the certificate hash and the custody path.
+        opening = read_record(root / "00-opening.json")
+        self.assertEqual(result["certificate_sha256"], opening["certificate_sha256"])
+        self.assertEqual(result["custody"], CUSTODY)
+        # Amendment 5 (A5.2 item 5): every child's return code and charge beside its process record.
+        entries = {
+            entry["job"]: entry for path in sorted(root.glob("ledger-*.json")) for entry in read_record(path)["entries"]
+        }
+        for name in cluster.names():
+            exit_record = read_record(root / f"{name}.exit.json")
+            self.assertEqual(exit_record["returncode"], 0, name)
+            self.assertEqual(exit_record["gpu"], entries[name]["gpu"], name)
+            self.assertEqual(exit_record["charged_gpu_process_seconds"], entries[name]["charged_gpu_process_seconds"])
+        self.assertTrue((root / "replay-3000-gpu1.process.json").is_file())
         # Every child is the M0 worker, carries its lineage and scale, and one job list never doubles a card.
         for name, _, _, flags, module in cluster.launched:
             self.assertEqual(module, "sultai_screen.m0.worker", name)
@@ -508,6 +532,14 @@ class PilotRunTests(unittest.TestCase):
         self.assertEqual(set(count["achieved_half_width"]), {"D2", "D3", "D5"})
         self.assertTrue(all(math.isfinite(value) for value in count["achieved_half_width"].values()))
         self.assertTrue(count["achieved_half_width_development_only"])
+        # Amendment 5 (A5.2 item 6): the half-width each quantity projects to at the confirmatory count, beside.
+        projected = count["projected_half_width"]
+        self.assertEqual(set(projected), {"D1", "D2", "D3", "D5"})
+        self.assertEqual(count["projected_half_width_anchors"], count["confirmatory_count"])
+        for key in ("D2", "D3", "D5"):
+            self.assertLessEqual(projected[key], count["achieved_half_width"][key])
+        self.assertTrue(math.isfinite(projected["D1"]) and projected["D1"] >= 0.0)
+        self.assertTrue(count["projected_half_width_development_only"])
         medians = read_record(root / "07-development-medians.json")
         self.assertTrue(medians["development_only"])
         self.assertIsNone(medians["confirmatory_verdict"])
@@ -569,6 +601,13 @@ class PilotRunTests(unittest.TestCase):
         self.assertIn("R-272s", spreads["plateau_fractions"])
         self.assertIn("R-aff", spreads["plateau_fractions"])
         self.assertNotIn("R-all", spreads["plateau_fractions"])
+        # Amendment 5 (A5.2 item 7): each grid arm's selected (rate, step) corner per anchor, and the counts.
+        corners = spreads["grid_corners"]
+        self.assertEqual(corners["M-sq"], dict.fromkeys((str(seed) for seed in ANCHORS), "interior@last"))
+        self.assertNotIn("M-wide→8:rank:sliced", corners)
+        self.assertNotIn("T-cool", corners)
+        self.assertEqual(spreads["grid_corner_counts"]["M-sq"], {"interior@last": 6})
+        self.assertEqual(set(spreads["grid_corner_counts"]), set(corners))
         # I3 and M7: the measured projection beside the kernel one, the larger deciding; the fixed term is what the
         # confirmatory re-runs (replays, acceptance, fold-check), read from the ledger.
         entries = {e["job"]: e["charged_gpu_process_seconds"] for e in read_record(ledgers[-1])["entries"]}
@@ -1547,6 +1586,15 @@ class ConfirmatoryTests(unittest.TestCase):
         self.assertEqual(prior.read_bytes(), before)
         self.assertEqual(read_record(root / "confirmatory-result.json")["seed_block"]["lineage"], "restart")
 
+    def test_a_no_op_replay_that_differs_across_cards_is_an_instrument_failure(self) -> None:
+        # Amendment 5 (A5.2 item 3): the recalibrated no-op host is no longer single-sourced.
+        code, root, cluster = self.launch(self.certificate(), noop_replay_mismatch=True)
+        self.assertEqual(code, 2)
+        result = self.assert_burnt_stop(root, "instrument-failed")
+        self.assertEqual(result["stage"], "v0")
+        self.assertIn("no-op", result["error"])
+        self.assertFalse(any(name.startswith(("train-", "maff-")) for name in cluster.names()))
+
     def test_restart_refuses_after_a_prior_attempt_that_read_v1_and_v2(self) -> None:
         self.prior_attempt("confirmatory-read")
         with self.assertRaisesRegex(PilotHold, "follows a failed attempt only"):
@@ -1577,7 +1625,7 @@ class ConfirmatoryTests(unittest.TestCase):
         self.assertEqual(trained, list(range(7500, 7532)))
         for name, action, _, flags, _ in cluster.launched:
             self.assertEqual(flags["--scale"], "1.0", name)
-            if action in ("replay", "acceptance"):
+            if action in ("replay", "acceptance") or name.startswith("noop-3000-gpu"):
                 self.assertEqual(flags["--lineage"], "anchor", name)
             else:
                 self.assertEqual(flags["--lineage"], "confirmatory", name)
@@ -1634,6 +1682,23 @@ class ConfirmatoryTests(unittest.TestCase):
         self.assertIsNone(widths["D5"])
         self.assertEqual(result["ceiling_gpu_process_seconds"], M0_CONFIRMATORY_SECONDS)
         self.assertIs(result["v0"]["zero_module_identity"], True)
+        # Amendment 5 (A5.2 item 3): the attempt-4 anchor's no-op child on both cards, bitwise, inside V0.
+        launched = {name: gpu for name, _, gpu, _, _ in cluster.launched}
+        self.assertEqual((launched["noop-3000-gpu0"], launched["noop-3000-gpu1"]), ("0", "1"))
+        training = {
+            name: flags["--training-root"]
+            for name, _, _, flags, _ in cluster.launched
+            if name.startswith("noop-3000-gpu")
+        }
+        self.assertEqual(set(training.values()), {str(root / "replay-3000-gpu0")})
+        replay = read_record(root / "02-v0.json")["noop_replay"]
+        self.assertIs(replay["both_cards_bitwise"], True)
+        self.assertEqual(replay["noop_sha256"], "noop-3000")
+        self.assertEqual(set(replay["compared"]), {"raw_sha256", "recalibrated_sha256", "noop_sha256"})
+        self.assertIs(result["v0"]["noop_replay_both_cards_bitwise"], True)
+        # Amendment 5 (A5.2 item 4): the terminal record carries the certificate hash and the custody path.
+        self.assertEqual(result["certificate_sha256"], read_record(root / "00-opening.json")["certificate_sha256"])
+        self.assertEqual(result["custody"], CONFIRMATORY_CUSTODY)
         # B3: 02-v0.json publishes every fresh anchor's recorded R25 zero-module flags, not a literal.
         flags = read_record(root / "02-v0.json")["zero_module_identity_flags"]
         self.assertEqual(set(flags), {str(seed) for seed in range(7500, 7532)})

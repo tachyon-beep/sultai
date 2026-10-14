@@ -7,6 +7,7 @@ import os
 import platform
 import subprocess
 import time
+from collections.abc import Callable
 from typing import Final
 
 import numpy as np
@@ -65,7 +66,9 @@ def environment_identity() -> Record:
         if actual[key] != value:
             raise PilotHold(f"pinned environment mismatch: {key}: expected {value}, observed {actual[key]}")
     driver, gpu_names = _driver_and_gpus()
-    cudnn: object = torch.backends.cudnn.version()
+    # cudnn.version is unannotated in torch; bind it to its documented signature (as calibrate binds LBFGS.step).
+    cudnn_version: Callable[[], object] = torch.backends.cudnn.version
+    cudnn = cudnn_version()
     actual.update(
         {
             "python": platform.python_version(),
