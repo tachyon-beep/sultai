@@ -1,0 +1,52 @@
+{
+  "protocol_version": "m0-v4.2",
+  "protocol_sha256": "a2c1e55deffb144c9ab596ed7817bc6546f88ac045a02fc0447ae25896db6007",
+  "preregistration_sha256": "c66599459adc898f96322ab11dfa3c6737cd3559e06c9432d79e377e00c03fd5",
+  "steering_sha256": "08a9e1aaf79d3048a5d6f6f4d6138a9c7049f32b61c0250e1505773a27fa3ffd",
+  "amendment_sha256": "af12d474a97aad83bc63405034fec3716170f7652f34364588750732c97b6a89",
+  "amendment_2_sha256": "b4740b147a4a1ced52a6f0721215679c1567078260d5c11a92c35fa2065c2d77",
+  "amendment_3_sha256": "6dcfd9f2a781dc56d39c6e4fe548fc4728c2c743a8e5a978d0e4b9741459e862",
+  "amendment_4_sha256": "d8dd571bb39718946af06a442ec74302b704c1bede090c83eeaed9d59dcdcc34",
+  "implementation_commit": "c49a4de645cd629fde1990448bbe3b7841f36735",
+  "implementation_source_sha256": "a21584a3085872df85eca3948dec0e702f20f77479a569fa9934ada126b4778b",
+  "quality_passed": true,
+  "runtime_tests_passed": true,
+  "independent_panel_accepted": true,
+  "evidence": [
+    {
+      "path": "docs/results/m0-amendment-4-2026-10-14/quality.json",
+      "sha256": "98369e46f4369659315a8231fc771d7a8cafbe52c192d0162d8ed8cb927a4f8f"
+    },
+    {
+      "path": "docs/results/m0-amendment-4-2026-10-14/runtime.json",
+      "sha256": "0471012a1fdcdc7563cdae9834783c7e84a14e2d95ba967604b8ef7e21746716"
+    },
+    {
+      "path": "docs/results/m0-amendment-4-2026-10-14/runtime.txt",
+      "sha256": "0e4b815b0f2a5513c00c138e768b7f6f4b5f880462376e530aa75ca19a78608f"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/amendment-4/re-review-150b4d2.md",
+      "sha256": "982fc2ff792b9cc3af1eea238b4f620df1edf7e6493b5ce1ad244095676f825e"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/amendment-4/static-noop-under-amendment-4.md",
+      "sha256": "770e1166915d1abe8eefeb81e43d2dea99541ebf1997285e5de5a616ba3b257d"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/implementation/final-review-e1df6e1.md",
+      "sha256": "a309453c5b27b75ec861a4dbb51904677cd80416f23d24eca12a07d38237a0c9"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/implementation/post-review-recheck.md",
+      "sha256": "1e6e052b52396b8dcd2a3a1a121df8c9ec6b61306bb2721c26664484c3f35d4c"
+    }
+  ],
+  "pilot_gpu_hour_ceiling": 4,
+  "pilot_gpu_process_seconds_ceiling": 14400,
+  "confirmation_cleared": false,
+  "pr_url": "https://github.com/tachyon-beep/sultai/pull/9",
+  "recorded_utc": "2026-10-14T05:42:16+00:00",
+  "supersedes": "docs/certificates/2026-10-14-m0-pilot-admission-2.json",
+  "amendment_4_decision": "John, 2026-10-14: gate-B decision 2, option (ii)"
+}
