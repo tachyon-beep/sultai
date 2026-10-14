@@ -56,8 +56,9 @@ from sultai_screen.m0.static import (
 CPU = torch.device("cpu")
 FIT = torch.arange(32)
 SELECTION = torch.arange(32, 64)
-# Longer than RECALIBRATION_CHUNK (128) and not a multiple of it: the chunking and the partial last chunk are exercised.
-LONG = torch.arange(64).repeat(4)[:200]
+# Longer than RECALIBRATION_CHUNK (128) and not a multiple of it, and shuffled, so the chunking, the partial last chunk
+# and the fit order all change the statistics (a periodic tensor would give every chunk the same multiset reversed).
+LONG = torch.randperm(256, generator=torch.Generator().manual_seed(5))[:200] % 64
 AFFINE = ("front.8.weight", "front.8.bias", "tail.1.weight", "tail.1.bias", "classifier.bias")
 
 
@@ -521,6 +522,12 @@ class StaticTests(unittest.TestCase):
         plain_rbn = buffers(recalibrate_bn(plain, self.data.images, LONG))
         front = [name for name in plain_rbn if name.startswith("front.")]
         self.assertTrue(front)
+        # The fixture is order-sensitive: the plain rule on the reversed order gives different front statistics, so
+        # equality below pins that the static pass consumes the fit examples in the given order.
+        reversed_plain = make_host(3000, 0, CPU, widths=SMALL)
+        reversed_plain.load_state_dict(self.static.host.state_dict())
+        reversed_rbn = buffers(recalibrate_bn(reversed_plain, self.data.images, LONG.flip(0)))
+        self.assertTrue(any(not torch.equal(plain_rbn[name], reversed_rbn[name]) for name in front))
         for name in front:
             self.assertTrue(torch.equal(plain_rbn[name], buffers(long_pass.host)[name]), name)
         downstream = [name for name in plain_rbn if not name.startswith("front.") and "running_" in name]
