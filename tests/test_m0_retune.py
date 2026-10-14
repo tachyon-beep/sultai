@@ -56,6 +56,8 @@ from sultai_screen.m0.static import (
 CPU = torch.device("cpu")
 FIT = torch.arange(32)
 SELECTION = torch.arange(32, 64)
+# Longer than RECALIBRATION_CHUNK (128) and not a multiple of it: the chunking and the partial last chunk are exercised.
+LONG = torch.arange(64).repeat(4)[:200]
 AFFINE = ("front.8.weight", "front.8.bias", "tail.1.weight", "tail.1.bias", "classifier.bias")
 
 
@@ -503,17 +505,33 @@ class StaticTests(unittest.TestCase):
         ]
         self.assertTrue(changed)
         self.assertTrue(all("running_" in name or "num_batches_tracked" in name for name in changed))
-        plain = make_host(3000, 0, CPU, widths=SMALL)
-        plain.load_state_dict(self.static.host.state_dict())
-        plain_rbn = buffers(recalibrate_bn(plain, self.data.images, FIT))
-        self.assertFalse(all(torch.equal(plain_rbn[name], value) for name, value in buffers(recalibrated.host).items()))
         with self.assertRaises(PilotHold):
             recalibrate_static(self.static, self.data.images, FIT)
+        # The same cumulative pass as recalibrate_bn: on an index tensor longer than RECALIBRATION_CHUNK and not a
+        # multiple of it, every BatchNorm buffer upstream of the site (the front) is bitwise the plain rule's on the
+        # same host, and at least one buffer downstream of it differs because the module is in the forward.
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            save_static(self.static, root)
+            long_pass = recalibrate_static(
+                load_static(root, 3000, SMALL, CPU, static_hash(self.static), frozen=False), self.data.images, LONG
+            )
+        plain = make_host(3000, 0, CPU, widths=SMALL)
+        plain.load_state_dict(self.static.host.state_dict())
+        plain_rbn = buffers(recalibrate_bn(plain, self.data.images, LONG))
+        front = [name for name in plain_rbn if name.startswith("front.")]
+        self.assertTrue(front)
+        for name in front:
+            self.assertTrue(torch.equal(plain_rbn[name], buffers(long_pass.host)[name]), name)
+        downstream = [name for name in plain_rbn if not name.startswith("front.") and "running_" in name]
+        self.assertTrue(downstream)
+        self.assertTrue(any(not torch.equal(plain_rbn[name], buffers(long_pass.host)[name]) for name in downstream))
 
     def test_static_no_op_picks_the_lower_selection_loss_and_ties_keep_raw(self) -> None:
-        chosen, label = static_no_op(self.static, self.static, self.data)
-        self.assertEqual(label, "raw")
-        self.assertIs(chosen, self.static)
+        tie = static_no_op(self.static, self.static, self.data)
+        self.assertEqual(tie.label, "raw")
+        self.assertIs(tie.model, self.static)
+        self.assertEqual(tie.raw_selection_loss, tie.recalibrated_selection_loss)
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             save_static(self.static, root)
@@ -525,10 +543,15 @@ class StaticTests(unittest.TestCase):
                 static.host, static_features(static, self.data, self.data.selection), static_adapter(static)
             )
 
-        chosen, label = static_no_op(self.static, recalibrated, self.data)
+        choice = static_no_op(self.static, recalibrated, self.data)
+        # Each model on selection features recomputed from itself, with its own module (A4.1): the published losses
+        # equal an independent computation, and they differ because the recalibrated statistics differ.
+        self.assertEqual(choice.raw_selection_loss, selection(self.static))
+        self.assertEqual(choice.recalibrated_selection_loss, selection(recalibrated))
+        self.assertNotEqual(choice.raw_selection_loss, choice.recalibrated_selection_loss)
         better = selection(recalibrated) < selection(self.static)
-        self.assertEqual(label, "R-bn" if better else "raw")
-        self.assertIs(chosen, recalibrated if better else self.static)
+        self.assertEqual(choice.label, "R-bn" if better else "raw")
+        self.assertIs(choice.model, recalibrated if better else self.static)
 
     def test_save_load_round_trip_and_tampered_module_is_refused(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

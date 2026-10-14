@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+from dataclasses import dataclass
 from pathlib import Path
 
 import torch
@@ -116,15 +117,27 @@ def recalibrate_static(static: StaticHost, images: Tensor, indices: Tensor) -> S
     return static
 
 
-def static_no_op(raw: StaticHost, recalibrated: StaticHost, data: Dataset) -> tuple[StaticHost, str]:
-    """Amendment 4 (A4.1): §4's no-op rule on the complete static model, decided on selection; ties keep raw."""
+@dataclass(frozen=True)
+class StaticChoice:
+    """The no-op rule's outcome on the complete static model: the chosen model, its label and both selection losses."""
+
+    model: StaticHost
+    label: str
+    raw_selection_loss: float
+    recalibrated_selection_loss: float
+
+
+def static_no_op(raw: StaticHost, recalibrated: StaticHost, data: Dataset) -> StaticChoice:
+    """Amendment 4 (A4.1): §4's no-op rule on the complete static model, each evaluated on selection features
+    recomputed from itself with its own module; the lower mean selection loss wins and a tie keeps raw."""
 
     def selection(static: StaticHost) -> float:
         return mean_loss(static.host, static_features(static, data, data.selection), static_adapter(static))
 
-    if selection(recalibrated) < selection(raw):
-        return recalibrated, "R-bn"
-    return raw, "raw"
+    raw_loss, recalibrated_loss = selection(raw), selection(recalibrated)
+    if recalibrated_loss < raw_loss:
+        return StaticChoice(recalibrated, "R-bn", raw_loss, recalibrated_loss)
+    return StaticChoice(raw, "raw", raw_loss, recalibrated_loss)
 
 
 def static_hash(static: StaticHost) -> str:

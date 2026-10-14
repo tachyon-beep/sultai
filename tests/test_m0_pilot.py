@@ -309,17 +309,22 @@ class FakeCluster:
                 "source_final_state_sha256": source["final_state_sha256"],
                 "final_state_sha256": f"tcool-{seed}",
                 "noop_sha256": f"tcool-noop-{seed}",
+                "noop_choice": "raw",
             }
         if action == "static":
             files = {"host.pt": "checkpoint_sha256", "static-module.pt": "module_sha256"}
             written = write_files(output, {**files, "loss-stream.bin": "loss_stream_sha256"}, seed)
             initial = "0" * 64 if seed in self.static_step0_mismatch else f"init-{scale}-{seed}"
+            # Amendment 4: a seed-dependent choice, so a pilot that hard-coded one could not pass.
+            rbn = seed % 3 == 0
             return {
                 **base,
                 **written,
                 "static_sha256": f"static-{seed}",
                 "initial_state_sha256": initial,
-                "noop_choice": "raw",
+                "noop_choice": "R-bn" if rbn else "raw",
+                "raw_static_sha256": f"static-raw-{seed}" if rbn else f"static-{seed}",
+                "recalibrated_static_sha256": f"static-{seed}" if rbn else f"static-rbn-{seed}",
             }
         if action in ("modules", "retune"):
             n0 = noop_loss(seed, scale)
@@ -535,8 +540,20 @@ class PilotRunTests(unittest.TestCase):
         hosts = read_record(root / "03-hosts.json")
         self.assertTrue(all(entry["matches"] for entry in hosts["static_step0"].values()))
         self.assertEqual(hosts["static_step0"]["3000"]["anchor"], "init-1.0-3000")
-        # Amendment 4 (A4.1): the static host's no-op choice is published beside T-cool's, per anchor.
-        self.assertEqual(hosts["static_noop_choice"], {str(seed): "raw" for seed in range(3000, 3006)})
+        # Amendment 4 (A4.1): the static model's no-op choice and both state hashes, per anchor, beside T-cool's.
+        for seed in range(3000, 3006):
+            rbn = seed % 3 == 0
+            self.assertEqual(
+                hosts["static_noop"][str(seed)],
+                {
+                    "noop_choice": "R-bn" if rbn else "raw",
+                    "raw_static_sha256": f"static-raw-{seed}" if rbn else f"static-{seed}",
+                    "recalibrated_static_sha256": f"static-{seed}" if rbn else f"static-rbn-{seed}",
+                },
+            )
+            self.assertEqual(
+                hosts["tcool_noop"][str(seed)], {"noop_choice": "raw", "noop_sha256": f"tcool-noop-{seed}"}
+            )
         self.assertTrue(all(spreads["v0_recorded"].values()))
         # M5: §4's parameter-step disclosure of the two D2 routes, 23.1 M against 5.4 M per anchor.
         ratio = spreads["d2_parameter_step_ratio"]

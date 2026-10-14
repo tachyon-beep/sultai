@@ -468,8 +468,8 @@ def static_action(request: Request, data: Dataset, device: torch.device) -> Reco
         request.output, request.seed, request.widths, device, text(raw["static_sha256"]), frozen=False
     )
     recalibrated = recalibrate_static(unsealed, data.images, seen_fit(data))
-    chosen, label = static_no_op(static, recalibrated, data)
-    record = raw if chosen is static else save_static(chosen, request.output)
+    choice = static_no_op(static, recalibrated, data)
+    record = raw if choice.model is static else save_static(choice.model, request.output)
     _sync(device)
     noop_seconds = time.monotonic() - started
     return {
@@ -483,9 +483,11 @@ def static_action(request: Request, data: Dataset, device: torch.device) -> Reco
         "loss_stream_sha256": stream_sha,
         "checkpoint_sha256": file_sha(request.output / "host.pt"),
         "training_seconds": elapsed,
-        "noop_choice": label,
+        "noop_choice": choice.label,
         "raw_static_sha256": raw["static_sha256"],
         "recalibrated_static_sha256": static_hash(recalibrated),
+        "raw_selection_loss": choice.raw_selection_loss,
+        "rbn_selection_loss": choice.recalibrated_selection_loss,
         "noop_seconds": noop_seconds,
         **record,
     }
