@@ -59,7 +59,7 @@ commit `13989d9` (430 tests; evidence under
 [source-change disposition](certificates/2026-10-14-m0-source-change-disposition.md)
 that admits it over the pilot's source). **The fourth gate B, gate C (John's
 read of the pilot) and the confirmatory go, with its ceiling, are John's
-next decisions; the confirmatory has not run.** The controller's 40 rulings
+next decisions; the confirmatory has not run.** The controller's 41 rulings
 are in the SDD ledger on Nyx
 (`.superpowers/sdd/2026-10-13-m0-implementation/progress.md`, ignored):
 
