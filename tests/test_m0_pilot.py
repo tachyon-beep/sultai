@@ -413,7 +413,7 @@ class PilotRunTests(unittest.TestCase):
         result = read_record(root / "pilot-result.json")
         self.assertEqual(result["stage"], stage)
         self.assertEqual(result["verdict"], verdict)
-        self.assertEqual(result["protocol_version"], "m0-v4")
+        self.assertEqual(result["protocol_version"], "m0-v4.1")
         self.assertEqual(result["amendment_2_sha256"], protocol_identity()["amendment_2_sha256"])
         self.assertFalse(result["pilot_clean"])
         return result
@@ -425,7 +425,7 @@ class PilotRunTests(unittest.TestCase):
         self.assertEqual([name for name in published if name in RECEIPTS], list(RECEIPTS))
         result = read_record(root / "pilot-result.json")
         self.assertTrue(result["pilot_clean"])
-        self.assertEqual(result["protocol_version"], "m0-v4")
+        self.assertEqual(result["protocol_version"], "m0-v4.1")
         # Every child is the M0 worker, carries its lineage and scale, and one job list never doubles a card.
         for name, _, _, flags, module in cluster.launched:
             self.assertEqual(module, "sultai_screen.m0.worker", name)
@@ -490,6 +490,11 @@ class PilotRunTests(unittest.TestCase):
         self.assertTrue(medians["development_only"])
         self.assertIsNone(medians["confirmatory_verdict"])
         self.assertIn("D1", medians["medians"])
+        # Amendment 3 (A3.2): the survival ratios' development medians, every width, sliced and refit.
+        self.assertEqual(set(medians["survival_medians"]), {"sliced", "refit"})
+        for kind in ("sliced", "refit"):
+            self.assertEqual(set(medians["survival_medians"][kind]), {"16", "8", "4", "2"})
+            self.assertTrue(all(math.isfinite(v) for v in medians["survival_medians"][kind].values()), kind)
         # R31: the medians read the extended arms joined from their own children; 05-spreads stays core-only.
         for key in ("G_mexp", "G_lottery", "retune_fraction"):
             self.assertIsNotNone(medians["medians"][key], key)
@@ -848,7 +853,7 @@ class PilotRunTests(unittest.TestCase):
         self.assertTrue(cluster.launched)
         self.assertEqual(cluster.violations, [])
         custody = read_record(self.repo / CUSTODY)
-        self.assertEqual(custody["identity"]["protocol_version"], "m0-v4")
+        self.assertEqual(custody["identity"]["protocol_version"], "m0-v4.1")
         with self.assertRaisesRegex(PilotHold, "custody"):
             self.launch("another-root")
         self.assertFalse((self.base / "another-root").exists())
@@ -985,7 +990,7 @@ def anchor_sources(seed: int, arms: frozenset[str]) -> tuple[dict[str, Record], 
 
 class MeasuredProjectionTests(unittest.TestCase):
     def test_the_measured_term_is_the_confirmatory_arm_seconds_at_section_8_magnitudes(self) -> None:
-        # R30 (correcting R28): at the §8 bookings (the workloads() fixture: per_anchor(§10) = 1,010 s) the measured
+        # R30 (correcting R28): at the §8 bookings (the workloads() fixture: per_anchor(§10) = 1,040 s under amendment 3) the measured
         # per-anchor term equals the §10 per-anchor workload exactly. `whole` is the host:1.0 kernel plus the anchor's
         # noop, M-aff and T-cool children; the core modules and retune children run PILOT_ARMS and STATIC_ARMS less the
         # stage-2 M-aff (A2) and, at the bookings, are charged the arm-seconds they execute. T-cool and S-static are
@@ -998,14 +1003,14 @@ class MeasuredProjectionTests(unittest.TestCase):
         grids = arm_seconds(w, executed)
         whole = w.host[1.0] + w.fold_and_calibrations + w.grid["aff"] + w.tcool
         terms = m0_pilot.scaled_anchor(w, ran, whole, grids, w.static)
-        self.assertEqual(per_anchor(w, CONFIRMATORY_ARMS), 1_010.0)
+        self.assertEqual(per_anchor(w, CONFIRMATORY_ARMS), 1_040.0)
         self.assertAlmostEqual(terms["scaled"], per_anchor(w, CONFIRMATORY_ARMS))
-        # S-static's host is its own static child (added once), its refit a module grid: 1,010 + 50 + 60 = 1,120 s.
-        self.assertEqual(per_anchor(w, CONFIRMATORY_ARMS | STATIC_ARMS), 1_120.0)
+        # S-static's host is its own static child (added once), its refit a module grid: 1,040 + 50 + 60 = 1,150 s.
+        self.assertEqual(per_anchor(w, CONFIRMATORY_ARMS | STATIC_ARMS), 1_150.0)
         self.assertAlmostEqual(terms["static_scaled"], per_anchor(w, CONFIRMATORY_ARMS | STATIC_ARMS))
         self.assertAlmostEqual(terms["raw"], whole + grids)
         self.assertAlmostEqual(terms["raw"], 1_160.0)
-        self.assertAlmostEqual(terms["scale"], 810.0 / 960.0)
+        self.assertAlmostEqual(terms["scale"], 840.0 / 960.0)
         # A raised axis (R15): the core modules child re-runs M-aff on the doubled axis, so the stage-2 maff child
         # leaves `whole` and M-aff's grid is among the arm-seconds scaled (review Minor 1); the term is still §10's.
         raised = (*ran, "M-aff")
@@ -1014,11 +1019,11 @@ class MeasuredProjectionTests(unittest.TestCase):
         self.assertAlmostEqual(lifted["scaled"], per_anchor(w, CONFIRMATORY_ARMS))
         self.assertAlmostEqual(lifted["static_scaled"], per_anchor(w, CONFIRMATORY_ARMS | STATIC_ARMS))
         # §8 magnitudes: at n = 37 (above the 32 floor) the unscaled sum would raise a false stage-6 hold
-        # (455 + 37 x 1,160 = 43,375 s > 43,200 s); the exact §10 term fits (455 + 37 x 1,010 = 37,825 s).
+        # (455 + 37 x 1,160 = 43,375 s > 43,200 s); the exact §10 term fits (455 + 37 x 1,040 = 38,935 s).
         fixed = 7 * w.host[1.0] + 2 * 60.0 + 20.0  # seven replays, two acceptance children, the fold-check
         scaled = measured_confirmatory(37, terms["scaled"], fixed, M0_CONFIRMATORY_SECONDS)
         raw = measured_confirmatory(37, terms["raw"], fixed, M0_CONFIRMATORY_SECONDS)
-        self.assertAlmostEqual(scaled["projected_gpu_process_seconds"], 37_825.0)
+        self.assertAlmostEqual(scaled["projected_gpu_process_seconds"], 38_935.0)
         self.assertAlmostEqual(raw["projected_gpu_process_seconds"], 43_375.0)
         self.assertIs(scaled["within_ceiling"], True)
         self.assertIs(raw["within_ceiling"], False)
@@ -1194,14 +1199,14 @@ def pilot_record(**changes: Json) -> Record:
 
 
 def carried_projection(**changes: Json) -> Record:
-    """The confirmatory projection pair a clean pilot result carries (I3): kernel 600 + 32 x 1,010, measured below."""
+    """The confirmatory projection pair a clean pilot result carries (I3): kernel 600 + 32 x 1,040, measured below."""
     record: Record = {
         "fixed_v0_gpu_process_seconds": 600.0,
         "per_anchor_gpu_process_seconds": 1_000.0,
         "static_per_anchor_gpu_process_seconds": 1_100.0,
-        "kernel_gpu_process_seconds": 32_920.0,
+        "kernel_gpu_process_seconds": 33_880.0,
         "measured_gpu_process_seconds": 32_600.0,
-        "projected_gpu_process_seconds": 32_920.0,
+        "projected_gpu_process_seconds": 33_880.0,
     }
     record.update(changes)
     return record
@@ -1352,7 +1357,7 @@ class ConfirmatoryTests(unittest.TestCase):
         self.assertEqual(binding["source_change_disposition"], {listed: file_sha(self.source_disposition)})
 
     def test_the_larger_of_the_kernel_and_measured_projections_must_fit(self) -> None:
-        # I3: the kernel projection fits (600 + 32 x 1,010); the measured per-anchor charge does not (600 + 32 x 1,400).
+        # I3: the kernel projection fits (600 + 32 x 1,040); the measured per-anchor charge does not (600 + 32 x 1,400).
         self.write_pilot(confirmatory_projection=carried_projection(per_anchor_gpu_process_seconds=1_400.0))
         with self.assertRaisesRegex(FeasibilityHold, "measured"):
             self.launch(self.certificate())
@@ -1374,7 +1379,7 @@ class ConfirmatoryTests(unittest.TestCase):
 
     def test_the_whitelist_refuses_an_extended_arm_and_an_unrestricted_arm_list(self) -> None:
         allowed = frozenset(CONFIRMATORY_ARMS)
-        for arms in ("M-sq,M-exp", "M-sq-fresh", "lottery", "M-wide→16:refit", "S-static"):
+        for arms in ("M-sq,M-exp", "M-sq-fresh", "lottery", "M-wide→8:ablation", "S-static"):
             with self.assertRaisesRegex(PilotHold, "whitelist"):
                 whitelist([job("modules-7500", "modules", 7500, "confirmatory", "--arms", arms)], allowed)
         with self.assertRaisesRegex(PilotHold, "whitelist"):
@@ -1483,6 +1488,28 @@ class ConfirmatoryTests(unittest.TestCase):
         self.assertLessEqual(interval["lower"], interval["median"])
         self.assertLessEqual(interval["median"], interval["upper"])
         self.assertIn("sign_test_lower", interval)
+        # Amendment 3 (A3.2): every §6 quantity the §10 set defines carries median, bounds and the sign test;
+        # the survival curve (A3.1) at every width, sliced and refit; D5 only under the 14 h flag.
+        bounded = {"D1", "D1prime", "D2", "D2s", "D2_random", "D2s_random", "D3", "G_tcool", "r_aff", "delta_acc",
+                   "G_rtemp", "G_rcal", "survival"}  # fmt: skip
+        self.assertEqual(set(result["intervals"]), bounded)
+        for key in bounded - {"survival"}:
+            each = result["intervals"][key]
+            self.assertEqual(
+                set(each), {"median", "lower", "upper", "sign_test_lower", "sign_test_upper", "sign_test_reason"}, key
+            )
+            self.assertLessEqual(each["lower"], each["median"], key)
+            self.assertLessEqual(each["sign_test_lower"], each["sign_test_upper"], key)
+            self.assertIsNone(each["sign_test_reason"], key)
+        curve = result["intervals"]["survival"]
+        self.assertEqual(set(curve), {"sliced", "refit"})
+        for kind in ("sliced", "refit"):
+            self.assertEqual(set(curve[kind]), {"16", "8", "4", "2"}, kind)
+            for width, each in curve[kind].items():
+                self.assertTrue(math.isfinite(each["median"]), (kind, width))
+                self.assertLessEqual(each["lower"], each["upper"], (kind, width))
+                self.assertIn("sign_test_lower", each)
+        self.assertEqual(result["verdict_keys"], ["D1", "D1prime", "D2", "D3", "delta_acc"])
         widths = result["achieved_half_width"]
         self.assertEqual(set(widths), {"D2", "D3", "D5"})
         self.assertTrue(math.isfinite(widths["D2"]) and math.isfinite(widths["D3"]))
@@ -1500,12 +1527,12 @@ class ConfirmatoryTests(unittest.TestCase):
         # term) and the measured one.
         projection = read_record(root / "00-opening.json")["projection"]
         self.assertEqual(projection["kernel"]["fixed_v0_gpu_process_seconds"], 600.0)
-        self.assertEqual(projection["kernel"]["projected_gpu_process_seconds"], 600.0 + 32 * 1_010.0)
+        self.assertEqual(projection["kernel"]["projected_gpu_process_seconds"], 600.0 + 32 * 1_040.0)
         self.assertEqual(projection["measured"]["projected_gpu_process_seconds"], 600.0 + 32 * 1_000.0)
-        self.assertEqual(projection["projected_gpu_process_seconds"], 600.0 + 32 * 1_010.0)
+        self.assertEqual(projection["projected_gpu_process_seconds"], 600.0 + 32 * 1_040.0)
         # Its own custody; the pilot's and Gate 3's receipts are never written.
         custody = read_record(self.repo / CONFIRMATORY_CUSTODY)
-        self.assertEqual(custody["identity"]["protocol_version"], "m0-v4")
+        self.assertEqual(custody["identity"]["protocol_version"], "m0-v4.1")
         listed = {"docs/results/m0-pilot/pilot-result.json": file_sha(self.pilot_result)}
         self.assertEqual(custody["identity"]["pilot_result"], listed)
         self.assertFalse((self.repo / CUSTODY).exists())
@@ -1525,6 +1552,8 @@ class ConfirmatoryTests(unittest.TestCase):
         self.assertLessEqual(STATIC_ARMS, self.arms_of(cluster, "modules-7500"))
         # D5 = loss(M-sq) - loss(S-static:refit) ~ 0.05 > M_s on every anchor, so the reading is read at n = 32.
         self.assertGreater(result["intervals"]["D5"]["lower"], 0.02)
+        self.assertIn("D5_norefit", result["intervals"])
+        self.assertEqual(result["verdict_keys"], ["D1", "D1prime", "D2", "D3", "delta_acc", "D5"])
         self.assertEqual(result["static_reading"], "design-in beats insertion")
         self.assertTrue(math.isfinite(result["achieved_half_width"]["D5"]))
         self.assertEqual(result["ceiling_gpu_process_seconds"], M0_CONFIRMATORY_STATIC_SECONDS)

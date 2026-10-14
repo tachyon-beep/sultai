@@ -12,6 +12,8 @@ from sultai_screen.contracts import PILOT_SECONDS, PilotHold, file_sha
 from sultai_screen.m0.identity import (
     AMENDMENT_2_PATH,
     AMENDMENT_2_SHA,
+    AMENDMENT_3_PATH,
+    AMENDMENT_3_SHA,
     AMENDMENT_PATH,
     AMENDMENT_SHA,
     CERTIFIED_FRACTION,
@@ -48,6 +50,7 @@ DOCUMENTS = (
     (STEERING_PATH, "steering"),
     (AMENDMENT_PATH, "amendment 1"),
     (AMENDMENT_2_PATH, "amendment 2"),
+    (AMENDMENT_3_PATH, "amendment 3"),
 )
 
 
@@ -70,17 +73,21 @@ def m0_fixture(root: Path) -> None:
 
 
 class IdentityTests(unittest.TestCase):
-    def test_four_documents_and_composed_identity_are_pinned(self) -> None:
+    def test_five_documents_and_composed_identity_are_pinned(self) -> None:
         self.assertEqual(file_sha(REPO / PREREG_PATH), PREREG_SHA)
         self.assertEqual(file_sha(REPO / STEERING_PATH), STEERING_SHA)
         self.assertEqual(file_sha(REPO / AMENDMENT_PATH), AMENDMENT_SHA)
         self.assertEqual(file_sha(REPO / AMENDMENT_2_PATH), AMENDMENT_2_SHA)
+        self.assertEqual(file_sha(REPO / AMENDMENT_3_PATH), AMENDMENT_3_SHA)
+        # Amendment 3 (2026-10-14) is composed fifth under the Gate 3 v4.1 rule; the v4 identity 3a76c6db… stays on
+        # record in freeze certificate 2 and the gate-B admission certificate for 978850a.
         composed = hashlib.sha256(
-            f"m0-v4\n{PREREG_SHA}\n{STEERING_SHA}\n{AMENDMENT_SHA}\n{AMENDMENT_2_SHA}\n".encode()
+            f"m0-v4.1\n{PREREG_SHA}\n{STEERING_SHA}\n{AMENDMENT_SHA}\n{AMENDMENT_2_SHA}\n{AMENDMENT_3_SHA}\n".encode()
         ).hexdigest()
-        self.assertEqual(PROTOCOL_VERSION, "m0-v4")
+        self.assertEqual(PROTOCOL_VERSION, "m0-v4.1")
+        self.assertEqual(AMENDMENT_3_SHA, "a8ff6ff225c5d6111dce9ed1682e5dc7fb2f0d3301292ab25869f7dc35b21a8f")
         self.assertEqual(PROTOCOL_SHA, composed)
-        self.assertEqual(PROTOCOL_SHA, "3a76c6dbe31ca3f80ec301ed0523b1f382148f8114ee02a164ae4ae9557f6e5d")
+        self.assertEqual(PROTOCOL_SHA, "9f2bf07c592300aa423fea642ba89e0a327d5f3c6711ccc42e6d469d61f0d28c")
         self.assertEqual(
             set(protocol_identity()),
             {
@@ -90,6 +97,7 @@ class IdentityTests(unittest.TestCase):
                 "steering_sha256",
                 "amendment_sha256",
                 "amendment_2_sha256",
+                "amendment_3_sha256",
             },
         )
 

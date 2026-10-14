@@ -1112,6 +1112,18 @@ def median_or_none(values: list[Json]) -> Json:
     return stats.median([number(v) for v in values if v is not None]) if values and None not in values else None
 
 
+def survival_medians(quantities: list[Record]) -> Record:
+    """Amendment 3 (A3.2): the survival ratios' development medians, every width, sliced and refit; None where any
+    anchor leaves the ratio undefined."""
+    return {
+        kind: {
+            str(h): median_or_none([stats.survival_value(q, kind, h) for q in quantities])
+            for h in stats.SURVIVAL_WIDTHS
+        }
+        for kind in stats.SURVIVAL_KINDS
+    }
+
+
 def development_medians(quantities: list[Record], points: dict[float, tuple[float, ...]], extended: Record) -> Record:
     """§9 stage 7: medians for the record only; no verdict is read in the pilot."""
     gains = tuple(number(mapping(mapping(q["arms"])["M-sq"])["gain"]) for q in quantities)
@@ -1119,6 +1131,7 @@ def development_medians(quantities: list[Record], points: dict[float, tuple[floa
         "development_only": True,
         "confirmatory_verdict": None,
         "medians": {key: median_or_none([q[key] for q in quantities]) for key in MEDIAN_KEYS},
+        "survival_medians": survival_medians(quantities),
         "frontier_fraction": stats.gain_fraction(gains, points, BOOTSTRAP_SEED).report(),
         "headline": {
             "frontier_fraction": "value, the median of the joint frontier bootstrap (point is the plug-in ratio)",

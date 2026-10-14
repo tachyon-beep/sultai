@@ -90,7 +90,10 @@ RESTART_CUSTODY: Final = ".weft/m0-confirmatory-restart-attempt.json"
 ACTIONS: Final = frozenset(("replay", "acceptance", "train", "noop", "modules", "retune", "tcool", "fold-check"))
 # §7 V1 and V2: the arms whose certification fraction gates a reading.
 CERTIFIED: Final = ("M-aff", "M-sq", "M-small-B", "M-wide→8:rank:refit")
-BOUNDED: Final = ("D1", "D1prime", "D2", "D3", "delta_acc")
+# Amendment 3 (A3.2): the quantities a verdict or label reads hold the reading when undefined on an anchor; every other
+# §6 quantity the §10 set defines is published beside with bounds and the sign test, undefined with the anchor named.
+VERDICT_KEYS: Final = ("D1", "D1prime", "D2", "D3", "delta_acc")
+BESIDE_KEYS: Final = ("D2s", "D2_random", "D2s_random", "G_tcool", "r_aff", "G_rtemp", "G_rcal")
 STOP_ONLY_PILOT: Final = ("pilot_clean", "confirmatory_ready")
 
 
@@ -388,7 +391,8 @@ def aggregate(run: Run, plan: Plan) -> tuple[list[Anchor], list[Record]]:
 
 
 def read_once(plan: Plan, anchors: list[Anchor], quantities: list[Record]) -> Record:
-    """§7 at confirmatory n: medians with one-sided 95 % anchor-bootstrap bounds, then V1, labels, V2 and static."""
+    """§7 at confirmatory n: every defined §6 quantity as its median with one-sided 95 % anchor-bootstrap bounds and
+    the exact sign-test bound beside it (amendment 3, A3.2), then V1, labels, V2 and static."""
 
     def column(key: str) -> list[float]:
         values = [q[key] for q in quantities]
@@ -396,20 +400,45 @@ def read_once(plan: Plan, anchors: list[Anchor], quantities: list[Record]) -> Re
             raise InstrumentHold(f"{key} is undefined on an anchor; no verdict is read")
         return [number(value) for value in values]
 
-    def interval(key: str) -> Record:
-        values = column(key)
+    def interval(values: list[float]) -> Record:
+        lower, lower_reason = stats.sign_test_bound(values, lower=True)
+        upper, upper_reason = stats.sign_test_bound(values, lower=False)
         return {
             "median": stats.median(values),
             "lower": stats.anchor_bound(values, BOOTSTRAP_SEED, lower=True),
             "upper": stats.anchor_bound(values, BOOTSTRAP_SEED, lower=False),
+            "sign_test_lower": lower,
+            "sign_test_upper": upper,
+            "sign_test_reason": lower_reason or upper_reason,
         }
 
-    bounded = BOUNDED + (("D5",) if plan.static else ())
-    intervals = {key: interval(key) for key in bounded}
-    d1 = column("D1")
-    lower, lower_reason = stats.sign_test_bound(d1, lower=True)
-    upper, upper_reason = stats.sign_test_bound(d1, lower=False)
-    intervals["D1"].update(sign_test_lower=lower, sign_test_upper=upper, sign_test_reason=lower_reason or upper_reason)
+    def beside(name: str, values: list[float | None], reasons: list[Json]) -> Record:
+        """A no-verdict quantity: its interval, or undefined naming the first anchor it is undefined on."""
+        for item, value, reason in zip(anchors, values, reasons, strict=True):
+            if value is None:
+                return {"median": None, "reason": f"{name} undefined on anchor {item.seed} ({reason})"}
+        return interval([number(value) for value in values])
+
+    verdict_keys = VERDICT_KEYS + (("D5",) if plan.static else ())
+    beside_keys = BESIDE_KEYS + (("D5_norefit",) if plan.static else ())
+    intervals: dict[str, Record] = {key: interval(column(key)) for key in verdict_keys}
+    for key in beside_keys:
+        intervals[key] = beside(
+            key,
+            [None if q[key] is None else number(q[key]) for q in quantities],
+            [q[f"{key}_reason"] for q in quantities],
+        )
+    intervals["survival"] = {
+        kind: {
+            str(h): beside(
+                f"survival {kind} h = {h}",
+                [stats.survival_value(q, kind, h) for q in quantities],
+                [q["survival_reason"] if q["survival_reason"] is not None else "not run" for q in quantities],
+            )
+            for h in stats.SURVIVAL_WIDTHS
+        }
+        for kind in stats.SURVIVAL_KINDS
+    }
     n = len(anchors)
     fractions = {name: sum(item.result.arms[name].certified is True for item in anchors) / n for name in CERTIFIED}
 
@@ -433,6 +462,7 @@ def read_once(plan: Plan, anchors: list[Anchor], quantities: list[Record]) -> Re
         "static_reading": verdicts.static_reading(bound_of("D5", "lower"), True, n) if plan.static else None,
         "programme_reading": verdicts.programme_reading(v1, labels),
         "intervals": json_value(intervals),
+        "verdict_keys": list(verdict_keys),
         "certified_fractions": json_value(fractions),
         "certified_fraction_required": CERTIFIED_FRACTION,
         "achieved_half_width": json_value(widths),

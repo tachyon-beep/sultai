@@ -46,7 +46,7 @@ CHILD = (
 def workloads() -> Workloads:
     # A literal transcription of the §8 bookings: the §10 per-anchor decomposition is host 45, T-cool 25, N0 and
     # calibrations 30, four nonlinear module grids 4 x 60, M-aff 100, two M-wide→8 refits 2 x 60, M-small-B 120,
-    # R-272s 80 and R-aff 250 = 1,010 s; S-static adds its host 50 and its module-grid refit 60 = 110 s. The front re-run
+    # R-272s 80, R-aff 250 and three single-rate survival refits 3 x 10 (amendment 3) = 1,040 s; S-static adds its host 50 and its module-grid refit 60 = 110 s. The front re-run
     # unit is per 1,000 optimiser steps: R-aff is 5 rates x 3,200 steps = 16 units, so 15.625 s per unit gives 250 s.
     return Workloads(
         host={0.25: 20.0, 0.5: 35.0, 0.75: 40.0, 1.0: 45.0, 1.5: 85.0},
@@ -243,17 +243,17 @@ class SupervisionTests(unittest.TestCase):
 
     def test_confirmatory_projection_from_measured_units(self) -> None:
         w = workloads()
-        self.assertEqual(per_anchor(w, CONFIRMATORY_ARMS), 1_010.0)
+        self.assertEqual(per_anchor(w, CONFIRMATORY_ARMS), 1_040.0)
         record = project_confirmatory(32, w, CONFIRMATORY_ARMS, 1500)
-        self.assertEqual(record["projected_gpu_process_seconds"], 33_820.0)
+        self.assertEqual(record["projected_gpu_process_seconds"], 34_780.0)
         self.assertEqual(record["ceiling_seconds"], M0_CONFIRMATORY_SECONDS)
         self.assertIs(record["within_ceiling"], True)
         # Measured, never a literal: doubling the measured front re-run unit moves the projection by 32 x 250.
         self.assertEqual(per_anchor(w, ("R-aff",)) - per_anchor(w, ()), 16 * 15.625)
         slower = project_confirmatory(32, dataclasses.replace(w, front_rerun=31.25), CONFIRMATORY_ARMS, 1500)
-        self.assertEqual(slower["projected_gpu_process_seconds"], 33_820.0 + 32 * 250.0)
+        self.assertEqual(slower["projected_gpu_process_seconds"], 34_780.0 + 32 * 250.0)
         over = project_confirmatory(42, w, CONFIRMATORY_ARMS, 1500)
-        self.assertEqual(over["projected_gpu_process_seconds"], 1500 + 42 * 1_010.0)
+        self.assertEqual(over["projected_gpu_process_seconds"], 1500 + 42 * 1_040.0)
         self.assertIs(over["within_ceiling"], False)
         with self.assertRaises(ContractViolation):
             project_confirmatory(32, w, CONFIRMATORY_ARMS | {"R-all"}, 1500)
@@ -266,7 +266,7 @@ class SupervisionTests(unittest.TestCase):
         # The measured static unit: S-static host training 50 plus its module-grid refit 60 = 110 s per anchor.
         self.assertEqual(per_anchor(w, arms) - per_anchor(w, CONFIRMATORY_ARMS), 110.0)
         record = with_static(32, w, arms, 1500)
-        self.assertEqual(record["projected_gpu_process_seconds"], 37_340.0)
+        self.assertEqual(record["projected_gpu_process_seconds"], 38_300.0)
         self.assertEqual(record["ceiling_seconds"], 50_400)
         self.assertIs(record["requires_14h"], True)
         self.assertIs(record["within_ceiling"], True)
