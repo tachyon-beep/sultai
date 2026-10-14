@@ -27,6 +27,7 @@ from sultai_screen.m0.stats import (
     PILOT_ARMS,
     REFERENCE_PARAMETERS,
     STARVED_PAIR_ARMS,
+    SURVIVAL_CURVE_ARMS,
     SURVIVAL_WIDTHS,
     AnchorResult,
     ArmResult,
@@ -307,6 +308,14 @@ class StatsTests(unittest.TestCase):
         self.assertIsNone(survival_value(undefined, "sliced", 8))
         full = quantities(anchor(default_gains()))
         self.assertEqual(full["survival_absent"], [])
+        # A3.2: a survival-curve arm absent from a stage that runs it by design is named, never a contract violation;
+        # any other required arm absent still is.
+        partial = quantities(anchor(gains), CONFIRMATORY_ARMS)
+        self.assertEqual(partial["survival_absent"], ["M-wide→16:sliced", "M-wide→16:refit", "M-wide→4:refit"])
+        self.assertEqual(SURVIVAL_CURVE_ARMS, {f"M-wide→{h}:{k}" for h in (16, 4, 2) for k in ("sliced", "refit")})
+        del gains["M-small"]
+        with self.assertRaises(ContractViolation):
+            quantities(anchor(gains), CONFIRMATORY_ARMS)
 
     def test_starved_pair_record_reports_d1_and_d3(self) -> None:
         gains = dict.fromkeys(STARVED_PAIR_ARMS, 0.01)

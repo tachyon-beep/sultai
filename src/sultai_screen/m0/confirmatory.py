@@ -428,12 +428,21 @@ def read_once(plan: Plan, anchors: list[Anchor], quantities: list[Record]) -> Re
             [None if q[key] is None else number(q[key]) for q in quantities],
             [q[f"{key}_reason"] for q in quantities],
         )
+
+    def curve_reason(item: Anchor, q: Record, kind: str, h: int) -> Json:
+        """Why a survival ratio is undefined on an anchor: the curve's own reason, else the arm's availability."""
+        if q["survival_reason"] is not None:
+            return q["survival_reason"]
+        arm = f"M-wide→{h}:rank:{kind}" if h == 8 else f"M-wide→{h}:{kind}"
+        unavailable = "unavailable_arms" in item.report and arm in sequence(item.report["unavailable_arms"])
+        return f"{arm} {'unavailable' if unavailable else 'not run'}"
+
     intervals["survival"] = {
         kind: {
             str(h): beside(
                 f"survival {kind} h = {h}",
                 [stats.survival_value(q, kind, h) for q in quantities],
-                [q["survival_reason"] if q["survival_reason"] is not None else "not run" for q in quantities],
+                [curve_reason(item, q, kind, h) for item, q in zip(anchors, quantities, strict=True)],
             )
             for h in stats.SURVIVAL_WIDTHS
         }

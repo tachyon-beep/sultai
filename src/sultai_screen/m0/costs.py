@@ -106,9 +106,10 @@ ARM_UNITS: Final[dict[str, tuple[str, ...]]] = {
     "M-wide→16:sliced": (),
     "M-wide→4:sliced": (),
     "M-wide→2:sliced": (),
-    "M-wide→16:refit": ("grid:refit-single",),
-    "M-wide→4:refit": ("grid:refit-single",),
-    "M-wide→2:refit": ("grid:refit-single",),
+    # Amendment 3 (A3.1): each survival refit is its single 800-step run plus one development evaluation.
+    "M-wide→16:refit": ("grid:refit-single", "evaluation"),
+    "M-wide→4:refit": ("grid:refit-single", "evaluation"),
+    "M-wide→2:refit": ("grid:refit-single", "evaluation"),
     "M-wide→8:ablation": (),
     "M-small": ("grid:module",),
     "M-small-B": ("grid:module-B",),

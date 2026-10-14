@@ -825,6 +825,18 @@ class PilotRunTests(unittest.TestCase):
         self.assertIsNotNone(joined[3001]["G_mexp"])
         self.assertIsNone(read_record(root / "07-development-medians.json")["medians"]["G_mexp"])
 
+    def test_an_unavailable_survival_curve_arm_is_recorded_and_never_stops_the_pilot(self) -> None:
+        code, root, _, _ = self.launch(unavailable={3002: frozenset(("M-wide→16:sliced",))})
+        self.assertEqual(code, 0, read_record(root / "pilot-result.json"))
+        core = {entry["seed"]: entry for entry in read_record(root / "05-spreads.json")["anchors"]}
+        self.assertEqual(core[3002]["unavailable_arms"], ["M-wide→16:sliced"])
+        self.assertEqual(core[3002]["quantities"]["survival_absent"], ["M-wide→16:sliced"])
+        self.assertEqual(core[3001]["quantities"]["survival_absent"], [])
+        medians = read_record(root / "07-development-medians.json")["survival_medians"]
+        self.assertIsNone(medians["sliced"]["16"])
+        self.assertTrue(all(math.isfinite(v) for h, v in medians["sliced"].items() if h != "16"))
+        self.assertTrue(all(math.isfinite(v) for v in medians["refit"].values()))
+
     def test_an_unavailable_starved_pair_arm_is_reported_and_never_stops_the_pilot(self) -> None:
         code, root, _, published = self.launch(unavailable={6002: frozenset(("M-aff",))})
         self.assertEqual(code, 0, read_record(root / "pilot-result.json"))
@@ -1001,7 +1013,7 @@ def anchor_sources(seed: int, arms: frozenset[str]) -> tuple[dict[str, Record], 
 
 class MeasuredProjectionTests(unittest.TestCase):
     def test_the_measured_term_is_the_confirmatory_arm_seconds_at_section_8_magnitudes(self) -> None:
-        # R30 (correcting R28): at the §8 bookings (the workloads() fixture: per_anchor(§10) = 1,040 s under amendment 3) the measured
+        # R30 (correcting R28): at the §8 bookings (the workloads() fixture: per_anchor(§10) = 1,041.5 s under amendment 3, each survival refit booked with one development evaluation) the measured
         # per-anchor term equals the §10 per-anchor workload exactly. `whole` is the host:1.0 kernel plus the anchor's
         # noop, M-aff and T-cool children; the core modules and retune children run PILOT_ARMS and STATIC_ARMS less the
         # stage-2 M-aff (A2) and, at the bookings, are charged the arm-seconds they execute. T-cool and S-static are
@@ -1014,14 +1026,14 @@ class MeasuredProjectionTests(unittest.TestCase):
         grids = arm_seconds(w, executed)
         whole = w.host[1.0] + w.fold_and_calibrations + w.grid["aff"] + w.tcool
         terms = m0_pilot.scaled_anchor(w, ran, whole, grids, w.static)
-        self.assertEqual(per_anchor(w, CONFIRMATORY_ARMS), 1_040.0)
+        self.assertEqual(per_anchor(w, CONFIRMATORY_ARMS), 1_041.5)
         self.assertAlmostEqual(terms["scaled"], per_anchor(w, CONFIRMATORY_ARMS))
-        # S-static's host is its own static child (added once), its refit a module grid: 1,040 + 50 + 60 = 1,150 s.
-        self.assertEqual(per_anchor(w, CONFIRMATORY_ARMS | STATIC_ARMS), 1_150.0)
+        # S-static's host is its own static child (added once), its refit a module grid: 1,041.5 + 50 + 60 = 1,151.5 s.
+        self.assertEqual(per_anchor(w, CONFIRMATORY_ARMS | STATIC_ARMS), 1_151.5)
         self.assertAlmostEqual(terms["static_scaled"], per_anchor(w, CONFIRMATORY_ARMS | STATIC_ARMS))
         self.assertAlmostEqual(terms["raw"], whole + grids)
-        self.assertAlmostEqual(terms["raw"], 1_160.0)
-        self.assertAlmostEqual(terms["scale"], 840.0 / 960.0)
+        self.assertAlmostEqual(terms["raw"], 1_161.5)
+        self.assertAlmostEqual(terms["scale"], 841.5 / 961.5)
         # A raised axis (R15): the core modules child re-runs M-aff on the doubled axis, so the stage-2 maff child
         # leaves `whole` and M-aff's grid is among the arm-seconds scaled (review Minor 1); the term is still §10's.
         raised = (*ran, "M-aff")
@@ -1030,12 +1042,12 @@ class MeasuredProjectionTests(unittest.TestCase):
         self.assertAlmostEqual(lifted["scaled"], per_anchor(w, CONFIRMATORY_ARMS))
         self.assertAlmostEqual(lifted["static_scaled"], per_anchor(w, CONFIRMATORY_ARMS | STATIC_ARMS))
         # §8 magnitudes: at n = 37 (above the 32 floor) the unscaled sum would raise a false stage-6 hold
-        # (455 + 37 x 1,160 = 43,375 s > 43,200 s); the exact §10 term fits (455 + 37 x 1,040 = 38,935 s).
+        # (455 + 37 x 1,161.5 = 43,430.5 s > 43,200 s); the exact §10 term fits (455 + 37 x 1,041.5 = 38,990.5 s).
         fixed = 7 * w.host[1.0] + 2 * 60.0 + 20.0  # seven replays, two acceptance children, the fold-check
         scaled = measured_confirmatory(37, terms["scaled"], fixed, M0_CONFIRMATORY_SECONDS)
         raw = measured_confirmatory(37, terms["raw"], fixed, M0_CONFIRMATORY_SECONDS)
-        self.assertAlmostEqual(scaled["projected_gpu_process_seconds"], 38_935.0)
-        self.assertAlmostEqual(raw["projected_gpu_process_seconds"], 43_375.0)
+        self.assertAlmostEqual(scaled["projected_gpu_process_seconds"], 38_990.5)
+        self.assertAlmostEqual(raw["projected_gpu_process_seconds"], 43_430.5)
         self.assertIs(scaled["within_ceiling"], True)
         self.assertIs(raw["within_ceiling"], False)
 
@@ -1130,6 +1142,25 @@ class ReceiptTests(unittest.TestCase):
         with self.assertRaisesRegex(InstrumentHold, r"3004.*M-small-B"):
             anchor(3004, (source("modules-3004", 3004, records, vectors),), PILOT_ARMS)
 
+    def test_an_unavailable_survival_curve_arm_never_holds_and_is_named_absent(self) -> None:
+        # Amendment 3 (A3.2): the h = 16/4/2 arms have no verdict role; unavailable, they are recorded and the curve
+        # names them absent. Every other required arm still holds (the test above).
+        records, vectors = anchor_sources(3004, PILOT_ARMS)
+        records["M-wide→4:refit"] = {
+            "status": "unavailable",
+            "cause": "M-wide→4:refit",
+            "error": "nonfinite",
+            "candidates": [],
+        }
+        del vectors["M-wide→4:refit"]
+        result = anchor(3004, (source("modules-3004", 3004, records, vectors),), PILOT_ARMS)
+        self.assertEqual(result.report["unavailable_arms"], ["M-wide→4:refit"])
+        self.assertNotIn("M-wide→4:refit", result.result.arms)
+        record = quantities(result.result, PILOT_ARMS)
+        self.assertEqual(record["survival_absent"], ["M-wide→4:refit"])
+        self.assertEqual(set(record["survival"]["refit"]), {"16", "8", "2"})
+        self.assertEqual(set(record["survival"]["sliced"]), {"16", "8", "4", "2"})
+
     def test_raw_candidates_parse_the_rate_and_unavailable_arms_list_their_nonfinite_candidates(self) -> None:
         records, vectors = anchor_sources(3001, PILOT_ARMS)
         candidates = [
@@ -1210,14 +1241,14 @@ def pilot_record(**changes: Json) -> Record:
 
 
 def carried_projection(**changes: Json) -> Record:
-    """The confirmatory projection pair a clean pilot result carries (I3): kernel 600 + 32 x 1,040, measured below."""
+    """The confirmatory projection pair a clean pilot result carries (I3): kernel 600 + 32 x 1,041.5, measured below."""
     record: Record = {
         "fixed_v0_gpu_process_seconds": 600.0,
         "per_anchor_gpu_process_seconds": 1_000.0,
         "static_per_anchor_gpu_process_seconds": 1_100.0,
-        "kernel_gpu_process_seconds": 33_880.0,
+        "kernel_gpu_process_seconds": 33_928.0,
         "measured_gpu_process_seconds": 32_600.0,
-        "projected_gpu_process_seconds": 33_880.0,
+        "projected_gpu_process_seconds": 33_928.0,
     }
     record.update(changes)
     return record
@@ -1368,7 +1399,7 @@ class ConfirmatoryTests(unittest.TestCase):
         self.assertEqual(binding["source_change_disposition"], {listed: file_sha(self.source_disposition)})
 
     def test_the_larger_of_the_kernel_and_measured_projections_must_fit(self) -> None:
-        # I3: the kernel projection fits (600 + 32 x 1,040); the measured per-anchor charge does not (600 + 32 x 1,400).
+        # I3: the kernel projection fits (600 + 32 x 1,041.5); the measured per-anchor charge does not (600 + 32 x 1,400).
         self.write_pilot(confirmatory_projection=carried_projection(per_anchor_gpu_process_seconds=1_400.0))
         with self.assertRaisesRegex(FeasibilityHold, "measured"):
             self.launch(self.certificate())
@@ -1538,9 +1569,9 @@ class ConfirmatoryTests(unittest.TestCase):
         # term) and the measured one.
         projection = read_record(root / "00-opening.json")["projection"]
         self.assertEqual(projection["kernel"]["fixed_v0_gpu_process_seconds"], 600.0)
-        self.assertEqual(projection["kernel"]["projected_gpu_process_seconds"], 600.0 + 32 * 1_040.0)
+        self.assertEqual(projection["kernel"]["projected_gpu_process_seconds"], 600.0 + 32 * 1_041.5)
         self.assertEqual(projection["measured"]["projected_gpu_process_seconds"], 600.0 + 32 * 1_000.0)
-        self.assertEqual(projection["projected_gpu_process_seconds"], 600.0 + 32 * 1_040.0)
+        self.assertEqual(projection["projected_gpu_process_seconds"], 600.0 + 32 * 1_041.5)
         # Its own custody; the pilot's and Gate 3's receipts are never written.
         custody = read_record(self.repo / CONFIRMATORY_CUSTODY)
         self.assertEqual(custody["identity"]["protocol_version"], "m0-v4.1")
@@ -1617,6 +1648,20 @@ class ConfirmatoryTests(unittest.TestCase):
             batch = [entry["gpu"] for entry in entries[previous:]]
             previous = len(entries)
             self.assertEqual(len(batch), len(set(batch)), path.name)
+
+    def test_an_unavailable_survival_curve_arm_is_published_undefined_and_the_verdict_is_read(self) -> None:
+        code, root, cluster = self.launch(self.certificate(), unavailable={7510: frozenset(("M-wide→4:refit",))})
+        result = read_record(root / "confirmatory-result.json")
+        self.assertEqual(code, 0, result)
+        self.assertIn(result["v1"], ("present", "re-tuning equivalent", "indeterminate"))
+        curve = result["intervals"]["survival"]
+        self.assertEqual(
+            curve["refit"]["4"],
+            {"median": None, "reason": "survival refit h = 4 undefined on anchor 7510 (M-wide→4:refit unavailable)"},
+        )
+        self.assertTrue(math.isfinite(curve["sliced"]["4"]["median"]))
+        self.assertTrue(all(math.isfinite(curve["refit"][h]["median"]) for h in ("16", "8", "2")))
+        self.assertTrue(all(f"modules-{seed}" in set(cluster.names()) for seed in range(7500, 7532)))
 
     def test_an_unavailable_required_arm_holds_at_aggregation_and_drops_no_anchor(self) -> None:
         code, root, cluster = self.launch(self.certificate(), unavailable={7510: frozenset(("M-small",))})

@@ -30,7 +30,7 @@ from sultai_screen.contracts import (
 from sultai_screen.m0.costs import Workloads
 from sultai_screen.m0.identity import CHECKPOINTS, CHECKPOINTS_B, MODULE_RATES, RETUNE_RATES, protocol_identity
 from sultai_screen.m0.stats import BOOTSTRAP_SEED as BOOTSTRAP_SEED
-from sultai_screen.m0.stats import AnchorResult, ArmResult
+from sultai_screen.m0.stats import SURVIVAL_CURVE_ARMS, AnchorResult, ArmResult
 from sultai_screen.m0.worker import SURVIVAL_REFIT_STEPS, VECTORS
 
 # BOOTSTRAP_SEED (ruling R18 f, the first anchor) lives in m0.stats beside the per-anchor paired SEs that use it (A4);
@@ -196,7 +196,8 @@ class Anchor:
 
 
 def anchor(seed: int, sources: tuple[Source, ...], required: frozenset[str]) -> Anchor:
-    """Merge one anchor's sources into an AnchorResult; R11: a required arm unavailable on the anchor holds."""
+    """Merge one anchor's sources into an AnchorResult; R11: a required arm unavailable on the anchor holds, except a
+    survival-curve arm (amendment 3, A3.2: no verdict role; recorded unavailable and named absent by the curve)."""
     if len({text(s.payload["noop_sha256"]) for s in sources}) != 1:
         raise PilotHold(f"anchor {seed}: sources were fitted on different N0 hosts")
     n0 = sources[0].vectors["N0"]
@@ -213,7 +214,7 @@ def anchor(seed: int, sources: tuple[Source, ...], required: frozenset[str]) -> 
             if name in item.vectors:
                 vectors[name] = item.vectors[name]
     unavailable = sorted(name for name, record in records.items() if record["status"] != "available")
-    held = [name for name in unavailable if name in required]
+    held = [name for name in unavailable if name in required and name not in SURVIVAL_CURVE_ARMS]
     if held:
         raise InstrumentHold(f"anchor {seed}: required arm(s) unavailable: {held}")
     missing = sorted(required - set(records))

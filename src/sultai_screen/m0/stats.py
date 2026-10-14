@@ -37,6 +37,10 @@ FRONTIER_LABEL: Final = "same-recipe frontier, 10 epochs"
 DESCRIPTIVE_LABEL: Final = "same-recipe frontier, 10 epochs, descriptive"
 SURVIVAL_WIDTHS: Final = (16, 8, 4, 2)
 SURVIVAL_KINDS: Final = ("sliced", "refit")
+# Amendment 3 (A3.1, A3.2): the survival-curve arms have no verdict role; a stage runs them by design, but one that
+# is unavailable or absent on an anchor is named in `survival_absent` and never holds the anchor (ruling R11 covers
+# every other required arm).
+SURVIVAL_CURVE_ARMS: Final = frozenset(f"M-wide→{h}:{kind}" for h in (16, 4, 2) for kind in SURVIVAL_KINDS)
 
 CORE_ARMS: Final = (
     "M-sq",
@@ -73,7 +77,7 @@ PILOT_ARMS: Final = frozenset(CORE_ARMS)
 # widths M-wide→16/4/2 sliced and refit. S-static stays optional (14 h flag only).
 CONFIRMATORY_ARMS: Final = frozenset(
     (
-        *(f"M-wide→{h}:{kind}" for h in (16, 4, 2) for kind in ("sliced", "refit")),
+        *SURVIVAL_CURVE_ARMS,
         "R-temp",
         "R-cal",
         "M-sq",
@@ -185,14 +189,14 @@ def quantities(result: AnchorResult, required: frozenset[str] = PILOT_ARMS) -> R
     """Per-anchor §6 quantities in nats; G(arm) = mean(N0 loss) - mean(arm loss).
 
     `required` is the arm set the stage runs by design (PILOT_ARMS, CONFIRMATORY_ARMS or STARVED_PAIR_ARMS); a
-    missing required arm raises. Every quantity `k` carries `k_reason`: None when computed, otherwise
+    missing required arm raises, except a survival-curve arm (SURVIVAL_CURVE_ARMS), which `survival_absent` names. Every quantity `k` carries `k_reason`: None when computed, otherwise
     "<arm> not run" for the first absent arm it needs, or "denominator ≤ 0" for a ratio whose denominator is not
     positive, with `k` itself None.
     """
     unknown = sorted(required - KNOWN_ARMS)
     if unknown:
         raise ContractViolation(f"unknown required arms: {unknown}")
-    missing = sorted(required - set(result.arms))
+    missing = sorted(required - set(result.arms) - SURVIVAL_CURVE_ARMS)
     if missing:
         raise ContractViolation(f"required arms missing: {missing}")
     arms = result.arms
