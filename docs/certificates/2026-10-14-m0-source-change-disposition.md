@@ -31,3 +31,22 @@ stands (amendment 5, A5.1). The pilot's measured kernels are carried with the
 survival refit uplift the launcher publishes. The confirmatory go, its
 ceiling (43,200 s, or 50,400 s with S-static under the 14-hour rule) and the
 pilot-filled values remain John's decisions at gate C.
+
+## Revision 2026-10-15: the S-static selection binds the launch mode (PR #13 review, P1)
+
+An external review of PR #13 found that the launcher accepted `--static`
+independently of the certificate's recorded gate C selection, so a flag
+omitted at the command line could claim the single custody receipt under the
+43,200 s non-static plan. The fix is one validation in `admit_launch`,
+before custody: when the certificate carries `confirmatory_static_included`,
+it must equal the launch flag, or the launch is refused naming the field and
+the flag to use. A certificate without the field binds nothing. One test pins
+both directions and the pre-custody refusal. No pilot value, margin, rule,
+arm set, seed block or ceiling moves; the Gate 3 path is untouched.
+
+**Admitted confirmatory implementation source SHA-256 (this revision,
+superseding the hash above):**
+`af2db4e72d89b8305340544ff0253673e45edb0917d0b765f5c48e3f5bb26bfa`
+(the `source_sha256` at the certified commit named in
+[admission certificate 5](2026-10-15-m0-pilot-admission-5.json), which
+supersedes certificate 4 and carries its gate C fields).
