@@ -57,9 +57,11 @@ commit `13989d9` (430 tests; evidence under
 `reviews/m0-capacity/amendment-5/`, admission certificate
 `certificates/2026-10-14-m0-pilot-admission-4.json` with the
 [source-change disposition](certificates/2026-10-14-m0-source-change-disposition.md)
-that admits it over the pilot's source). **The fourth gate B, gate C (John's
-read of the pilot) and the confirmatory go, with its ceiling, are John's
-next decisions; the confirmatory has not run.** The controller's 41 rulings
+that admits it over the pilot's source). Merged at the fourth gate B on 2026-10-14 (`d0177b4`). **Gate C was taken on
+2026-10-15: John accepted the pilot-filled values (count 32, default schedule,
+measured workloads) and the 50,400 process-second (14 h) ceiling with S-static
+(D33, recorded in certificate 4 as `confirmatory_ceiling_hours: 14`). The
+confirmatory go is his next decision; nothing has run on GPU since the pilot.** The controller's 41 rulings
 are in the SDD ledger on Nyx
 (`.superpowers/sdd/2026-10-13-m0-implementation/progress.md`, ignored):
 
