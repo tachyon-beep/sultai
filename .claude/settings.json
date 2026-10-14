@@ -28,5 +28,38 @@
         ]
       }
     ]
+  },
+  "enabledPlugins": {
+    "superpowers@superpowers-marketplace": true,
+    "meta-sme-protocol@foundryside-marketplace": true,
+    "axiom-planning@foundryside-marketplace": true,
+    "axiom-system-archaeologist@foundryside-marketplace": true,
+    "yzmir-counterfactual-statistics@foundryside-marketplace": true,
+    "yzmir-training-optimization@foundryside-marketplace": true,
+    "yzmir-pytorch-engineering@foundryside-marketplace": true,
+    "yzmir-neural-architectures@foundryside-marketplace": true,
+    "yzmir-dynamic-architectures@foundryside-marketplace": true,
+    "yzmir-morphogenetic-rl@foundryside-marketplace": true,
+    "axiom-determinism-and-replay@foundryside-marketplace": true,
+    "axiom-audit-pipelines@foundryside-marketplace": true,
+    "axiom-experiment-formalisation@foundryside-marketplace": true,
+    "muna-technical-writer@foundryside-marketplace": true,
+    "axiom-python-engineering@foundryside-marketplace": true,
+    "ordis-quality-engineering@foundryside-marketplace": true,
+    "claude-md-management@claude-plugins-official": true
+  },
+  "extraKnownMarketplaces": {
+    "foundryside-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "tachyon-beep/skillpacks"
+      }
+    },
+    "superpowers-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "obra/superpowers-marketplace"
+      }
+    }
   }
 }
