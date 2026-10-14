@@ -1399,14 +1399,14 @@ class ConfirmatoryTests(unittest.TestCase):
         *,
         disposition: bool = False,
         source_change: str | None = None,
-        static_included: bool | None = None,
+        static_included: bool | str | None = None,
     ) -> Path:
         """`source_change`: "named" names the source-change disposition only; "listed" also hash-lists it."""
         paths = [self.pilot_result, self.results / "04-admission.json", self.opening]
         paths += [self.disposition] if disposition else []
         paths += [self.source_disposition] if source_change == "listed" else []
         evidence = [{"path": str(path.relative_to(self.repo)), "sha256": file_sha(path)} for path in paths]
-        named = (
+        named: dict[str, Json] = (
             {}
             if source_change is None
             else {"source_change_disposition": str(self.source_disposition.relative_to(self.repo))}
@@ -1578,6 +1578,7 @@ class ConfirmatoryTests(unittest.TestCase):
         self.assert_refused(self.certificate(14, static_included=True), "launch with --static", static=False)
         self.write_pilot(static_admitted=True)
         self.assert_refused(self.certificate(14, static_included=False), "launch without --static", static=True)
+        self.assert_refused(self.certificate(14, static_included="yes"), "JSON boolean", static=True)
 
     def test_the_whitelist_refuses_an_extended_arm_and_an_unrestricted_arm_list(self) -> None:
         allowed = frozenset(CONFIRMATORY_ARMS)
@@ -1789,7 +1790,9 @@ class ConfirmatoryTests(unittest.TestCase):
 
     def test_static_runs_s_static_under_the_14_hour_ceiling(self) -> None:
         self.write_pilot(static_admitted=True)
-        code, root, cluster = self.launch(self.certificate(14), static=True, boost={"S-static:refit": 0.05})
+        code, root, cluster = self.launch(
+            self.certificate(14, static_included=True), static=True, boost={"S-static:refit": 0.05}
+        )
         result = read_record(root / "confirmatory-result.json")
         self.assertEqual(code, 0, result)
         self.assertEqual(self.ledger_ceilings(root), {M0_CONFIRMATORY_STATIC_SECONDS})
