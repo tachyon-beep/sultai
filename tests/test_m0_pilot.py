@@ -10,6 +10,7 @@ from __future__ import annotations
 import ast
 import json
 import math
+import statistics
 import subprocess
 import sys
 import tempfile
@@ -29,12 +30,13 @@ from sultai_screen.contracts import (
     Record,
     file_sha,
     mapping,
+    number,
     read_record,
     sequence,
 )
 from sultai_screen.m0 import pilot as m0_pilot
 from sultai_screen.m0.confirmatory import CUSTODY as CONFIRMATORY_CUSTODY
-from sultai_screen.m0.confirmatory import RESTART_CUSTODY, Guarded, confirmatory, whitelist
+from sultai_screen.m0.confirmatory import RESTART_CUSTODY, Guarded, Plan, confirmatory, read_once, whitelist
 from sultai_screen.m0.costs import (
     EXTENDED_ORDER,
     STATIC_ARMS,
@@ -69,6 +71,7 @@ from sultai_screen.m0.pilot import (
     spreads,
 )
 from sultai_screen.m0.receipts import (
+    Anchor,
     Source,
     anchor,
     arm_vectors,
@@ -77,7 +80,15 @@ from sultai_screen.m0.receipts import (
     receipt,
     workloads_record,
 )
-from sultai_screen.m0.stats import CONFIRMATORY_ARMS, KNOWN_ARMS, PILOT_ARMS, quantities
+from sultai_screen.m0.stats import (
+    CONFIRMATORY_ARMS,
+    KNOWN_ARMS,
+    PILOT_ARMS,
+    AnchorResult,
+    ArmResult,
+    quantities,
+    sign_test_bound,
+)
 from sultai_screen.m0.worker import ATTEMPT4_FINAL_STATE, MODULE_ARMS, RETUNE_ARMS, ZERO_MODULE_KINDS
 from sultai_screen.pilot import GPU_UUIDS, Job, Supervisor
 
@@ -1752,3 +1763,102 @@ class SupervisionTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ReadOnceTests(unittest.TestCase):
+    """Amendment 3 (A3.2) at `read_once`, on constructed anchors: the two undefined-on-an-anchor rules and the sign
+    test beside every interval."""
+
+    SPREAD = torch.tensor([-0.1, 0.1, -0.05, 0.05], dtype=torch.float64)
+
+    def anchors(
+        self, n: int = 8, *, wide_zero: frozenset[int] = frozenset()
+    ) -> tuple[Plan, list[Anchor], list[Record]]:
+        plan = Plan(
+            lineage="confirmatory",
+            seeds=tuple(range(7500, 7500 + n)),
+            schedule=(CHECKPOINTS, CHECKPOINTS_B),
+            arms=CONFIRMATORY_ARMS,
+            static=False,
+            ceiling=M0_CONFIRMATORY_SECONDS,
+            custody="",
+            binding={},
+            projection={},
+        )
+        anchors: list[Anchor] = []
+        quantities_list: list[Record] = []
+        for index, seed in enumerate(plan.seeds):
+            noop = 2.0 + 0.001 * index
+
+            gains = dict.fromkeys(CONFIRMATORY_ARMS, 0.02 + 0.001 * index)
+            gains.update({"M-sq": 0.05 + 0.002 * index, "M-aff": 0.02, "M-wide": 0.0 if seed in wide_zero else 0.06})
+            arms = {
+                name: ArmResult(noop - gain + self.SPREAD, torch.tensor([1.0, 1.0, 0.0, 1.0]), True, 0.3, False)
+                for name, gain in gains.items()
+            }
+            result = AnchorResult(
+                arms=arms,
+                noop_loss=noop + self.SPREAD,
+                noop_correct=torch.tensor([1.0, 0.0, 0.0, 1.0]),
+                tcool_noop_loss=noop - 0.01 + self.SPREAD,
+                fold_residual=0.001,
+                survivors={},
+                unfolded={},
+                raw_candidates={},
+            )
+            anchors.append(Anchor(seed, result, {}, {}))
+            quantities_list.append(quantities(result, CONFIRMATORY_ARMS))
+        return plan, anchors, quantities_list
+
+    def test_an_undefined_no_verdict_quantity_is_published_naming_the_anchor_and_the_verdict_is_still_read(
+        self,
+    ) -> None:
+        plan, anchors, records = self.anchors(wide_zero=frozenset({7503}))
+        records[7505 - 7500]["G_rtemp"], records[7505 - 7500]["G_rtemp_reason"] = None, "R-temp not run"
+        result = read_once(plan, anchors, records)
+        self.assertIn(result["v1"], ("present", "re-tuning equivalent", "indeterminate"))
+        self.assertIn(result["v2"], ("helps", "hurts", "indeterminate"))
+        self.assertEqual(
+            result["intervals"]["G_rtemp"],
+            {"median": None, "reason": "G_rtemp undefined on anchor 7505 (R-temp not run)"},
+        )
+        for kind in ("sliced", "refit"):
+            for h in ("16", "8", "4", "2"):
+                self.assertEqual(
+                    result["intervals"]["survival"][kind][h],
+                    {"median": None, "reason": f"survival {kind} h = {h} undefined on anchor 7503 (denominator ≤ 0)"},
+                )
+        # Every other beside quantity keeps its full interval.
+        self.assertTrue(math.isfinite(result["intervals"]["D2s"]["sign_test_lower"]))
+
+    def test_an_undefined_verdict_quantity_holds_the_reading(self) -> None:
+        for key in ("D1", "D1prime", "D2", "D3", "delta_acc"):
+            plan, anchors, records = self.anchors()
+            records[2][key], records[2][f"{key}_reason"] = None, "fixture"
+            with self.subTest(key=key), self.assertRaisesRegex(InstrumentHold, f"{key} is undefined on an anchor"):
+                read_once(plan, anchors, records)
+
+    def test_sign_test_bounds_are_the_order_statistics_of_each_column(self) -> None:
+        plan, anchors, records = self.anchors()
+        result = read_once(plan, anchors, records)
+        for key in ("D1", "D2s", "G_rtemp", "r_aff"):
+            column = [float(q[key]) for q in records]
+            self.assertEqual(result["intervals"][key]["sign_test_lower"], stats_sign_test(column, lower=True), key)
+            self.assertEqual(result["intervals"][key]["sign_test_upper"], stats_sign_test(column, lower=False), key)
+            self.assertEqual(result["intervals"][key]["median"], statistics.median(column), key)
+        curve = [float(q["survival"]["refit"]["4"]) for q in records]
+        entry = result["intervals"]["survival"]["refit"]["4"]
+        self.assertEqual(entry["sign_test_lower"], stats_sign_test(curve, lower=True))
+        self.assertEqual(entry["sign_test_upper"], stats_sign_test(curve, lower=False))
+        self.assertLessEqual(entry["lower"], entry["median"])
+        self.assertLessEqual(entry["median"], entry["upper"])
+        # n = 8: k = 2 is the largest k with P(Bin(8, 1/2) < k) = 9/256 ≤ 0.05, so the exact one-sided 95 % bounds are
+        # the 2nd and 7th order statistics.
+        self.assertEqual(entry["sign_test_lower"], sorted(curve)[1])
+        self.assertEqual(entry["sign_test_upper"], sorted(curve)[-2])
+
+
+def stats_sign_test(column: list[float], *, lower: bool) -> float:
+    value, reason = sign_test_bound(column, lower=lower)
+    assert reason is None
+    return number(value)

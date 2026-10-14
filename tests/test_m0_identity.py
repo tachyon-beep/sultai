@@ -1,4 +1,4 @@
-"""CPU controls for the M0 identity constants, the four-document source identity and import isolation."""
+"""CPU controls for the M0 identity constants, the five-document source identity and import isolation."""
 
 import hashlib
 import subprocess
@@ -85,9 +85,9 @@ class IdentityTests(unittest.TestCase):
             f"m0-v4.1\n{PREREG_SHA}\n{STEERING_SHA}\n{AMENDMENT_SHA}\n{AMENDMENT_2_SHA}\n{AMENDMENT_3_SHA}\n".encode()
         ).hexdigest()
         self.assertEqual(PROTOCOL_VERSION, "m0-v4.1")
-        self.assertEqual(AMENDMENT_3_SHA, "a8ff6ff225c5d6111dce9ed1682e5dc7fb2f0d3301292ab25869f7dc35b21a8f")
+        self.assertEqual(AMENDMENT_3_SHA, "6dcfd9f2a781dc56d39c6e4fe548fc4728c2c743a8e5a978d0e4b9741459e862")
         self.assertEqual(PROTOCOL_SHA, composed)
-        self.assertEqual(PROTOCOL_SHA, "9f2bf07c592300aa423fea642ba89e0a327d5f3c6711ccc42e6d469d61f0d28c")
+        self.assertEqual(PROTOCOL_SHA, "dfd13cb45100d5da6bca0ac3348ce9d617d614132e9ceba07c74d57c45f33ca7")
         self.assertEqual(
             set(protocol_identity()),
             {
