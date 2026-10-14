@@ -132,8 +132,7 @@ ATTEMPT4_FINAL_STATE: Final[dict[int, str]] = {
     3004: "f9a39442fb96fd2667894d65c707ec0db070ad021644189e64b1d95c2a505777",
     3005: "aa5b5af44ceef02eb555cb62b0f492d34893b4d210b505b08484a6874abdedb9",
 }
-# §5: M-wide→{16, 4, 2} refit is one run at the selected M-wide rate for 800 steps, not the grid.
-SURVIVAL_REFIT_STEPS: Final = 800
+# §5 as amended by amendment 5 (A5.1): M-wide→{16, 4, 2} refit is one run at M-wide's selected (rate, step) pair.
 SURVIVAL_CUTS: Final = (16, 4, 2)
 WIDE: Final = 64
 SMALL: Final = 8
@@ -935,7 +934,7 @@ def _wide_arms(site: Site, wanted: set[str], collect: Collector, device: torch.d
                     site.selection,
                     seed=seed,
                     rate=wide.best.rate,
-                    steps=SURVIVAL_REFIT_STEPS,
+                    steps=wide.best.steps,
                     minibatch=True,
                     start=cut.folded,
                     hidden=h,

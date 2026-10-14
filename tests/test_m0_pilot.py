@@ -942,7 +942,7 @@ def workloads() -> Workloads:
         host={0.25: 20.0, 0.5: 35.0, 0.75: 40.0, 1.0: 45.0, 1.5: 85.0},
         tcool=25.0,
         static=50.0,
-        grid={"module": 60.0, "module-B": 120.0, "aff": 100.0, "retune": 80.0, "refit": 60.0, "refit-single": 10.0},
+        grid={"module": 60.0, "module-B": 120.0, "aff": 100.0, "retune": 80.0, "refit": 60.0, "refit-bound": 20.0},
         front_rerun=15.625,
         fold_and_calibrations=30.0,
         evaluation=0.5,
@@ -1010,7 +1010,8 @@ class AdmissionTests(unittest.TestCase):
         self.assertAlmostEqual(w.grid["module"], 60.0)
         self.assertAlmostEqual(w.grid["module-B"], 120.0)
         self.assertAlmostEqual(w.grid["refit"], 60.0)
-        self.assertAlmostEqual(w.grid["refit-single"], 60.0 * 800 / 9600)
+        # Amendment 5 (A5.1): the survival refit is booked at one rate across the last checkpoint.
+        self.assertAlmostEqual(w.grid["refit-bound"], 60.0 * 3200 / 9600)
         self.assertAlmostEqual(w.grid["retune"], 60.0 * 16000 / 9600)
         self.assertEqual(w.grid["aff"], 100.0)
         self.assertEqual((w.front_rerun, w.evaluation, w.fixed_v0), (15.0, 0.5, 1200.0))
@@ -1038,7 +1039,7 @@ def anchor_sources(seed: int, arms: frozenset[str]) -> tuple[dict[str, Record], 
 
 class MeasuredProjectionTests(unittest.TestCase):
     def test_the_measured_term_is_the_confirmatory_arm_seconds_at_section_8_magnitudes(self) -> None:
-        # R30 (correcting R28): at the §8 bookings (the workloads() fixture: per_anchor(§10) = 1,041.5 s under amendment 3, each survival refit booked with one development evaluation) the measured
+        # R30 (correcting R28): at the §8 bookings (the workloads() fixture: per_anchor(§10) = 1,071.5 s under amendment 5, each survival refit booked at the refit-bound unit with one development evaluation) the measured
         # per-anchor term equals the §10 per-anchor workload exactly. `whole` is the host:1.0 kernel plus the anchor's
         # noop, M-aff and T-cool children; the core modules and retune children run PILOT_ARMS and STATIC_ARMS less the
         # stage-2 M-aff (A2) and, at the bookings, are charged the arm-seconds they execute. T-cool and S-static are
@@ -1051,14 +1052,14 @@ class MeasuredProjectionTests(unittest.TestCase):
         grids = arm_seconds(w, executed)
         whole = w.host[1.0] + w.fold_and_calibrations + w.grid["aff"] + w.tcool
         terms = m0_pilot.scaled_anchor(w, ran, whole, grids, w.static)
-        self.assertEqual(per_anchor(w, CONFIRMATORY_ARMS), 1_041.5)
+        self.assertEqual(per_anchor(w, CONFIRMATORY_ARMS), 1_071.5)
         self.assertAlmostEqual(terms["scaled"], per_anchor(w, CONFIRMATORY_ARMS))
-        # S-static's host is its own static child (added once), its refit a module grid: 1,041.5 + 50 + 60 = 1,151.5 s.
-        self.assertEqual(per_anchor(w, CONFIRMATORY_ARMS | STATIC_ARMS), 1_151.5)
+        # S-static's host is its own static child (added once), its refit a module grid: 1,071.5 + 50 + 60 = 1,181.5 s.
+        self.assertEqual(per_anchor(w, CONFIRMATORY_ARMS | STATIC_ARMS), 1_181.5)
         self.assertAlmostEqual(terms["static_scaled"], per_anchor(w, CONFIRMATORY_ARMS | STATIC_ARMS))
         self.assertAlmostEqual(terms["raw"], whole + grids)
-        self.assertAlmostEqual(terms["raw"], 1_161.5)
-        self.assertAlmostEqual(terms["scale"], 841.5 / 961.5)
+        self.assertAlmostEqual(terms["raw"], 1_191.5)
+        self.assertAlmostEqual(terms["scale"], 871.5 / 991.5)
         # A raised axis (R15): the core modules child re-runs M-aff on the doubled axis, so the stage-2 maff child
         # leaves `whole` and M-aff's grid is among the arm-seconds scaled (review Minor 1); the term is still §10's.
         raised = (*ran, "M-aff")
@@ -1067,12 +1068,12 @@ class MeasuredProjectionTests(unittest.TestCase):
         self.assertAlmostEqual(lifted["scaled"], per_anchor(w, CONFIRMATORY_ARMS))
         self.assertAlmostEqual(lifted["static_scaled"], per_anchor(w, CONFIRMATORY_ARMS | STATIC_ARMS))
         # §8 magnitudes: at n = 37 (above the 32 floor) the unscaled sum would raise a false stage-6 hold
-        # (455 + 37 x 1,161.5 = 43,430.5 s > 43,200 s); the exact §10 term fits (455 + 37 x 1,041.5 = 38,990.5 s).
+        # (455 + 37 x 1,191.5 = 44,540.5 s > 43,200 s); the exact §10 term fits (455 + 37 x 1,071.5 = 40,100.5 s).
         fixed = 7 * w.host[1.0] + 2 * 60.0 + 20.0  # seven replays, two acceptance children, the fold-check
         scaled = measured_confirmatory(37, terms["scaled"], fixed, M0_CONFIRMATORY_SECONDS)
         raw = measured_confirmatory(37, terms["raw"], fixed, M0_CONFIRMATORY_SECONDS)
-        self.assertAlmostEqual(scaled["projected_gpu_process_seconds"], 38_990.5)
-        self.assertAlmostEqual(raw["projected_gpu_process_seconds"], 43_430.5)
+        self.assertAlmostEqual(scaled["projected_gpu_process_seconds"], 40_100.5)
+        self.assertAlmostEqual(raw["projected_gpu_process_seconds"], 44_540.5)
         self.assertIs(scaled["within_ceiling"], True)
         self.assertIs(raw["within_ceiling"], False)
 
@@ -1273,14 +1274,14 @@ def pilot_record(**changes: Json) -> Record:
 
 
 def carried_projection(**changes: Json) -> Record:
-    """The confirmatory projection pair a clean pilot result carries (I3): kernel 600 + 32 x 1,041.5, measured below."""
+    """The confirmatory projection pair a clean pilot result carries (I3): kernel 600 + 32 x 1,071.5, measured below."""
     record: Record = {
         "fixed_v0_gpu_process_seconds": 600.0,
         "per_anchor_gpu_process_seconds": 1_000.0,
         "static_per_anchor_gpu_process_seconds": 1_100.0,
-        "kernel_gpu_process_seconds": 33_928.0,
+        "kernel_gpu_process_seconds": 34_888.0,
         "measured_gpu_process_seconds": 32_600.0,
-        "projected_gpu_process_seconds": 33_928.0,
+        "projected_gpu_process_seconds": 34_888.0,
     }
     record.update(changes)
     return record
@@ -1429,6 +1430,49 @@ class ConfirmatoryTests(unittest.TestCase):
         self.assertEqual((binding["pilot_source_sha256"], binding["same_source"]), ("2" * 64, False))
         listed = str(self.source_disposition.relative_to(self.repo))
         self.assertEqual(binding["source_change_disposition"], {listed: file_sha(self.source_disposition)})
+
+    def test_admits_the_v42_pilot_of_record_and_publishes_its_identity(self) -> None:
+        # Amendment 5 (A5.1): the one pilot ran under m0-v4.2 (certificate 3) and is not re-run; the launcher admits
+        # it, publishes which identity it carried, and refuses any other past identity.
+        v42 = "a2c1e55deffb144c9ab596ed7817bc6546f88ac045a02fc0447ae25896db6007"
+        self.write_pilot(protocol_version="m0-v4.1", protocol_sha256="1" * 64)
+        self.assert_refused(self.certificate(), "another protocol identity")
+        self.write_pilot(protocol_version="m0-v4.2", protocol_sha256="1" * 64)
+        self.assert_refused(self.certificate(), "another protocol identity")
+        record = pilot_record(protocol_version="m0-v4.2", protocol_sha256=v42)
+        del record["amendment_5_sha256"]
+        self.pilot_result.write_text(json.dumps(record))
+        code, root, _ = self.launch(self.certificate(), "v42")
+        self.assertEqual(code, 0, read_record(root / "confirmatory-result.json"))
+        binding = read_record(self.repo / CONFIRMATORY_CUSTODY)["identity"]["pilot_protocol"]
+        self.assertEqual(binding["protocol_version"], "m0-v4.2")
+        self.assertEqual(binding["protocol_sha256"], v42)
+        self.assertIs(binding["same_protocol"], False)
+        self.assertEqual(read_record(root / "00-opening.json")["binding"]["pilot_protocol"], binding)
+        current = read_record(root / "confirmatory-result.json")
+        self.assertEqual(current["protocol_version"], "m0-v4.3")
+
+    def test_a_pilot_measured_under_the_800_step_refit_kernel_carries_the_survival_refit_uplift(self) -> None:
+        # Amendment 5 (A5.1): the v4.2 pilot measured its per-anchor charge with 800-step refits (the refit-single
+        # kernel); the launcher books the refit at one rate across the last checkpoint and raises the measured term by
+        # three refits times the difference, publishing the uplift. The kernel projection is unchanged.
+        admission = workloads_record(workloads())
+        grid = mapping(admission["grid"])
+        del grid["refit-bound"]
+        grid["refit-single"] = 10.0
+        (self.results / "04-admission.json").write_text(json.dumps({"workloads": admission}))
+        # The uplift counts against the ceiling: a measured term that fits only without it is refused.
+        self.write_pilot(confirmatory_projection=carried_projection(per_anchor_gpu_process_seconds=1_313.0))
+        self.assert_refused(self.certificate(), "projects over its ceiling")
+        self.write_pilot()
+        code, root, _ = self.launch(self.certificate())
+        self.assertEqual(code, 0, read_record(root / "confirmatory-result.json"))
+        projection = read_record(root / "00-opening.json")["projection"]
+        self.assertEqual(projection["survival_refit_uplift_seconds"], 3 * (20.0 - 10.0))
+        self.assertEqual(projection["measured"]["per_anchor_gpu_process_seconds"], 1_030.0)
+        self.assertEqual(projection["measured"]["projected_gpu_process_seconds"], 600.0 + 32 * 1_030.0)
+        self.assertEqual(projection["kernel"]["projected_gpu_process_seconds"], 600.0 + 32 * 1_071.5)
+        self.assertEqual(projection["projected_gpu_process_seconds"], 600.0 + 32 * 1_071.5)
 
     def test_the_larger_of_the_kernel_and_measured_projections_must_fit(self) -> None:
         # I3: the kernel projection fits (600 + 32 x 1,041.5); the measured per-anchor charge does not (600 + 32 x 1,400).
@@ -1601,12 +1645,15 @@ class ConfirmatoryTests(unittest.TestCase):
         # term) and the measured one.
         projection = read_record(root / "00-opening.json")["projection"]
         self.assertEqual(projection["kernel"]["fixed_v0_gpu_process_seconds"], 600.0)
-        self.assertEqual(projection["kernel"]["projected_gpu_process_seconds"], 600.0 + 32 * 1_041.5)
+        self.assertEqual(projection["kernel"]["projected_gpu_process_seconds"], 600.0 + 32 * 1_071.5)
         self.assertEqual(projection["measured"]["projected_gpu_process_seconds"], 600.0 + 32 * 1_000.0)
-        self.assertEqual(projection["projected_gpu_process_seconds"], 600.0 + 32 * 1_041.5)
+        # Amendment 5 (A5.1): a pilot measured under the refit-bound kernel carries no survival refit uplift.
+        self.assertEqual(projection["survival_refit_uplift_seconds"], 0.0)
+        self.assertEqual(projection["projected_gpu_process_seconds"], 600.0 + 32 * 1_071.5)
         # Its own custody; the pilot's and Gate 3's receipts are never written.
         custody = read_record(self.repo / CONFIRMATORY_CUSTODY)
         self.assertEqual(custody["identity"]["protocol_version"], "m0-v4.3")
+        self.assertIs(custody["identity"]["pilot_protocol"]["same_protocol"], True)
         listed = {"docs/results/m0-pilot/pilot-result.json": file_sha(self.pilot_result)}
         self.assertEqual(custody["identity"]["pilot_result"], listed)
         self.assertFalse((self.repo / CUSTODY).exists())

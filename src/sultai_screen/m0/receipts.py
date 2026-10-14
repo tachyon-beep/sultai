@@ -31,7 +31,7 @@ from sultai_screen.m0.costs import Workloads
 from sultai_screen.m0.identity import CHECKPOINTS, CHECKPOINTS_B, MODULE_RATES, RETUNE_RATES, protocol_identity
 from sultai_screen.m0.stats import BOOTSTRAP_SEED as BOOTSTRAP_SEED
 from sultai_screen.m0.stats import SURVIVAL_CURVE_ARMS, AnchorResult, ArmResult
-from sultai_screen.m0.worker import SURVIVAL_REFIT_STEPS, VECTORS
+from sultai_screen.m0.worker import VECTORS
 
 # BOOTSTRAP_SEED (ruling R18 f, the first anchor) lives in m0.stats beside the per-anchor paired SEs that use it (A4);
 # it is re-exported here for the pilot and confirmatory supervisors.
@@ -50,7 +50,8 @@ GRID_STEPS: Final = {
     "module": len(MODULE_RATES) * CHECKPOINTS[-1],
     "module-B": len(MODULE_RATES) * CHECKPOINTS_B[-1],
     "refit": len(MODULE_RATES) * CHECKPOINTS[-1],
-    "refit-single": SURVIVAL_REFIT_STEPS,
+    # Amendment 5 (A5.1): one rate across the last checkpoint bounds the selected-step survival refit.
+    "refit-bound": CHECKPOINTS[-1],
     "retune": len(RETUNE_RATES) * CHECKPOINTS[-1],
 }
 # Ledger charge kinds measured by whole children (rulings R17, R23): the stage-3 frontier hosts' noop and evaluate

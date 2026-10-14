@@ -177,7 +177,6 @@ def patched(rates: tuple[tuple[float, ...], tuple[float, ...]] = ((0.1,), (0.1,)
             ("MODULE_RATES", rates[0]),
             ("RETUNE_RATES", rates[1]),
             ("RALL_CHECKPOINTS", (1, 2)),
-            ("SURVIVAL_REFIT_STEPS", 3),
         ):
             stack.enter_context(patch(f"sultai_screen.m0.worker.{target}", constant))
         stack.enter_context(patch("sultai_screen.fit.PLATEAU_WINDOW", 1))
@@ -326,9 +325,8 @@ class WorkerTests(unittest.TestCase):
     def test_attempt4_hashes_are_the_published_receipts(self) -> None:
         self.assertEqual(worker.DEV_ARTIFACT, REPO / "docs/results/gate3-split-2026-10-11/dev-indices-int32-le.bin")
         self.assertTrue(worker.DEV_ARTIFACT.is_file())
-        self.assertEqual(
-            (worker.SURVIVAL_REFIT_STEPS, worker.RALL_CHECKPOINTS[0], worker.RALL_CHECKPOINTS[-1]), (800, 40, 800)
-        )
+        self.assertEqual((worker.RALL_CHECKPOINTS[0], worker.RALL_CHECKPOINTS[-1]), (40, 800))
+        self.assertFalse(hasattr(worker, "SURVIVAL_REFIT_STEPS"))
         self.assertEqual(len(worker.RALL_CHECKPOINTS), 20)
         self.assertEqual(set(worker.ATTEMPT4_FINAL_STATE), set(range(3000, 3006)))
         for seed, pinned in worker.ATTEMPT4_FINAL_STATE.items():
@@ -501,13 +499,16 @@ class WorkerTests(unittest.TestCase):
             self.assertIn("unfolded_development_loss", arm)
             self.assertEqual(saved[name]["unfolded_loss"].shape, (16,))
         wide_rate = mapping(arms["M-wide"])["rate"]
+        wide_steps = mapping(arms["M-wide"])["steps"]
         for h in (16, 4, 2):
             arm = mapping(arms[f"M-wide→{h}:refit"])
             report = mapping(arm["report"])
             candidates = report["candidates"]
             assert isinstance(candidates, list)
             self.assertEqual(len(candidates), 1)
-            self.assertEqual(mapping(candidates[0])["steps"], 3)
+            # Amendment 5 (A5.1): the refit carries M-wide's selected (rate, step) pair, never a fixed step count.
+            self.assertEqual(mapping(candidates[0])["steps"], wide_steps)
+            self.assertEqual(arm["steps"], wide_steps)
             self.assertEqual(arm["rate"], wide_rate)
             self.assertEqual(len(mapping(arm["harm_inventory"])), 1)
         refit = mapping(arms["M-wide→8:rank:refit"])
