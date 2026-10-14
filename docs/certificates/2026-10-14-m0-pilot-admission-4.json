@@ -68,6 +68,11 @@
   ],
   "pilot_gpu_hour_ceiling": 4,
   "pilot_gpu_process_seconds_ceiling": 14400,
+  "confirmatory_ceiling_hours": 14,
+  "confirmatory_ceiling_process_seconds": 50400,
+  "confirmatory_static_included": true,
+  "gate_c_recorded_utc": "2026-10-14T13:16:36+00:00",
+  "gate_c_note": "John, 2026-10-15 Nyx local (2026-10-14 UTC): pilot-filled values accepted (count 32, default checkpoint schedule, measured workloads); the 14 GPU-hour ceiling with S-static taken on the controller's recommendation. The confirmatory go is a separate decision.",
   "confirmation_cleared": false,
   "pr_url": "https://github.com/tachyon-beep/sultai/pull/12",
   "recorded_utc": "2026-10-14T10:23:39+00:00"

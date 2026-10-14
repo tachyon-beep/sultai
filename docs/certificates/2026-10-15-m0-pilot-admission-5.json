@@ -1,0 +1,79 @@
+{
+  "protocol_version": "m0-v4.3",
+  "protocol_sha256": "bde550df1ac6ca179dd1fe18ed3a2d040eef1225522f913fd46b983fb24cc395",
+  "preregistration_sha256": "c66599459adc898f96322ab11dfa3c6737cd3559e06c9432d79e377e00c03fd5",
+  "steering_sha256": "08a9e1aaf79d3048a5d6f6f4d6138a9c7049f32b61c0250e1505773a27fa3ffd",
+  "amendment_sha256": "af12d474a97aad83bc63405034fec3716170f7652f34364588750732c97b6a89",
+  "amendment_2_sha256": "b4740b147a4a1ced52a6f0721215679c1567078260d5c11a92c35fa2065c2d77",
+  "amendment_3_sha256": "6dcfd9f2a781dc56d39c6e4fe548fc4728c2c743a8e5a978d0e4b9741459e862",
+  "amendment_4_sha256": "d8dd571bb39718946af06a442ec74302b704c1bede090c83eeaed9d59dcdcc34",
+  "amendment_5_sha256": "0f6c2fa3bf8240e6f52a038a25c0d5d543e8f0592eeb2681a1072c2df1a5b6ed",
+  "implementation_commit": "76d1fc022e6a6047e7ad6b26c99f6781e6784a48",
+  "implementation_source_sha256": "a60927ff873ece8315cbf431d316aadea3a2fb42dc485b3387b4e5a788a01207",
+  "source_change_disposition": "docs/certificates/2026-10-14-m0-source-change-disposition.md",
+  "supersedes": "docs/certificates/2026-10-14-m0-pilot-admission-4.json",
+  "pilot_of_record": "docs/results/m0-pilot-2026-10-14-0d4179a/pilot-result.json",
+  "quality_passed": true,
+  "runtime_tests_passed": true,
+  "independent_panel_accepted": true,
+  "evidence": [
+    {
+      "path": "docs/results/m0-static-binding-2026-10-15/quality.json",
+      "sha256": "6dee243e431d6354759c9064c176d4ca35cde7ea30964160f7621064a5cda144"
+    },
+    {
+      "path": "docs/results/m0-static-binding-2026-10-15/runtime.json",
+      "sha256": "a0b6c8f9144e9a2cab9b36b86554a4b80652b6e8c6db3121fa9274bdad80974b"
+    },
+    {
+      "path": "docs/results/m0-static-binding-2026-10-15/runtime.txt",
+      "sha256": "b90b596564d6571dd891182f150d34bf0299f26c1d56867a2be7caf7899b5740"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/static-binding/dispositions.md",
+      "sha256": "880be0efc9f0738df6df722cfc1a94714cab1442e12720357db1ec983017213c"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/static-binding/static-binding.md",
+      "sha256": "dccfece218ce18a1bf97013e0d24c1d08ad48b8fde32bb0ccb08aa5b1e35100e"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/implementation/final-review-e1df6e1.md",
+      "sha256": "a309453c5b27b75ec861a4dbb51904677cd80416f23d24eca12a07d38237a0c9"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/implementation/post-review-recheck.md",
+      "sha256": "1e6e052b52396b8dcd2a3a1a121df8c9ec6b61306bb2721c26664484c3f35d4c"
+    },
+    {
+      "path": "docs/results/m0-pilot-2026-10-14-0d4179a/pilot-result.json",
+      "sha256": "2caec7b5c5d3b9c27cfaf61313fd89d308587a7ce115ada39f80656572f4419b"
+    },
+    {
+      "path": "docs/results/m0-pilot-2026-10-14-0d4179a/04-admission.json",
+      "sha256": "de1fc26260314e1607544a7bb4f5ff9f5aa1ab2d09b31bd45510748e38d408e5"
+    },
+    {
+      "path": "docs/results/m0-pilot-2026-10-14-0d4179a/00-opening.json",
+      "sha256": "32f9e2b3ca60c731f105429fc6fde9d6daa73b7632422b2d784def04034ecacc"
+    },
+    {
+      "path": "docs/certificates/2026-10-14-m0-source-change-disposition.md",
+      "sha256": "8a964ad2ab834d74abd59319bd42b5e28da7b18a57ab6ecfd346a3d487552e47"
+    },
+    {
+      "path": "docs/certificates/2026-10-14-m0-pilot-admission-4.json",
+      "sha256": "14f45f80b258d1e784691b5017c2b3848cae5c3b65d1a724b9a843c13825e4d6"
+    }
+  ],
+  "pilot_gpu_hour_ceiling": 4,
+  "pilot_gpu_process_seconds_ceiling": 14400,
+  "confirmation_cleared": false,
+  "pr_url": "https://github.com/tachyon-beep/sultai/pull/13",
+  "recorded_utc": "2026-10-14T20:08:37+00:00",
+  "confirmatory_ceiling_hours": 14,
+  "confirmatory_ceiling_process_seconds": 50400,
+  "confirmatory_static_included": true,
+  "gate_c_recorded_utc": "2026-10-14T13:16:36+00:00",
+  "gate_c_note": "John, 2026-10-15 Nyx local (2026-10-14 UTC): pilot-filled values accepted (count 32, default checkpoint schedule, measured workloads); the 14 GPU-hour ceiling with S-static taken on the controller's recommendation. The confirmatory go is a separate decision."
+}

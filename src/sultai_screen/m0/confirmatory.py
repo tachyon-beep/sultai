@@ -272,6 +272,17 @@ def admit_launch(approved: Record, identity: Record, pilot_result: Path, static:
         raise PilotHold("S-static joins only if the pilot's SD(D5) rule admitted it")
     if static and not ("confirmatory_ceiling_hours" in approved and approved["confirmatory_ceiling_hours"] == 14):
         raise PilotHold("S-static requires John's 14 GPU-hour confirmatory ceiling in the admission certificate")
+    # PR #13 review (P1): the certificate's recorded gate C selection binds the launch mode before custody, so a
+    # flag omitted or added at the command line cannot consume the single attempt under the other plan.
+    if "confirmatory_static_included" in approved:
+        selected: object = approved["confirmatory_static_included"]
+        if not isinstance(selected, bool):
+            raise PilotHold("the certificate's confirmatory_static_included must be a JSON boolean")
+        if selected is not static:
+            raise PilotHold(
+                f"the certificate records confirmatory_static_included={'true' if selected else 'false'}; "
+                f"launch {'with' if selected else 'without'} --static"
+            )
     lineage: Lineage = "confirmatory"
     custody = CUSTODY
     if restart is not None:

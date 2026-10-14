@@ -1393,18 +1393,27 @@ class ConfirmatoryTests(unittest.TestCase):
     def write_pilot(self, **changes: Json) -> None:
         self.pilot_result.write_text(json.dumps(pilot_record(**changes)))
 
-    def certificate(self, hours: int = 12, *, disposition: bool = False, source_change: str | None = None) -> Path:
+    def certificate(
+        self,
+        hours: int = 12,
+        *,
+        disposition: bool = False,
+        source_change: str | None = None,
+        static_included: bool | str | None = None,
+    ) -> Path:
         """`source_change`: "named" names the source-change disposition only; "listed" also hash-lists it."""
         paths = [self.pilot_result, self.results / "04-admission.json", self.opening]
         paths += [self.disposition] if disposition else []
         paths += [self.source_disposition] if source_change == "listed" else []
         evidence = [{"path": str(path.relative_to(self.repo)), "sha256": file_sha(path)} for path in paths]
-        named = (
+        named: dict[str, Json] = (
             {}
             if source_change is None
             else {"source_change_disposition": str(self.source_disposition.relative_to(self.repo))}
         )
         path = self.base / "certificate.json"
+        if static_included is not None:
+            named["confirmatory_static_included"] = static_included
         path.write_text(json.dumps({**IDENTITY, "evidence": evidence, "confirmatory_ceiling_hours": hours, **named}))
         return path
 
@@ -1561,6 +1570,15 @@ class ConfirmatoryTests(unittest.TestCase):
         self.assert_refused(self.certificate(14), "S-static", static=True)
         self.write_pilot(static_admitted=True)
         self.assert_refused(self.certificate(12), "14", static=True)
+
+    def test_the_certificates_static_selection_binds_the_launch_mode_before_custody(self) -> None:
+        """PR #13 review (P1): a certificate that records S-static as selected refuses a launch without --static, and
+        one that records it as not selected refuses --static; both before custody. A certificate without the field
+        binds nothing."""
+        self.assert_refused(self.certificate(14, static_included=True), "launch with --static", static=False)
+        self.write_pilot(static_admitted=True)
+        self.assert_refused(self.certificate(14, static_included=False), "launch without --static", static=True)
+        self.assert_refused(self.certificate(14, static_included="yes"), "JSON boolean", static=True)
 
     def test_the_whitelist_refuses_an_extended_arm_and_an_unrestricted_arm_list(self) -> None:
         allowed = frozenset(CONFIRMATORY_ARMS)
@@ -1772,7 +1790,9 @@ class ConfirmatoryTests(unittest.TestCase):
 
     def test_static_runs_s_static_under_the_14_hour_ceiling(self) -> None:
         self.write_pilot(static_admitted=True)
-        code, root, cluster = self.launch(self.certificate(14), static=True, boost={"S-static:refit": 0.05})
+        code, root, cluster = self.launch(
+            self.certificate(14, static_included=True), static=True, boost={"S-static:refit": 0.05}
+        )
         result = read_record(root / "confirmatory-result.json")
         self.assertEqual(code, 0, result)
         self.assertEqual(self.ledger_ceilings(root), {M0_CONFIRMATORY_STATIC_SECONDS})
