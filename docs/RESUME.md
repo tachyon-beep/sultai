@@ -25,7 +25,7 @@ confirmatory plan and took [amendment 3](plans/2026-10-14-m0-amendment-3.md)
 beside every reported quantity), frozen by
 [freeze certificate 3](certificates/2026-10-14-m0-freeze-3.md) as identity
 `m0-v4.1`; implemented on `nyx/m0-amendment-3`, certified implementation
-commit `d2e30b3` (414 tests; evidence under
+commit `c54fb7c` (417 tests; evidence under
 `results/m0-amendment-3-2026-10-14/`, reviews under
 `reviews/m0-capacity/amendment-3/`, admission certificate
 `certificates/2026-10-14-m0-pilot-admission-2.json`). The second gate B
