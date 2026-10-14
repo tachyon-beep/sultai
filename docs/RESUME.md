@@ -37,9 +37,30 @@ gate B (`086f123`, PR #8). John then took gate-B decision 2, option (ii):
 commit `c49a4de` (420 tests; evidence under
 `results/m0-amendment-4-2026-10-14/`, review under
 `reviews/m0-capacity/amendment-4/`, admission certificate
-`certificates/2026-10-14-m0-pilot-admission-3.json`). The third gate B
-(that PR reviewed and ready) is John's next decision; nothing has run on
-GPU. The controller's 34 rulings are in the SDD ledger on Nyx
+`certificates/2026-10-14-m0-pilot-admission-3.json`), merged at the third
+gate B (`0d4179a`). **The M0 pilot ran on 2026-10-14 under John's go from
+`0d4179a` and finished pilot-clean** (exit 0, 1 h 22 min wall, 9,572 of the
+14,400 one-per-card process-seconds charged, both cards verified idle after):
+V0 passed on both cards bitwise, every instrument check true, the static
+host admitted, all seven extended arms admitted and completed, confirmatory
+count 32 (n* = 1 under the D1 half-width rule, so the preregistered floor
+binds). Sanitized evidence under `results/m0-pilot-2026-10-14-0d4179a/` and
+three independent reviews of the receipts under `reviews/m0-capacity/pilot/`
+(PR #10). John then said "fix all the majors and minors":
+[amendment 5](plans/2026-10-14-m0-amendment-5.md) carries the survival
+refit's selected step count with its rate and the receipt additions the
+reviews asked for, frozen by
+[freeze certificate 5](certificates/2026-10-14-m0-freeze-5.md) as identity
+`m0-v4.3`; implemented on `nyx/m0-amendment-5`, certified implementation
+commit `13989d9` (430 tests; evidence under
+`results/m0-amendment-5-2026-10-14/`, reviews under
+`reviews/m0-capacity/amendment-5/`, admission certificate
+`certificates/2026-10-14-m0-pilot-admission-4.json` with the
+[source-change disposition](certificates/2026-10-14-m0-source-change-disposition.md)
+that admits it over the pilot's source). **The fourth gate B, gate C (John's
+read of the pilot) and the confirmatory go, with its ceiling, are John's
+next decisions; the confirmatory has not run.** The controller's 40 rulings
+are in the SDD ledger on Nyx
 (`.superpowers/sdd/2026-10-13-m0-implementation/progress.md`, ignored):
 
 - [STEERING.md](STEERING.md): the objective verbatim, the drift diagnosis,
