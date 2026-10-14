@@ -46,7 +46,7 @@ arm set, seed block or ceiling moves; the Gate 3 path is untouched.
 
 **Admitted confirmatory implementation source SHA-256 (this revision,
 superseding the hash above):**
-`af2db4e72d89b8305340544ff0253673e45edb0917d0b765f5c48e3f5bb26bfa`
+`a60927ff873ece8315cbf431d316aadea3a2fb42dc485b3387b4e5a788a01207`
 (the `source_sha256` at the certified commit named in
 [admission certificate 5](2026-10-15-m0-pilot-admission-5.json), which
 supersedes certificate 4 and carries its gate C fields).
