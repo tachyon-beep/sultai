@@ -436,6 +436,6 @@ test_retired_rungs_must_replay_attempt_three_exactly_and_are_never_chosen (test_
 test_v42_ladder_and_chained_identity_are_pinned (test_v42_ladder.P3LadderTests.test_v42_ladder_and_chained_identity_are_pinned) ... ok
 
 ----------------------------------------------------------------------
-Ran 431 tests in 334.012s
+Ran 431 tests in 362.386s
 
 OK
