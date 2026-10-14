@@ -109,9 +109,12 @@ from sultai_screen.m0.seeds import BLOCKS, Lineage, admit, width_scale
 from sultai_screen.m0.static import (
     StaticHost,
     load_static,
+    recalibrate_static,
     save_static,
     static_adapter,
     static_features,
+    static_hash,
+    static_no_op,
     train_static,
 )
 
@@ -454,10 +457,21 @@ def tcool_action(request: Request, data: Dataset, device: torch.device) -> Recor
 
 
 def static_action(request: Request, data: Dataset, device: torch.device) -> Record:
-    """S-static: the anchor's seed trained with the 16x16 module present from step zero (Task 11)."""
+    """S-static: the anchor's seed trained with the 16x16 module present from step zero (Task 11), then the no-op
+    rule on the complete model (amendment 4, A4.1): the published files are the chosen model."""
     static, hashes, stream, elapsed, initial = train_static(request.seed, data, device, request.widths)
-    record = save_static(static, request.output)
+    raw = save_static(static, request.output)
     stream_sha = _stream(request.output, stream)
+    _sync(device)
+    started = time.monotonic()
+    unsealed = load_static(
+        request.output, request.seed, request.widths, device, text(raw["static_sha256"]), frozen=False
+    )
+    recalibrated = recalibrate_static(unsealed, data.images, seen_fit(data))
+    chosen, label = static_no_op(static, recalibrated, data)
+    record = raw if chosen is static else save_static(chosen, request.output)
+    _sync(device)
+    noop_seconds = time.monotonic() - started
     return {
         **_identity(request),
         "epochs": 10,
@@ -469,6 +483,10 @@ def static_action(request: Request, data: Dataset, device: torch.device) -> Reco
         "loss_stream_sha256": stream_sha,
         "checkpoint_sha256": file_sha(request.output / "host.pt"),
         "training_seconds": elapsed,
+        "noop_choice": label,
+        "raw_static_sha256": raw["static_sha256"],
+        "recalibrated_static_sha256": static_hash(recalibrated),
+        "noop_seconds": noop_seconds,
         **record,
     }
 

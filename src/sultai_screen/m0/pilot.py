@@ -587,6 +587,7 @@ def stage_hosts(run: Run, reference: list[tuple[int, int, float]]) -> tuple[Reco
     )
     tcool: Record = {}
     static: Record = {}
+    static_noop: Record = {}
     step0: Record = {}
     for s in ANCHORS:
         resumed = run.payload(f"tcool-{s}", "tcool", s, "anchor")
@@ -596,6 +597,8 @@ def stage_hosts(run: Run, reference: list[tuple[int, int, float]]) -> tuple[Reco
         payload = run.payload(f"static-{s}", "static", s, "anchor")
         bound(run.path(f"static-{s}"), payload, STATIC_FILES)
         static[str(s)] = payload["static_sha256"]
+        # Amendment 4 (A4.1): the static model's own no-op choice, beside T-cool's.
+        static_noop[str(s)] = payload["noop_choice"]
         # M8 (§7 V0): S-static's inner host at step zero is the anchor's make_host state.
         anchor_state = text(run.payload(anchor_host(s), "replay", s, "anchor")["initial_state_sha256"])
         static_state = text(payload["initial_state_sha256"])
@@ -611,6 +614,7 @@ def stage_hosts(run: Run, reference: list[tuple[int, int, float]]) -> tuple[Reco
         "frontier": {lineage: [list(host) for host in hosts] for lineage, hosts in frontier.items()},
         "tcool_final_state_sha256": tcool,
         "static_sha256": static,
+        "static_noop_choice": static_noop,
         "static_step0": step0,
         "static_step0_matches": all(mapping(entry)["matches"] is True for entry in step0.values()),
         "frontier_slope": slope.report(),

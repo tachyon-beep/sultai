@@ -43,11 +43,13 @@ from sultai_screen.m0.retune import (
 from sultai_screen.m0.static import (
     StaticHost,
     load_static,
+    recalibrate_static,
     save_static,
     static_adapter,
     static_features,
     static_hash,
     static_module,
+    static_no_op,
     train_static,
 )
 
@@ -478,6 +480,55 @@ class StaticTests(unittest.TestCase):
         self.assertFalse(self.static.training or self.static.w.requires_grad or self.static.b.requires_grad)
         self.assertIsNone(self.static.w.grad)
         self.assertTrue(bool(self.static.w.ne(0).any()))
+
+    def test_recalibrate_static_changes_only_batchnorm_buffers_with_the_module_in_the_forward(self) -> None:
+        # Amendment 4 (A4.1): the complete model's BatchNorm statistics over the fit examples; parameters and module
+        # untouched; the module is in the forward, so statistics downstream of the site differ from the plain host's
+        # R-bn; a sealed static model is refused; the result is sealed.
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            save_static(self.static, root)
+            unsealed = load_static(root, 3000, SMALL, CPU, static_hash(self.static), frozen=False)
+            self.assertFalse(unsealed.host.sealed)
+            recalibrated = recalibrate_static(unsealed, self.data.images, FIT)
+        self.assertTrue(recalibrated.host.sealed)
+        self.assertFalse(recalibrated.w.requires_grad or recalibrated.b.requires_grad)
+        for name, value in parameters(self.static.host).items():
+            self.assertTrue(torch.equal(parameters(recalibrated.host)[name], value), name)
+        self.assertTrue(torch.equal(recalibrated.w, self.static.w) and torch.equal(recalibrated.b, self.static.b))
+        changed = [
+            name
+            for name, value in buffers(self.static.host).items()
+            if not torch.equal(buffers(recalibrated.host)[name], value)
+        ]
+        self.assertTrue(changed)
+        self.assertTrue(all("running_" in name or "num_batches_tracked" in name for name in changed))
+        plain = make_host(3000, 0, CPU, widths=SMALL)
+        plain.load_state_dict(self.static.host.state_dict())
+        plain_rbn = buffers(recalibrate_bn(plain, self.data.images, FIT))
+        self.assertFalse(all(torch.equal(plain_rbn[name], value) for name, value in buffers(recalibrated.host).items()))
+        with self.assertRaises(PilotHold):
+            recalibrate_static(self.static, self.data.images, FIT)
+
+    def test_static_no_op_picks_the_lower_selection_loss_and_ties_keep_raw(self) -> None:
+        chosen, label = static_no_op(self.static, self.static, self.data)
+        self.assertEqual(label, "raw")
+        self.assertIs(chosen, self.static)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            save_static(self.static, root)
+            unsealed = load_static(root, 3000, SMALL, CPU, static_hash(self.static), frozen=False)
+        recalibrated = recalibrate_static(unsealed, self.data.images, FIT)
+
+        def selection(static: StaticHost) -> float:
+            return mean_loss(
+                static.host, static_features(static, self.data, self.data.selection), static_adapter(static)
+            )
+
+        chosen, label = static_no_op(self.static, recalibrated, self.data)
+        better = selection(recalibrated) < selection(self.static)
+        self.assertEqual(label, "R-bn" if better else "raw")
+        self.assertIs(chosen, recalibrated if better else self.static)
 
     def test_save_load_round_trip_and_tampered_module_is_refused(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

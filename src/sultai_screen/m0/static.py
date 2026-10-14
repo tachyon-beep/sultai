@@ -8,10 +8,10 @@ from pathlib import Path
 import torch
 from torch import Tensor, nn
 
-from sultai.trust import InputDataError, t3_boundary
+from sultai.trust import ContractViolation, InputDataError, t3_boundary
 from sultai_screen.contracts import PilotHold, Record, file_sha
-from sultai_screen.data import Dataset, as_tensor
-from sultai_screen.fit import Adapter
+from sultai_screen.data import Dataset, as_tensor, normalized
+from sultai_screen.fit import Adapter, mean_loss
 from sultai_screen.host import (
     REFERENCE_WIDTHS,
     Features,
@@ -24,6 +24,7 @@ from sultai_screen.host import (
     state_hash,
     train_epochs,
 )
+from sultai_screen.m0.calibrate import RECALIBRATION_CHUNK
 from sultai_screen.m0.data import features_from_images
 
 MODULE_SHAPES = {"w": (16, 16), "b": (16,)}
@@ -87,6 +88,45 @@ def static_features(static: StaticHost, data: Dataset, indices: Tensor) -> Featu
     return features_from_images(static.host, data, indices)
 
 
+def recalibrate_static(static: StaticHost, images: Tensor, indices: Tensor) -> StaticHost:
+    """Amendment 4 (A4.1): R-bn of the complete static model, the module in the forward, over the fit examples.
+
+    The same cumulative pass as `calibrate.recalibrate_bn` (chunks of RECALIBRATION_CHUNK, momentum=None), run through
+    `StaticHost.forward` so every statistic downstream of the site is the designed-in network's; parameters and the
+    module are untouched; returned sealed. An already sealed model is refused as the plain rule refuses a sealed host.
+    """
+    if static.host.sealed:
+        raise PilotHold(
+            "static recalibration requires an unsealed static model; a sealed one would keep stale statistics"
+        )
+    if indices.ndim != 1 or len(indices) == 0:
+        raise ContractViolation("recalibration requires a nonempty one-dimensional index tensor")
+    norms = [module for module in static.host.modules() if isinstance(module, nn.BatchNorm2d)]
+    if not norms:
+        raise ContractViolation("static host has no BatchNorm layers to recalibrate")
+    for module in norms:
+        module.momentum = None
+        module.reset_running_stats()
+    static.train()
+    with torch.no_grad():
+        for start in range(0, len(indices), RECALIBRATION_CHUNK):
+            ids = indices[start : start + RECALIBRATION_CHUNK].to(images.device)
+            static(normalized(images[ids]))
+    _seal(static)
+    return static
+
+
+def static_no_op(raw: StaticHost, recalibrated: StaticHost, data: Dataset) -> tuple[StaticHost, str]:
+    """Amendment 4 (A4.1): §4's no-op rule on the complete static model, decided on selection; ties keep raw."""
+
+    def selection(static: StaticHost) -> float:
+        return mean_loss(static.host, static_features(static, data, data.selection), static_adapter(static))
+
+    if selection(recalibrated) < selection(raw):
+        return recalibrated, "R-bn"
+    return raw, "raw"
+
+
 def static_hash(static: StaticHost) -> str:
     digest = hashlib.sha256()
     digest.update(f"host:{state_hash(static.host)}:".encode())
@@ -127,16 +167,24 @@ def static_module(value: object) -> dict[str, Tensor]:
 
 
 def load_static(
-    root: Path, seed: int, widths: tuple[int, int, int, int], device: torch.device, expected: str
+    root: Path,
+    seed: int,
+    widths: tuple[int, int, int, int],
+    device: torch.device,
+    expected: str,
+    *,
+    frozen: bool = True,
 ) -> StaticHost:
-    host = load_host(root / "host.pt", seed, 0, device, widths=widths, frozen=True)
+    """The published static model by its recorded identity; `frozen=False` returns it unsealed for recalibration."""
+    host = load_host(root / "host.pt", seed, 0, device, widths=widths, frozen=frozen)
     unknown: object = torch.load(root / "static-module.pt", map_location=device, weights_only=True)
     module = static_module(unknown)
     static = StaticHost(host)
     with torch.no_grad():
         static.w.copy_(module["w"])
         static.b.copy_(module["b"])
-    _seal(static)
+    if frozen:
+        _seal(static)
     if static_hash(static) != expected:
         raise PilotHold("static host or module differs from its recorded identity")
     return static

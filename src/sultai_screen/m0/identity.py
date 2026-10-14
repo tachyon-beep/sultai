@@ -1,4 +1,4 @@
-"""M0 protocol identity: the five hashed documents, frozen margins and source provenance (no torch)."""
+"""M0 protocol identity: the six hashed documents, frozen margins and source provenance (no torch)."""
 
 from __future__ import annotations
 
@@ -16,15 +16,18 @@ AMENDMENT_2_PATH = "docs/plans/2026-10-13-gate-ladder-amendment-2.md"
 # Amendment 3 (2026-10-14, John): the survival-curve widths join the §10 confirmatory set and every reported §6 quantity
 # carries bounds and the sign test at confirmatory n. Composed fifth under the Gate 3 v4.1 rule.
 AMENDMENT_3_PATH = "docs/plans/2026-10-14-m0-amendment-3.md"
-# docs/certificates/2026-10-13-m0-freeze-2.md (v4) and docs/certificates/2026-10-14-m0-freeze-3.md (v4.1)
+# Amendment 4 (2026-10-14, John, gate-B decision 2): the static host applies the no-op rule before any reading.
+AMENDMENT_4_PATH = "docs/plans/2026-10-14-m0-amendment-4.md"
+# docs/certificates/2026-10-13-m0-freeze-2.md (v4), 2026-10-14-m0-freeze-3.md (v4.1), 2026-10-14-m0-freeze-4.md (v4.2)
 PREREG_SHA = "c66599459adc898f96322ab11dfa3c6737cd3559e06c9432d79e377e00c03fd5"
 STEERING_SHA = "08a9e1aaf79d3048a5d6f6f4d6138a9c7049f32b61c0250e1505773a27fa3ffd"
 AMENDMENT_SHA = "af12d474a97aad83bc63405034fec3716170f7652f34364588750732c97b6a89"
 AMENDMENT_2_SHA = "b4740b147a4a1ced52a6f0721215679c1567078260d5c11a92c35fa2065c2d77"
 AMENDMENT_3_SHA = "6dcfd9f2a781dc56d39c6e4fe548fc4728c2c743a8e5a978d0e4b9741459e862"
-PROTOCOL_VERSION = "m0-v4.1"
+AMENDMENT_4_SHA = "d8dd571bb39718946af06a442ec74302b704c1bede090c83eeaed9d59dcdcc34"
+PROTOCOL_VERSION = "m0-v4.2"
 PROTOCOL_SHA = hashlib.sha256(
-    f"{PROTOCOL_VERSION}\n{PREREG_SHA}\n{STEERING_SHA}\n{AMENDMENT_SHA}\n{AMENDMENT_2_SHA}\n{AMENDMENT_3_SHA}\n".encode()
+    f"{PROTOCOL_VERSION}\n{PREREG_SHA}\n{STEERING_SHA}\n{AMENDMENT_SHA}\n{AMENDMENT_2_SHA}\n{AMENDMENT_3_SHA}\n{AMENDMENT_4_SHA}\n".encode()
 ).hexdigest()
 
 X = 0.02
@@ -57,6 +60,7 @@ def protocol_identity() -> Record:
         "amendment_sha256": AMENDMENT_SHA,
         "amendment_2_sha256": AMENDMENT_2_SHA,
         "amendment_3_sha256": AMENDMENT_3_SHA,
+        "amendment_4_sha256": AMENDMENT_4_SHA,
     }
 
 
@@ -67,6 +71,7 @@ def source_identity() -> Record:
         (AMENDMENT_PATH, AMENDMENT_SHA, "amendment 1"),
         (AMENDMENT_2_PATH, AMENDMENT_2_SHA, "amendment 2"),
         (AMENDMENT_3_PATH, AMENDMENT_3_SHA, "amendment 3"),
+        (AMENDMENT_4_PATH, AMENDMENT_4_SHA, "amendment 4"),
     ):
         if file_sha(REPO / relative) != expected:
             raise PilotHold(f"committed {name} identity mismatch")
