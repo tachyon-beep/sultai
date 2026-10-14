@@ -50,7 +50,7 @@ Sanitized evidence under `results/m0-pilot-2026-10-14-0d4179a/` (receipts,
 process records, custody copy, hash manifest; weights, loss streams and raw
 logs stay in ignored `runs/`). **Gate C, John's read of the pilot, is the
 next decision; the confirmatory run is not authorised.** The controller's
-37 rulings are in the SDD ledger on Nyx
+38 rulings are in the SDD ledger on Nyx
 (`.superpowers/sdd/2026-10-13-m0-implementation/progress.md`, ignored):
 
 - [STEERING.md](STEERING.md): the objective verbatim, the drift diagnosis,
