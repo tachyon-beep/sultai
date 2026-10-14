@@ -12,7 +12,7 @@ import torch
 
 from sultai.trust import ContractViolation
 from sultai_screen import contracts
-from sultai_screen.contracts import mapping
+from sultai_screen.contracts import mapping, number
 from sultai_screen.data import generator
 from sultai_screen.fit import paired_se
 from sultai_screen.host import Host, parameter_count
@@ -27,6 +27,7 @@ from sultai_screen.m0.stats import (
     PILOT_ARMS,
     REFERENCE_PARAMETERS,
     STARVED_PAIR_ARMS,
+    SURVIVAL_CURVE_ARMS,
     SURVIVAL_WIDTHS,
     AnchorResult,
     ArmResult,
@@ -41,6 +42,7 @@ from sultai_screen.m0.stats import (
     quantities,
     sd,
     sign_test_bound,
+    survival_value,
 )
 from sultai_screen.m0.verdicts import labels, programme_reading, static_reading, v0, v1, v2
 
@@ -266,10 +268,14 @@ class StatsTests(unittest.TestCase):
         self.assertAlmostEqual(float(record["D3"]), 0.04, places=12)
         for key in ("D1", "D1prime", "D2", "D2s", "D2_random", "D2s_random", "D3", "G_tcool", "r_aff", "G_rcal"):
             self.assertIsNone(record[f"{key}_reason"], msg=key)
+        # Amendment 3 (A3.1): the h = 16/4/2 arms are in the §10 set, so the whole curve is defined at confirmatory n.
+        curve = mapping(record["survival"])
+        for kind in ("sliced", "refit"):
+            self.assertEqual(set(mapping(curve[kind])), {"16", "8", "4", "2"}, kind)
+        self.assertEqual(record["survival_absent"], [])
         for key, arm_name in (
             ("D4", "M-sq-fresh"),
             ("leave_one_out", "M-wide→8:ablation"),
-            ("survival", "M-wide→16:sliced"),
             ("retune_fraction", "R-all"),
             ("D5", "S-static:refit"),
             ("G_mexp", "M-exp"),
@@ -279,6 +285,35 @@ class StatsTests(unittest.TestCase):
         with self.assertRaises(ContractViolation):
             quantities(anchor(gains), PILOT_ARMS)
         del gains["M-wide"]
+        with self.assertRaises(ContractViolation):
+            quantities(anchor(gains), CONFIRMATORY_ARMS)
+
+    def test_survival_curve_reports_every_width_that_ran_and_names_the_absent(self) -> None:
+        # Amendment 3 (A3.2): a partial curve is not undefined; the absent arms are named, in order.
+        gains = default_gains()
+        gains.update({"M-wide": 0.05, "M-wide→4:sliced": 0.01})
+        for name in ("M-wide→16:sliced", "M-wide→16:refit", "M-wide→4:refit"):
+            del gains[name]
+        required = PILOT_ARMS - {"M-wide→16:sliced", "M-wide→16:refit", "M-wide→4:refit"}
+        record = quantities(anchor(gains), required)
+        curve = mapping(record["survival"])
+        self.assertEqual(set(mapping(curve["sliced"])), {"8", "4", "2"})
+        self.assertEqual(set(mapping(curve["refit"])), {"8", "2"})
+        self.assertAlmostEqual(float(mapping(curve["sliced"])["4"]), 0.2, places=12)
+        self.assertIsNone(record["survival_reason"])
+        self.assertEqual(record["survival_absent"], ["M-wide→16:sliced", "M-wide→16:refit", "M-wide→4:refit"])
+        self.assertAlmostEqual(number(survival_value(record, "sliced", 4)), 0.2, places=12)
+        self.assertIsNone(survival_value(record, "refit", 4))
+        undefined = quantities(anchor({**default_gains(), "M-wide": 0.0}))
+        self.assertIsNone(survival_value(undefined, "sliced", 8))
+        full = quantities(anchor(default_gains()))
+        self.assertEqual(full["survival_absent"], [])
+        # A3.2: a survival-curve arm absent from a stage that runs it by design is named, never a contract violation;
+        # any other required arm absent still is.
+        partial = quantities(anchor(gains), CONFIRMATORY_ARMS)
+        self.assertEqual(partial["survival_absent"], ["M-wide→16:sliced", "M-wide→16:refit", "M-wide→4:refit"])
+        self.assertEqual(SURVIVAL_CURVE_ARMS, {f"M-wide→{h}:{k}" for h in (16, 4, 2) for k in ("sliced", "refit")})
+        del gains["M-small"]
         with self.assertRaises(ContractViolation):
             quantities(anchor(gains), CONFIRMATORY_ARMS)
 
@@ -306,10 +341,9 @@ class StatsTests(unittest.TestCase):
         self.assertEqual(PILOT_ARMS, frozenset(CORE_ARMS))
         self.assertLess(CONFIRMATORY_ARMS, PILOT_ARMS)
         self.assertLess(STARVED_PAIR_ARMS, CONFIRMATORY_ARMS)
-        excluded = {"M-sq-fresh", "M-wide→8:ablation"} | {
-            f"M-wide→{h}:{k}" for h in (16, 4, 2) for k in ("sliced", "refit")
-        }
-        self.assertEqual(PILOT_ARMS - CONFIRMATORY_ARMS, excluded)
+        # Amendment 3 (A3.1): only the fresh-data arm and the leave-one-out ceiling stay pilot-only.
+        self.assertEqual(PILOT_ARMS - CONFIRMATORY_ARMS, {"M-sq-fresh", "M-wide→8:ablation"})
+        self.assertLessEqual({f"M-wide→{h}:{k}" for h in (16, 4, 2) for k in ("sliced", "refit")}, CONFIRMATORY_ARMS)
         with self.assertRaises(ContractViolation):
             quantities(anchor(default_gains()), frozenset({"M-sq", "not-an-arm"}))
         # G3: the survival curve's widths are §5's 16/8/4/2.

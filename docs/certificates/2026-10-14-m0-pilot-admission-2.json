@@ -1,0 +1,63 @@
+{
+  "protocol_version": "m0-v4.1",
+  "protocol_sha256": "dfd13cb45100d5da6bca0ac3348ce9d617d614132e9ceba07c74d57c45f33ca7",
+  "preregistration_sha256": "c66599459adc898f96322ab11dfa3c6737cd3559e06c9432d79e377e00c03fd5",
+  "steering_sha256": "08a9e1aaf79d3048a5d6f6f4d6138a9c7049f32b61c0250e1505773a27fa3ffd",
+  "amendment_sha256": "af12d474a97aad83bc63405034fec3716170f7652f34364588750732c97b6a89",
+  "amendment_2_sha256": "b4740b147a4a1ced52a6f0721215679c1567078260d5c11a92c35fa2065c2d77",
+  "amendment_3_sha256": "6dcfd9f2a781dc56d39c6e4fe548fc4728c2c743a8e5a978d0e4b9741459e862",
+  "implementation_commit": "c54fb7c633980a272b794b6bfae41cff0c7aacaf",
+  "implementation_source_sha256": "5008e6f5db82cce0b05ad3799aaba03872a3ee216643728cf1e792a86d213003",
+  "quality_passed": true,
+  "runtime_tests_passed": true,
+  "independent_panel_accepted": true,
+  "evidence": [
+    {
+      "path": "docs/results/m0-amendment-3-2026-10-14/quality.json",
+      "sha256": "b7b01bf1bc06582c35bb9ced10d166075a3235a5bdfc84144327bcbd318daf96"
+    },
+    {
+      "path": "docs/results/m0-amendment-3-2026-10-14/runtime.json",
+      "sha256": "fcdb0216e3dcfa7b2162d7b67729dde44f7ac0daa1a743de3fc55ead41fc2729"
+    },
+    {
+      "path": "docs/results/m0-amendment-3-2026-10-14/runtime.txt",
+      "sha256": "b2c3ee506ca41756ead1ebfd6769017adeebfe8c5511945f519d3e58e34f6296"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/amendment-3/bounds-gap-memo.md",
+      "sha256": "376a77546e97ce9073a713e464fcd04f15b44d6a72c94d781c3119b91cacca41"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/amendment-3/identity-under-amendment-3.md",
+      "sha256": "987b1f9cc4ac4a2f4359f97a61d3b6c4f5711a3635223ddd15312a83b6f88d27"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/amendment-3/re-review-8038eaf.md",
+      "sha256": "5b2ca35309cc7faaa78b4fb8799e9d1d201516444f242788e1fb57f2fb31dfcf"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/amendment-3/re-review-d2e30b3.md",
+      "sha256": "0b21967d12bcf37e381c0164e2b4016af05b08ecf203282e91886af5941347cc"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/amendment-3/statistics-under-amendment-3.md",
+      "sha256": "e955a81a0898e72deb0718d8c37c23a209847b5a33cfd93838b57d5f5d682df2"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/implementation/final-review-e1df6e1.md",
+      "sha256": "a309453c5b27b75ec861a4dbb51904677cd80416f23d24eca12a07d38237a0c9"
+    },
+    {
+      "path": "docs/reviews/m0-capacity/implementation/post-review-recheck.md",
+      "sha256": "1e6e052b52396b8dcd2a3a1a121df8c9ec6b61306bb2721c26664484c3f35d4c"
+    }
+  ],
+  "pilot_gpu_hour_ceiling": 4,
+  "pilot_gpu_process_seconds_ceiling": 14400,
+  "confirmation_cleared": false,
+  "pr_url": "https://github.com/tachyon-beep/sultai/pull/8",
+  "recorded_utc": "2026-10-14T04:17:32+00:00",
+  "supersedes": "docs/certificates/2026-10-14-m0-pilot-admission.json",
+  "amendment_3_decision": "John, 2026-10-14: option A of the bounds-gap memo; two pre-pilot defects fixed at 8038eaf and c54fb7c"
+}

@@ -46,7 +46,7 @@ CHILD = (
 def workloads() -> Workloads:
     # A literal transcription of the §8 bookings: the §10 per-anchor decomposition is host 45, T-cool 25, N0 and
     # calibrations 30, four nonlinear module grids 4 x 60, M-aff 100, two M-wide→8 refits 2 x 60, M-small-B 120,
-    # R-272s 80 and R-aff 250 = 1,010 s; S-static adds its host 50 and its module-grid refit 60 = 110 s. The front re-run
+    # R-272s 80, R-aff 250 and three single-rate survival refits 3 x (10 + one 0.5 development evaluation) (amendment 3) = 1,041.5 s; S-static adds its host 50 and its module-grid refit 60 = 110 s. The front re-run
     # unit is per 1,000 optimiser steps: R-aff is 5 rates x 3,200 steps = 16 units, so 15.625 s per unit gives 250 s.
     return Workloads(
         host={0.25: 20.0, 0.5: 35.0, 0.75: 40.0, 1.0: 45.0, 1.5: 85.0},
@@ -243,17 +243,21 @@ class SupervisionTests(unittest.TestCase):
 
     def test_confirmatory_projection_from_measured_units(self) -> None:
         w = workloads()
-        self.assertEqual(per_anchor(w, CONFIRMATORY_ARMS), 1_010.0)
+        self.assertEqual(per_anchor(w, CONFIRMATORY_ARMS), 1_041.5)
+        # Amendment 3 (A3.1): each survival refit is its single 800-step run plus one development evaluation.
+        for h in (16, 4, 2):
+            self.assertEqual(ARM_UNITS[f"M-wide→{h}:refit"], ("grid:refit-single", "evaluation"))
+            self.assertEqual(ARM_UNITS[f"M-wide→{h}:sliced"], ())
         record = project_confirmatory(32, w, CONFIRMATORY_ARMS, 1500)
-        self.assertEqual(record["projected_gpu_process_seconds"], 33_820.0)
+        self.assertEqual(record["projected_gpu_process_seconds"], 34_828.0)
         self.assertEqual(record["ceiling_seconds"], M0_CONFIRMATORY_SECONDS)
         self.assertIs(record["within_ceiling"], True)
         # Measured, never a literal: doubling the measured front re-run unit moves the projection by 32 x 250.
         self.assertEqual(per_anchor(w, ("R-aff",)) - per_anchor(w, ()), 16 * 15.625)
         slower = project_confirmatory(32, dataclasses.replace(w, front_rerun=31.25), CONFIRMATORY_ARMS, 1500)
-        self.assertEqual(slower["projected_gpu_process_seconds"], 33_820.0 + 32 * 250.0)
+        self.assertEqual(slower["projected_gpu_process_seconds"], 34_828.0 + 32 * 250.0)
         over = project_confirmatory(42, w, CONFIRMATORY_ARMS, 1500)
-        self.assertEqual(over["projected_gpu_process_seconds"], 1500 + 42 * 1_010.0)
+        self.assertEqual(over["projected_gpu_process_seconds"], 1500 + 42 * 1_041.5)
         self.assertIs(over["within_ceiling"], False)
         with self.assertRaises(ContractViolation):
             project_confirmatory(32, w, CONFIRMATORY_ARMS | {"R-all"}, 1500)
@@ -266,7 +270,7 @@ class SupervisionTests(unittest.TestCase):
         # The measured static unit: S-static host training 50 plus its module-grid refit 60 = 110 s per anchor.
         self.assertEqual(per_anchor(w, arms) - per_anchor(w, CONFIRMATORY_ARMS), 110.0)
         record = with_static(32, w, arms, 1500)
-        self.assertEqual(record["projected_gpu_process_seconds"], 37_340.0)
+        self.assertEqual(record["projected_gpu_process_seconds"], 38_348.0)
         self.assertEqual(record["ceiling_seconds"], 50_400)
         self.assertIs(record["requires_14h"], True)
         self.assertIs(record["within_ceiling"], True)
@@ -280,7 +284,7 @@ class SupervisionTests(unittest.TestCase):
         # its noop and evaluate children, measured at the 0.5 width)).
         w = dataclasses.replace(workloads(), host={0.25: 1000.0 / 6 - 40.0, 1.0: 45.0})
         record = project_pilot(3000.0, ("core", "F(0.25)"), w)
-        self.assertAlmostEqual(record["projected_gpu_process_seconds"], 3000.0 + 6540.0 + 1000.0, places=9)
+        self.assertAlmostEqual(record["projected_gpu_process_seconds"], 3000.0 + 6549.0 + 1000.0, places=9)
         self.assertEqual(record["charged"], 3000.0)
         self.assertEqual(set(record["remaining_lines"]), {"core", "F(0.25)"})
         self.assertEqual(project_pilot(3000.0, (), w)["projected_gpu_process_seconds"], 3000.0)
@@ -299,8 +303,9 @@ class SupervisionTests(unittest.TestCase):
         # M-sq | T-cool, M-wide, M-small and the S-static refit 6 x 6 x 60 = 2,160; M-aff 6 x 100 = 600; M-small-B
         # 6 x 120 = 720; the two M-wide→8 refit grids 6 x 2 x 60 = 720; R-272s 6 x 80 = 480; R-aff 6 x 250 = 1,500;
         # cuts, folds, leave-one-out, calibrations and evaluations 6 x 30 = 180; together 6,360 s. §5 adds the three
-        # single 800-step M-wide→{16, 4, 2} refits (R17: the refit-single unit, 10 s): 6 x 3 x 10 = 180. Total 6,540 s.
-        self.assertEqual(stage_seconds("core", workloads()), 6_540.0)
+        # single 800-step M-wide→{16, 4, 2} refits (R17: the refit-single unit, 10 s, plus one development evaluation,
+        # 0.5 s, under amendment 3): 6 x 3 x 10.5 = 189. Total 6,549 s.
+        self.assertEqual(stage_seconds("core", workloads()), 6_549.0)
         # The §8 core cases: every pilot arm but T-cool (its resume is a stage-3 host child) plus the S-static refit.
         self.assertEqual(
             CORE_CASE_ARMS,

@@ -17,9 +17,20 @@ per-item exact-source reviews with dispositions and one post-review
 commit rechecked clean — certified implementation commit `978850a`
 (410 tests; evidence under `results/m0-implementation-2026-10-14/`,
 reviews under `reviews/m0-capacity/implementation/`, admission
-certificate `certificates/2026-10-14-m0-pilot-admission.json`). Gate B
-(the code PR reviewed and ready) is John's next decision; nothing has run
-on GPU. The controller's 34 rulings are in the SDD ledger on Nyx
+certificate `certificates/2026-10-14-m0-pilot-admission.json`), merged at
+gate B on 2026-10-14 (`03a4a7a`, PR #7). The same day John found the
+preregistration's promised survival-curve bounds missing from the
+confirmatory plan and took [amendment 3](plans/2026-10-14-m0-amendment-3.md)
+(option A: the h = 16/4/2 arms join the §10 set; bounds and the sign test
+beside every reported quantity), frozen by
+[freeze certificate 3](certificates/2026-10-14-m0-freeze-3.md) as identity
+`m0-v4.1`; implemented on `nyx/m0-amendment-3`, certified implementation
+commit `c54fb7c` (417 tests; evidence under
+`results/m0-amendment-3-2026-10-14/`, reviews under
+`reviews/m0-capacity/amendment-3/`, admission certificate
+`certificates/2026-10-14-m0-pilot-admission-2.json`). The second gate B
+(that PR reviewed and ready) is John's next decision; nothing has run on
+GPU. The controller's 34 rulings are in the SDD ledger on Nyx
 (`.superpowers/sdd/2026-10-13-m0-implementation/progress.md`, ignored):
 
 - [STEERING.md](STEERING.md): the objective verbatim, the drift diagnosis,

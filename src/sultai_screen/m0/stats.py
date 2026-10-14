@@ -18,7 +18,7 @@ import torch
 from torch import Tensor
 
 from sultai.trust import ContractViolation
-from sultai_screen.contracts import Json, Record, anchor_count
+from sultai_screen.contracts import Json, Record, anchor_count, mapping, number
 from sultai_screen.data import generator
 from sultai_screen.fit import paired_se
 from sultai_screen.m0.identity import HARM
@@ -36,6 +36,11 @@ REFERENCE_PARAMETERS: Final = 284_634
 FRONTIER_LABEL: Final = "same-recipe frontier, 10 epochs"
 DESCRIPTIVE_LABEL: Final = "same-recipe frontier, 10 epochs, descriptive"
 SURVIVAL_WIDTHS: Final = (16, 8, 4, 2)
+SURVIVAL_KINDS: Final = ("sliced", "refit")
+# Amendment 3 (A3.1, A3.2): the survival-curve arms have no verdict role; a stage runs them by design, but one that
+# is unavailable or absent on an anchor is named in `survival_absent` and never holds the anchor (ruling R11 covers
+# every other required arm).
+SURVIVAL_CURVE_ARMS: Final = frozenset(f"M-wide→{h}:{kind}" for h in (16, 4, 2) for kind in SURVIVAL_KINDS)
 
 CORE_ARMS: Final = (
     "M-sq",
@@ -68,9 +73,11 @@ KNOWN_ARMS: Final = frozenset(CORE_ARMS + OPTIONAL_ARMS)
 # whose arms are absent as None with reason "<arm> not run".
 PILOT_ARMS: Final = frozenset(CORE_ARMS)
 # §10 confirmatory set: N0 and calibrations, M-sq, M-aff (with residual), R-272s, R-aff, T-cool, M-sq | T-cool,
-# M-wide, M-wide→8 (both rankings, sliced and refit), M-small, M-small-B. S-static stays optional (14 h flag only).
+# M-wide, M-wide→8 (both rankings, sliced and refit), M-small, M-small-B, and (amendment 3, A3.1) the survival-curve
+# widths M-wide→16/4/2 sliced and refit. S-static stays optional (14 h flag only).
 CONFIRMATORY_ARMS: Final = frozenset(
     (
+        *SURVIVAL_CURVE_ARMS,
         "R-temp",
         "R-cal",
         "M-sq",
@@ -182,14 +189,15 @@ def quantities(result: AnchorResult, required: frozenset[str] = PILOT_ARMS) -> R
     """Per-anchor §6 quantities in nats; G(arm) = mean(N0 loss) - mean(arm loss).
 
     `required` is the arm set the stage runs by design (PILOT_ARMS, CONFIRMATORY_ARMS or STARVED_PAIR_ARMS); a
-    missing required arm raises. Every quantity `k` carries `k_reason`: None when computed, otherwise
+    missing required arm raises, except a survival-curve arm (SURVIVAL_CURVE_ARMS), which `survival_absent`
+    names. Every quantity `k` carries `k_reason`: None when computed, otherwise
     "<arm> not run" for the first absent arm it needs, or "denominator ≤ 0" for a ratio whose denominator is not
     positive, with `k` itself None.
     """
     unknown = sorted(required - KNOWN_ARMS)
     if unknown:
         raise ContractViolation(f"unknown required arms: {unknown}")
-    missing = sorted(required - set(result.arms))
+    missing = sorted(required - set(result.arms) - SURVIVAL_CURVE_ARMS)
     if missing:
         raise ContractViolation(f"required arms missing: {missing}")
     arms = result.arms
@@ -261,11 +269,13 @@ def quantities(result: AnchorResult, required: frozenset[str] = PILOT_ARMS) -> R
     put("G_lottery", ("lottery",), lambda: gain("lottery"))
     put("leave_one_out", ("M-wide→8:ablation",), lambda: gain("M-wide→8:ablation"))
     ratio("retune_fraction", "M-sq", "R-all")
-    curve_arms = ("M-wide", *_survival_names("sliced").values(), *_survival_names("refit").values())
+    # Amendment 3 (A3.2): the curve reports every width that ran and names the absent arms, by width then kind; it
+    # is undefined only when M-wide is absent or its gain is not positive.
+    record["survival_absent"] = [name for name in _survival_arms() if name not in arms]
     if "M-wide" in arms and gain("M-wide") <= 0:
         record["survival"], record["survival_reason"] = None, DENOMINATOR_REASON
     else:
-        put("survival", curve_arms, lambda: _survival(gain))
+        put("survival", ("M-wide",), lambda: _survival(gain, frozenset(arms)))
     record["harm"] = _harm(result, noop)
     record.update(_paired_ses(result, gain))
     return record
@@ -302,11 +312,31 @@ def _paired_ses(result: AnchorResult, gain: Callable[[str], float]) -> Record:
     return record
 
 
-def _survival(gain: Callable[[str], float]) -> Json:
+def _survival_arms() -> tuple[str, ...]:
+    return tuple(
+        f"M-wide→{h}:rank:{kind}" if h == 8 else f"M-wide→{h}:{kind}"
+        for h in SURVIVAL_WIDTHS
+        for kind in SURVIVAL_KINDS
+    )
+
+
+def _survival(gain: Callable[[str], float], present: frozenset[str]) -> Json:
     wide = gain("M-wide")
     return {
-        kind: {str(h): gain(name) / wide for h, name in _survival_names(kind).items()} for kind in ("sliced", "refit")
+        kind: {str(h): gain(name) / wide for h, name in _survival_names(kind).items() if name in present}
+        for kind in SURVIVAL_KINDS
     }
+
+
+def survival_value(record: Record, kind: str, h: int) -> float | None:
+    """One survival ratio G(M-wide→h)/G(M-wide) from a `quantities` record, or None where the curve or that width is
+    undefined (amendment 3, A3.2: the per-width value the confirmatory bounds and the pilot's medians read)."""
+    if kind not in SURVIVAL_KINDS or h not in SURVIVAL_WIDTHS:
+        raise ContractViolation(f"no survival ratio {kind} at h = {h}")
+    if record["survival"] is None:
+        return None
+    curve = mapping(mapping(record["survival"])[kind])
+    return None if str(h) not in curve else number(curve[str(h)])
 
 
 def _harm(result: AnchorResult, noop: float) -> list[Json]:

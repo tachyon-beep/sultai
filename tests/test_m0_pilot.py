@@ -10,6 +10,7 @@ from __future__ import annotations
 import ast
 import json
 import math
+import statistics
 import subprocess
 import sys
 import tempfile
@@ -29,12 +30,13 @@ from sultai_screen.contracts import (
     Record,
     file_sha,
     mapping,
+    number,
     read_record,
     sequence,
 )
 from sultai_screen.m0 import pilot as m0_pilot
 from sultai_screen.m0.confirmatory import CUSTODY as CONFIRMATORY_CUSTODY
-from sultai_screen.m0.confirmatory import RESTART_CUSTODY, Guarded, confirmatory, whitelist
+from sultai_screen.m0.confirmatory import RESTART_CUSTODY, Guarded, Plan, confirmatory, read_once, whitelist
 from sultai_screen.m0.costs import (
     EXTENDED_ORDER,
     STATIC_ARMS,
@@ -69,6 +71,7 @@ from sultai_screen.m0.pilot import (
     spreads,
 )
 from sultai_screen.m0.receipts import (
+    Anchor,
     Source,
     anchor,
     arm_vectors,
@@ -77,7 +80,15 @@ from sultai_screen.m0.receipts import (
     receipt,
     workloads_record,
 )
-from sultai_screen.m0.stats import CONFIRMATORY_ARMS, KNOWN_ARMS, PILOT_ARMS, quantities
+from sultai_screen.m0.stats import (
+    CONFIRMATORY_ARMS,
+    KNOWN_ARMS,
+    PILOT_ARMS,
+    AnchorResult,
+    ArmResult,
+    quantities,
+    sign_test_bound,
+)
 from sultai_screen.m0.worker import ATTEMPT4_FINAL_STATE, MODULE_ARMS, RETUNE_ARMS, ZERO_MODULE_KINDS
 from sultai_screen.pilot import GPU_UUIDS, Job, Supervisor
 
@@ -413,7 +424,7 @@ class PilotRunTests(unittest.TestCase):
         result = read_record(root / "pilot-result.json")
         self.assertEqual(result["stage"], stage)
         self.assertEqual(result["verdict"], verdict)
-        self.assertEqual(result["protocol_version"], "m0-v4")
+        self.assertEqual(result["protocol_version"], "m0-v4.1")
         self.assertEqual(result["amendment_2_sha256"], protocol_identity()["amendment_2_sha256"])
         self.assertFalse(result["pilot_clean"])
         return result
@@ -425,7 +436,7 @@ class PilotRunTests(unittest.TestCase):
         self.assertEqual([name for name in published if name in RECEIPTS], list(RECEIPTS))
         result = read_record(root / "pilot-result.json")
         self.assertTrue(result["pilot_clean"])
-        self.assertEqual(result["protocol_version"], "m0-v4")
+        self.assertEqual(result["protocol_version"], "m0-v4.1")
         # Every child is the M0 worker, carries its lineage and scale, and one job list never doubles a card.
         for name, _, _, flags, module in cluster.launched:
             self.assertEqual(module, "sultai_screen.m0.worker", name)
@@ -490,6 +501,11 @@ class PilotRunTests(unittest.TestCase):
         self.assertTrue(medians["development_only"])
         self.assertIsNone(medians["confirmatory_verdict"])
         self.assertIn("D1", medians["medians"])
+        # Amendment 3 (A3.2): the survival ratios' development medians, every width, sliced and refit.
+        self.assertEqual(set(medians["survival_medians"]), {"sliced", "refit"})
+        for kind in ("sliced", "refit"):
+            self.assertEqual(set(medians["survival_medians"][kind]), {"16", "8", "4", "2"})
+            self.assertTrue(all(math.isfinite(v) for v in medians["survival_medians"][kind].values()), kind)
         # R31: the medians read the extended arms joined from their own children; 05-spreads stays core-only.
         for key in ("G_mexp", "G_lottery", "retune_fraction"):
             self.assertIsNotNone(medians["medians"][key], key)
@@ -809,6 +825,18 @@ class PilotRunTests(unittest.TestCase):
         self.assertIsNotNone(joined[3001]["G_mexp"])
         self.assertIsNone(read_record(root / "07-development-medians.json")["medians"]["G_mexp"])
 
+    def test_an_unavailable_survival_curve_arm_is_recorded_and_never_stops_the_pilot(self) -> None:
+        code, root, _, _ = self.launch(unavailable={3002: frozenset(("M-wide→16:sliced",))})
+        self.assertEqual(code, 0, read_record(root / "pilot-result.json"))
+        core = {entry["seed"]: entry for entry in read_record(root / "05-spreads.json")["anchors"]}
+        self.assertEqual(core[3002]["unavailable_arms"], ["M-wide→16:sliced"])
+        self.assertEqual(core[3002]["quantities"]["survival_absent"], ["M-wide→16:sliced"])
+        self.assertEqual(core[3001]["quantities"]["survival_absent"], [])
+        medians = read_record(root / "07-development-medians.json")["survival_medians"]
+        self.assertIsNone(medians["sliced"]["16"])
+        self.assertTrue(all(math.isfinite(v) for h, v in medians["sliced"].items() if h != "16"))
+        self.assertTrue(all(math.isfinite(v) for v in medians["refit"].values()))
+
     def test_an_unavailable_starved_pair_arm_is_reported_and_never_stops_the_pilot(self) -> None:
         code, root, _, published = self.launch(unavailable={6002: frozenset(("M-aff",))})
         self.assertEqual(code, 0, read_record(root / "pilot-result.json"))
@@ -848,7 +876,7 @@ class PilotRunTests(unittest.TestCase):
         self.assertTrue(cluster.launched)
         self.assertEqual(cluster.violations, [])
         custody = read_record(self.repo / CUSTODY)
-        self.assertEqual(custody["identity"]["protocol_version"], "m0-v4")
+        self.assertEqual(custody["identity"]["protocol_version"], "m0-v4.1")
         with self.assertRaisesRegex(PilotHold, "custody"):
             self.launch("another-root")
         self.assertFalse((self.base / "another-root").exists())
@@ -985,7 +1013,7 @@ def anchor_sources(seed: int, arms: frozenset[str]) -> tuple[dict[str, Record], 
 
 class MeasuredProjectionTests(unittest.TestCase):
     def test_the_measured_term_is_the_confirmatory_arm_seconds_at_section_8_magnitudes(self) -> None:
-        # R30 (correcting R28): at the §8 bookings (the workloads() fixture: per_anchor(§10) = 1,010 s) the measured
+        # R30 (correcting R28): at the §8 bookings (the workloads() fixture: per_anchor(§10) = 1,041.5 s under amendment 3, each survival refit booked with one development evaluation) the measured
         # per-anchor term equals the §10 per-anchor workload exactly. `whole` is the host:1.0 kernel plus the anchor's
         # noop, M-aff and T-cool children; the core modules and retune children run PILOT_ARMS and STATIC_ARMS less the
         # stage-2 M-aff (A2) and, at the bookings, are charged the arm-seconds they execute. T-cool and S-static are
@@ -998,14 +1026,14 @@ class MeasuredProjectionTests(unittest.TestCase):
         grids = arm_seconds(w, executed)
         whole = w.host[1.0] + w.fold_and_calibrations + w.grid["aff"] + w.tcool
         terms = m0_pilot.scaled_anchor(w, ran, whole, grids, w.static)
-        self.assertEqual(per_anchor(w, CONFIRMATORY_ARMS), 1_010.0)
+        self.assertEqual(per_anchor(w, CONFIRMATORY_ARMS), 1_041.5)
         self.assertAlmostEqual(terms["scaled"], per_anchor(w, CONFIRMATORY_ARMS))
-        # S-static's host is its own static child (added once), its refit a module grid: 1,010 + 50 + 60 = 1,120 s.
-        self.assertEqual(per_anchor(w, CONFIRMATORY_ARMS | STATIC_ARMS), 1_120.0)
+        # S-static's host is its own static child (added once), its refit a module grid: 1,041.5 + 50 + 60 = 1,151.5 s.
+        self.assertEqual(per_anchor(w, CONFIRMATORY_ARMS | STATIC_ARMS), 1_151.5)
         self.assertAlmostEqual(terms["static_scaled"], per_anchor(w, CONFIRMATORY_ARMS | STATIC_ARMS))
         self.assertAlmostEqual(terms["raw"], whole + grids)
-        self.assertAlmostEqual(terms["raw"], 1_160.0)
-        self.assertAlmostEqual(terms["scale"], 810.0 / 960.0)
+        self.assertAlmostEqual(terms["raw"], 1_161.5)
+        self.assertAlmostEqual(terms["scale"], 841.5 / 961.5)
         # A raised axis (R15): the core modules child re-runs M-aff on the doubled axis, so the stage-2 maff child
         # leaves `whole` and M-aff's grid is among the arm-seconds scaled (review Minor 1); the term is still §10's.
         raised = (*ran, "M-aff")
@@ -1014,12 +1042,12 @@ class MeasuredProjectionTests(unittest.TestCase):
         self.assertAlmostEqual(lifted["scaled"], per_anchor(w, CONFIRMATORY_ARMS))
         self.assertAlmostEqual(lifted["static_scaled"], per_anchor(w, CONFIRMATORY_ARMS | STATIC_ARMS))
         # §8 magnitudes: at n = 37 (above the 32 floor) the unscaled sum would raise a false stage-6 hold
-        # (455 + 37 x 1,160 = 43,375 s > 43,200 s); the exact §10 term fits (455 + 37 x 1,010 = 37,825 s).
+        # (455 + 37 x 1,161.5 = 43,430.5 s > 43,200 s); the exact §10 term fits (455 + 37 x 1,041.5 = 38,990.5 s).
         fixed = 7 * w.host[1.0] + 2 * 60.0 + 20.0  # seven replays, two acceptance children, the fold-check
         scaled = measured_confirmatory(37, terms["scaled"], fixed, M0_CONFIRMATORY_SECONDS)
         raw = measured_confirmatory(37, terms["raw"], fixed, M0_CONFIRMATORY_SECONDS)
-        self.assertAlmostEqual(scaled["projected_gpu_process_seconds"], 37_825.0)
-        self.assertAlmostEqual(raw["projected_gpu_process_seconds"], 43_375.0)
+        self.assertAlmostEqual(scaled["projected_gpu_process_seconds"], 38_990.5)
+        self.assertAlmostEqual(raw["projected_gpu_process_seconds"], 43_430.5)
         self.assertIs(scaled["within_ceiling"], True)
         self.assertIs(raw["within_ceiling"], False)
 
@@ -1114,6 +1142,32 @@ class ReceiptTests(unittest.TestCase):
         with self.assertRaisesRegex(InstrumentHold, r"3004.*M-small-B"):
             anchor(3004, (source("modules-3004", 3004, records, vectors),), PILOT_ARMS)
 
+    def test_an_unavailable_survival_curve_arm_never_holds_and_is_named_absent(self) -> None:
+        # Amendment 3 (A3.2): the h = 16/4/2 arms have no verdict role; unavailable, they are recorded and the curve
+        # names them absent. Every other required arm still holds (the test above).
+        records, vectors = anchor_sources(3004, PILOT_ARMS)
+        records["M-wide→4:refit"] = {
+            "status": "unavailable",
+            "cause": "M-wide→4:refit",
+            "error": "nonfinite",
+            "candidates": [],
+        }
+        del vectors["M-wide→4:refit"]
+        result = anchor(3004, (source("modules-3004", 3004, records, vectors),), PILOT_ARMS)
+        self.assertEqual(result.report["unavailable_arms"], ["M-wide→4:refit"])
+        self.assertNotIn("M-wide→4:refit", result.result.arms)
+        record = quantities(result.result, PILOT_ARMS)
+        self.assertEqual(record["survival_absent"], ["M-wide→4:refit"])
+        self.assertEqual(set(record["survival"]["refit"]), {"16", "8", "2"})
+        self.assertEqual(set(record["survival"]["sliced"]), {"16", "8", "4", "2"})
+        # The exemption's upper bound: M-wide, the h = 8 cuts and every other required arm still hold at the receipt.
+        for name in ("M-wide", "M-wide→8:rank:sliced", "M-wide→8:random:refit", "M-small", "R-temp"):
+            records, vectors = anchor_sources(3004, PILOT_ARMS)
+            records[name] = {"status": "unavailable", "cause": name, "error": "nonfinite", "candidates": []}
+            del vectors[name]
+            with self.subTest(arm=name), self.assertRaisesRegex(InstrumentHold, r"3004.*required arm"):
+                anchor(3004, (source("modules-3004", 3004, records, vectors),), PILOT_ARMS)
+
     def test_raw_candidates_parse_the_rate_and_unavailable_arms_list_their_nonfinite_candidates(self) -> None:
         records, vectors = anchor_sources(3001, PILOT_ARMS)
         candidates = [
@@ -1194,14 +1248,14 @@ def pilot_record(**changes: Json) -> Record:
 
 
 def carried_projection(**changes: Json) -> Record:
-    """The confirmatory projection pair a clean pilot result carries (I3): kernel 600 + 32 x 1,010, measured below."""
+    """The confirmatory projection pair a clean pilot result carries (I3): kernel 600 + 32 x 1,041.5, measured below."""
     record: Record = {
         "fixed_v0_gpu_process_seconds": 600.0,
         "per_anchor_gpu_process_seconds": 1_000.0,
         "static_per_anchor_gpu_process_seconds": 1_100.0,
-        "kernel_gpu_process_seconds": 32_920.0,
+        "kernel_gpu_process_seconds": 33_928.0,
         "measured_gpu_process_seconds": 32_600.0,
-        "projected_gpu_process_seconds": 32_920.0,
+        "projected_gpu_process_seconds": 33_928.0,
     }
     record.update(changes)
     return record
@@ -1352,7 +1406,7 @@ class ConfirmatoryTests(unittest.TestCase):
         self.assertEqual(binding["source_change_disposition"], {listed: file_sha(self.source_disposition)})
 
     def test_the_larger_of_the_kernel_and_measured_projections_must_fit(self) -> None:
-        # I3: the kernel projection fits (600 + 32 x 1,010); the measured per-anchor charge does not (600 + 32 x 1,400).
+        # I3: the kernel projection fits (600 + 32 x 1,041.5); the measured per-anchor charge does not (600 + 32 x 1,400).
         self.write_pilot(confirmatory_projection=carried_projection(per_anchor_gpu_process_seconds=1_400.0))
         with self.assertRaisesRegex(FeasibilityHold, "measured"):
             self.launch(self.certificate())
@@ -1374,7 +1428,7 @@ class ConfirmatoryTests(unittest.TestCase):
 
     def test_the_whitelist_refuses_an_extended_arm_and_an_unrestricted_arm_list(self) -> None:
         allowed = frozenset(CONFIRMATORY_ARMS)
-        for arms in ("M-sq,M-exp", "M-sq-fresh", "lottery", "M-wide→16:refit", "S-static"):
+        for arms in ("M-sq,M-exp", "M-sq-fresh", "lottery", "M-wide→8:ablation", "S-static"):
             with self.assertRaisesRegex(PilotHold, "whitelist"):
                 whitelist([job("modules-7500", "modules", 7500, "confirmatory", "--arms", arms)], allowed)
         with self.assertRaisesRegex(PilotHold, "whitelist"):
@@ -1483,6 +1537,28 @@ class ConfirmatoryTests(unittest.TestCase):
         self.assertLessEqual(interval["lower"], interval["median"])
         self.assertLessEqual(interval["median"], interval["upper"])
         self.assertIn("sign_test_lower", interval)
+        # Amendment 3 (A3.2): every §6 quantity the §10 set defines carries median, bounds and the sign test;
+        # the survival curve (A3.1) at every width, sliced and refit; D5 only under the 14 h flag.
+        bounded = {"D1", "D1prime", "D2", "D2s", "D2_random", "D2s_random", "D3", "G_tcool", "r_aff", "delta_acc",
+                   "G_rtemp", "G_rcal", "survival"}  # fmt: skip
+        self.assertEqual(set(result["intervals"]), bounded)
+        for key in bounded - {"survival"}:
+            each = result["intervals"][key]
+            self.assertEqual(
+                set(each), {"median", "lower", "upper", "sign_test_lower", "sign_test_upper", "sign_test_reason"}, key
+            )
+            self.assertLessEqual(each["lower"], each["median"], key)
+            self.assertLessEqual(each["sign_test_lower"], each["sign_test_upper"], key)
+            self.assertIsNone(each["sign_test_reason"], key)
+        curve = result["intervals"]["survival"]
+        self.assertEqual(set(curve), {"sliced", "refit"})
+        for kind in ("sliced", "refit"):
+            self.assertEqual(set(curve[kind]), {"16", "8", "4", "2"}, kind)
+            for width, each in curve[kind].items():
+                self.assertTrue(math.isfinite(each["median"]), (kind, width))
+                self.assertLessEqual(each["lower"], each["upper"], (kind, width))
+                self.assertIn("sign_test_lower", each)
+        self.assertEqual(result["verdict_keys"], ["D1", "D1prime", "D2", "D3", "delta_acc"])
         widths = result["achieved_half_width"]
         self.assertEqual(set(widths), {"D2", "D3", "D5"})
         self.assertTrue(math.isfinite(widths["D2"]) and math.isfinite(widths["D3"]))
@@ -1500,12 +1576,12 @@ class ConfirmatoryTests(unittest.TestCase):
         # term) and the measured one.
         projection = read_record(root / "00-opening.json")["projection"]
         self.assertEqual(projection["kernel"]["fixed_v0_gpu_process_seconds"], 600.0)
-        self.assertEqual(projection["kernel"]["projected_gpu_process_seconds"], 600.0 + 32 * 1_010.0)
+        self.assertEqual(projection["kernel"]["projected_gpu_process_seconds"], 600.0 + 32 * 1_041.5)
         self.assertEqual(projection["measured"]["projected_gpu_process_seconds"], 600.0 + 32 * 1_000.0)
-        self.assertEqual(projection["projected_gpu_process_seconds"], 600.0 + 32 * 1_010.0)
+        self.assertEqual(projection["projected_gpu_process_seconds"], 600.0 + 32 * 1_041.5)
         # Its own custody; the pilot's and Gate 3's receipts are never written.
         custody = read_record(self.repo / CONFIRMATORY_CUSTODY)
-        self.assertEqual(custody["identity"]["protocol_version"], "m0-v4")
+        self.assertEqual(custody["identity"]["protocol_version"], "m0-v4.1")
         listed = {"docs/results/m0-pilot/pilot-result.json": file_sha(self.pilot_result)}
         self.assertEqual(custody["identity"]["pilot_result"], listed)
         self.assertFalse((self.repo / CUSTODY).exists())
@@ -1525,6 +1601,8 @@ class ConfirmatoryTests(unittest.TestCase):
         self.assertLessEqual(STATIC_ARMS, self.arms_of(cluster, "modules-7500"))
         # D5 = loss(M-sq) - loss(S-static:refit) ~ 0.05 > M_s on every anchor, so the reading is read at n = 32.
         self.assertGreater(result["intervals"]["D5"]["lower"], 0.02)
+        self.assertIn("D5_norefit", result["intervals"])
+        self.assertEqual(result["verdict_keys"], ["D1", "D1prime", "D2", "D3", "delta_acc", "D5"])
         self.assertEqual(result["static_reading"], "design-in beats insertion")
         self.assertTrue(math.isfinite(result["achieved_half_width"]["D5"]))
         self.assertEqual(result["ceiling_gpu_process_seconds"], M0_CONFIRMATORY_STATIC_SECONDS)
@@ -1577,6 +1655,20 @@ class ConfirmatoryTests(unittest.TestCase):
             batch = [entry["gpu"] for entry in entries[previous:]]
             previous = len(entries)
             self.assertEqual(len(batch), len(set(batch)), path.name)
+
+    def test_an_unavailable_survival_curve_arm_is_published_undefined_and_the_verdict_is_read(self) -> None:
+        code, root, cluster = self.launch(self.certificate(), unavailable={7510: frozenset(("M-wide→4:refit",))})
+        result = read_record(root / "confirmatory-result.json")
+        self.assertEqual(code, 0, result)
+        self.assertIn(result["v1"], ("present", "re-tuning equivalent", "indeterminate"))
+        curve = result["intervals"]["survival"]
+        self.assertEqual(
+            curve["refit"]["4"],
+            {"median": None, "reason": "survival refit h = 4 undefined on anchor 7510 (M-wide→4:refit unavailable)"},
+        )
+        self.assertTrue(math.isfinite(curve["sliced"]["4"]["median"]))
+        self.assertTrue(all(math.isfinite(curve["refit"][h]["median"]) for h in ("16", "8", "2")))
+        self.assertTrue(all(f"modules-{seed}" in set(cluster.names()) for seed in range(7500, 7532)))
 
     def test_an_unavailable_required_arm_holds_at_aggregation_and_drops_no_anchor(self) -> None:
         code, root, cluster = self.launch(self.certificate(), unavailable={7510: frozenset(("M-small",))})
@@ -1723,3 +1815,102 @@ class SupervisionTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ReadOnceTests(unittest.TestCase):
+    """Amendment 3 (A3.2) at `read_once`, on constructed anchors: the two undefined-on-an-anchor rules and the sign
+    test beside every interval."""
+
+    SPREAD = torch.tensor([-0.1, 0.1, -0.05, 0.05], dtype=torch.float64)
+
+    def anchors(
+        self, n: int = 8, *, wide_zero: frozenset[int] = frozenset()
+    ) -> tuple[Plan, list[Anchor], list[Record]]:
+        plan = Plan(
+            lineage="confirmatory",
+            seeds=tuple(range(7500, 7500 + n)),
+            schedule=(CHECKPOINTS, CHECKPOINTS_B),
+            arms=CONFIRMATORY_ARMS,
+            static=False,
+            ceiling=M0_CONFIRMATORY_SECONDS,
+            custody="",
+            binding={},
+            projection={},
+        )
+        anchors: list[Anchor] = []
+        quantities_list: list[Record] = []
+        for index, seed in enumerate(plan.seeds):
+            noop = 2.0 + 0.001 * index
+
+            gains = dict.fromkeys(CONFIRMATORY_ARMS, 0.02 + 0.001 * index)
+            gains.update({"M-sq": 0.05 + 0.002 * index, "M-aff": 0.02, "M-wide": 0.0 if seed in wide_zero else 0.06})
+            arms = {
+                name: ArmResult(noop - gain + self.SPREAD, torch.tensor([1.0, 1.0, 0.0, 1.0]), True, 0.3, False)
+                for name, gain in gains.items()
+            }
+            result = AnchorResult(
+                arms=arms,
+                noop_loss=noop + self.SPREAD,
+                noop_correct=torch.tensor([1.0, 0.0, 0.0, 1.0]),
+                tcool_noop_loss=noop - 0.01 + self.SPREAD,
+                fold_residual=0.001,
+                survivors={},
+                unfolded={},
+                raw_candidates={},
+            )
+            anchors.append(Anchor(seed, result, {}, {}))
+            quantities_list.append(quantities(result, CONFIRMATORY_ARMS))
+        return plan, anchors, quantities_list
+
+    def test_an_undefined_no_verdict_quantity_is_published_naming_the_anchor_and_the_verdict_is_still_read(
+        self,
+    ) -> None:
+        plan, anchors, records = self.anchors(wide_zero=frozenset({7503}))
+        records[7505 - 7500]["G_rtemp"], records[7505 - 7500]["G_rtemp_reason"] = None, "R-temp not run"
+        result = read_once(plan, anchors, records)
+        self.assertIn(result["v1"], ("present", "re-tuning equivalent", "indeterminate"))
+        self.assertIn(result["v2"], ("helps", "hurts", "indeterminate"))
+        self.assertEqual(
+            result["intervals"]["G_rtemp"],
+            {"median": None, "reason": "G_rtemp undefined on anchor 7505 (R-temp not run)"},
+        )
+        for kind in ("sliced", "refit"):
+            for h in ("16", "8", "4", "2"):
+                self.assertEqual(
+                    result["intervals"]["survival"][kind][h],
+                    {"median": None, "reason": f"survival {kind} h = {h} undefined on anchor 7503 (denominator ≤ 0)"},
+                )
+        # Every other beside quantity keeps its full interval.
+        self.assertTrue(math.isfinite(result["intervals"]["D2s"]["sign_test_lower"]))
+
+    def test_an_undefined_verdict_quantity_holds_the_reading(self) -> None:
+        for key in ("D1", "D1prime", "D2", "D3", "delta_acc"):
+            plan, anchors, records = self.anchors()
+            records[2][key], records[2][f"{key}_reason"] = None, "fixture"
+            with self.subTest(key=key), self.assertRaisesRegex(InstrumentHold, f"{key} is undefined on an anchor"):
+                read_once(plan, anchors, records)
+
+    def test_sign_test_bounds_are_the_order_statistics_of_each_column(self) -> None:
+        plan, anchors, records = self.anchors()
+        result = read_once(plan, anchors, records)
+        for key in ("D1", "D2s", "G_rtemp", "r_aff"):
+            column = [float(q[key]) for q in records]
+            self.assertEqual(result["intervals"][key]["sign_test_lower"], stats_sign_test(column, lower=True), key)
+            self.assertEqual(result["intervals"][key]["sign_test_upper"], stats_sign_test(column, lower=False), key)
+            self.assertEqual(result["intervals"][key]["median"], statistics.median(column), key)
+        curve = [float(q["survival"]["refit"]["4"]) for q in records]
+        entry = result["intervals"]["survival"]["refit"]["4"]
+        self.assertEqual(entry["sign_test_lower"], stats_sign_test(curve, lower=True))
+        self.assertEqual(entry["sign_test_upper"], stats_sign_test(curve, lower=False))
+        self.assertLessEqual(entry["lower"], entry["median"])
+        self.assertLessEqual(entry["median"], entry["upper"])
+        # n = 8: k = 2 is the largest k with P(Bin(8, 1/2) < k) = 9/256 ≤ 0.05, so the exact one-sided 95 % bounds are
+        # the 2nd and 7th order statistics.
+        self.assertEqual(entry["sign_test_lower"], sorted(curve)[1])
+        self.assertEqual(entry["sign_test_upper"], sorted(curve)[-2])
+
+
+def stats_sign_test(column: list[float], *, lower: bool) -> float:
+    value, reason = sign_test_bound(column, lower=lower)
+    assert reason is None
+    return number(value)
