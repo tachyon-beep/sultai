@@ -1393,7 +1393,14 @@ class ConfirmatoryTests(unittest.TestCase):
     def write_pilot(self, **changes: Json) -> None:
         self.pilot_result.write_text(json.dumps(pilot_record(**changes)))
 
-    def certificate(self, hours: int = 12, *, disposition: bool = False, source_change: str | None = None) -> Path:
+    def certificate(
+        self,
+        hours: int = 12,
+        *,
+        disposition: bool = False,
+        source_change: str | None = None,
+        static_included: bool | None = None,
+    ) -> Path:
         """`source_change`: "named" names the source-change disposition only; "listed" also hash-lists it."""
         paths = [self.pilot_result, self.results / "04-admission.json", self.opening]
         paths += [self.disposition] if disposition else []
@@ -1405,6 +1412,8 @@ class ConfirmatoryTests(unittest.TestCase):
             else {"source_change_disposition": str(self.source_disposition.relative_to(self.repo))}
         )
         path = self.base / "certificate.json"
+        if static_included is not None:
+            named["confirmatory_static_included"] = static_included
         path.write_text(json.dumps({**IDENTITY, "evidence": evidence, "confirmatory_ceiling_hours": hours, **named}))
         return path
 
@@ -1561,6 +1570,14 @@ class ConfirmatoryTests(unittest.TestCase):
         self.assert_refused(self.certificate(14), "S-static", static=True)
         self.write_pilot(static_admitted=True)
         self.assert_refused(self.certificate(12), "14", static=True)
+
+    def test_the_certificates_static_selection_binds_the_launch_mode_before_custody(self) -> None:
+        """PR #13 review (P1): a certificate that records S-static as selected refuses a launch without --static, and
+        one that records it as not selected refuses --static; both before custody. A certificate without the field
+        binds nothing."""
+        self.assert_refused(self.certificate(14, static_included=True), "launch with --static", static=False)
+        self.write_pilot(static_admitted=True)
+        self.assert_refused(self.certificate(14, static_included=False), "launch without --static", static=True)
 
     def test_the_whitelist_refuses_an_extended_arm_and_an_unrestricted_arm_list(self) -> None:
         allowed = frozenset(CONFIRMATORY_ARMS)
