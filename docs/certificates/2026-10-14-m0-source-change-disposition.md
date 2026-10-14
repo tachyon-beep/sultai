@@ -20,7 +20,7 @@ reviews asked for) under identity `m0-v4.3`
 (`docs/reviews/m0-capacity/amendment-5/`).
 
 **Admitted confirmatory implementation source SHA-256:**
-`93501f9ab102c7cde7ec05451001cfa9e19c3cf07ebd88730fc8b6a38bd3d383`
+`dcb432e02e50add4ae3c3b89a59e95f1600f5b1aeb8b50713fb0d28d1133bc09`
 (the `source_sha256` of `src`, `scripts`, `tests` and `pyproject.toml` at
 the certified commit named in
 [admission certificate 4](2026-10-14-m0-pilot-admission-4.json)).

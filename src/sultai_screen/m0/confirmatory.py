@@ -345,7 +345,7 @@ def environment_vs_pilot(pilot: Record, current: Record) -> Record:
 # --- V0 on the fresh anchors ---------------------------------------------------------------------------------------
 
 
-NOOP_REPLAY_KEYS: Final = ("raw_sha256", "recalibrated_sha256", "noop_sha256")
+NOOP_REPLAY_KEYS: Final = ("raw_sha256", "recalibrated_sha256", "noop_sha256", "fit_indices_sha256")
 
 
 def replay_noop(run: Run) -> Record:

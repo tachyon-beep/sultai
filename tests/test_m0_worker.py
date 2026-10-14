@@ -322,6 +322,18 @@ class WorkerTests(unittest.TestCase):
             )
         self.assertEqual(child.call_args.args[0].lineage, "cooled-20")
 
+    def test_corner_classifies_the_selected_rate_and_step_on_their_own_axes(self) -> None:
+        # Amendment 5 (A5.2 item 7): lowest/highest/interior by the grid's rates, first/last/interior by its
+        # checkpoints, "single" on a one-value axis; the grid is read from the candidates, so M-small-B's doubled
+        # axis classifies on 400/1,600/6,400.
+        rates, steps = (1.0, 0.3, 0.1), (200, 800, 3200)
+        self.assertEqual(worker.corner(0.1, 200, rates, steps), {"rate": "lowest", "step": "first"})
+        self.assertEqual(worker.corner(1.0, 3200, rates, steps), {"rate": "highest", "step": "last"})
+        self.assertEqual(worker.corner(0.3, 800, rates, steps), {"rate": "interior", "step": "interior"})
+        self.assertEqual(worker.corner(0.3, 400, rates, (400, 1600, 6400)), {"rate": "interior", "step": "first"})
+        self.assertEqual(worker.corner(0.1, 2, (0.1,), (1, 2)), {"rate": "single", "step": "last"})
+        self.assertEqual(worker.corner(0.1, 1, (0.1, 0.1), (1,)), {"rate": "single", "step": "single"})
+
     def test_attempt4_hashes_are_the_published_receipts(self) -> None:
         self.assertEqual(worker.DEV_ARTIFACT, REPO / "docs/results/gate3-split-2026-10-11/dev-indices-int32-le.bin")
         self.assertTrue(worker.DEV_ARTIFACT.is_file())
@@ -414,6 +426,8 @@ class WorkerTests(unittest.TestCase):
         self.assertNotEqual(static["raw_static_sha256"], static["recalibrated_static_sha256"])
         self.assertGreater(static["noop_seconds"], 0.0)
         self.assertEqual(static["noop_choice"] == "R-bn", static["rbn_selection_loss"] < static["raw_selection_loss"])
+        # Amendment 5 (A5.2 item 2): the static host's no-op application names the fit indices it consumed.
+        self.assertEqual(static["fit_indices_sha256"], worker.tensor_sha(SEEN))
         published = load_static(self.root / "static", 3000, REFERENCE_WIDTHS, CPU, str(static["static_sha256"]))
         self.assertEqual(static_hash(published), static["static_sha256"])
         self.assertEqual(static["host_sha256"], state_hash(published.host))

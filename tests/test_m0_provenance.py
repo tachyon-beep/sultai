@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 import unittest
 from unittest.mock import patch
 
@@ -74,6 +75,39 @@ class EnvironmentIdentityTests(unittest.TestCase):
         self.assertEqual((record["driver"], record["cudnn"], record["gpu_names"]), (None, None, None))
         self.assertEqual({key: record[key] for key in PINNED}, PINNED)
         self.assertEqual(set(module.PINNED_ENVIRONMENT), set(PINNED))
+
+    def test_a_cudnn_runtime_error_a_query_timeout_and_a_malformed_row_are_recorded_as_absent(self) -> None:
+        # A5.2 item 1: the recorded fields never refuse; every failure mode of their queries is absent, not a hold.
+        cases = (
+            (
+                patch("sultai_screen.m0.provenance.torch.backends.cudnn.version", side_effect=RuntimeError("mismatch")),
+                5,
+            ),
+            (
+                patch(
+                    "sultai_screen.m0.provenance.subprocess.check_output",
+                    side_effect=subprocess.TimeoutExpired(["nvidia-smi"], 20),
+                ),
+                6,
+            ),
+            (patch("sultai_screen.m0.provenance.subprocess.check_output", return_value="garbage\n"), 6),
+            (patch("sultai_screen.m0.provenance.subprocess.check_output", return_value=""), 6),
+        )
+        for replacement, index in cases:
+            patches = self.patched(dict(PINNED))
+            patches[index] = replacement
+            for item in patches:
+                item.start()
+            try:
+                record = environment_identity()
+            finally:
+                for item in patches:
+                    item.stop()
+            self.assertEqual({key: record[key] for key in PINNED}, PINNED)
+            if index == 5:
+                self.assertIsNone(record["cudnn"])
+            else:
+                self.assertEqual((record["driver"], record["gpu_names"]), (None, None))
 
 
 class ChildEnvironmentTests(unittest.TestCase):

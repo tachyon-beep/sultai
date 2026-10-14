@@ -68,7 +68,11 @@ def environment_identity() -> Record:
     driver, gpu_names = _driver_and_gpus()
     # cudnn.version is unannotated in torch; bind it to its documented signature (as calibrate binds LBFGS.step).
     cudnn_version: Callable[[], object] = torch.backends.cudnn.version
-    cudnn = cudnn_version()
+    try:
+        cudnn = cudnn_version()
+    except RuntimeError:
+        # A runtime/compile cuDNN mismatch is recorded as absent, never a hold (A5.2 item 1).
+        cudnn = None
     actual.update(
         {
             "python": platform.python_version(),

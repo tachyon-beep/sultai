@@ -308,6 +308,7 @@ class FakeCluster:
                 "noop_sha256": chosen,
                 "raw_sha256": f"raw-{seed}",
                 "recalibrated_sha256": f"rbn-{seed}",
+                "fit_indices_sha256": "fit-ids",
                 "zero_module_identity": identity,
             }
         if action == "tcool":
@@ -448,6 +449,13 @@ class PilotRunTests(unittest.TestCase):
         self.assertEqual(result["protocol_version"], "m0-v4.3")
         self.assertEqual(result["amendment_2_sha256"], protocol_identity()["amendment_2_sha256"])
         self.assertFalse(result["pilot_clean"])
+        # Amendment 5 (A5.2 item 4): the stop record carries the certificate hash and the custody path too, even
+        # when the attempt stopped before its opening record.
+        opening = root / "00-opening.json"
+        if opening.exists():
+            self.assertEqual(result["certificate_sha256"], read_record(opening)["certificate_sha256"])
+        self.assertRegex(str(result["certificate_sha256"]), "^[0-9a-f]{64}$")
+        self.assertEqual(result["custody"], CUSTODY)
         return result
 
     def test_clean_pilot_publishes_every_receipt_in_stage_order_under_the_m0_ceiling(self) -> None:
@@ -755,6 +763,10 @@ class PilotRunTests(unittest.TestCase):
         result = self.assert_stop(root, "extended", "execution-invalid")
         self.assertIn("cooled-20-6018", result["error"])
         self.assertIn("cooled-20-6018", cluster.names())
+        # Amendment 5 (A5.2 item 5): the failed child's exit record is written from the ledger on the stop path too.
+        failed = read_record(root / "cooled-20-6018.exit.json")
+        self.assertNotEqual(failed["returncode"], 0)
+        self.assertEqual(failed["job"], "cooled-20-6018")
         for name in ("05-extended.json", "06-confirmatory-count.json", "07-development-medians.json"):
             self.assertFalse((root / name).exists(), name)
 
@@ -1373,6 +1385,9 @@ class ConfirmatoryTests(unittest.TestCase):
             self.assertNotIn(key, result)
         self.assertEqual(result["protocol_sha256"], protocol_identity()["protocol_sha256"])
         self.assertTrue((self.repo / CONFIRMATORY_CUSTODY).is_file())
+        # Amendment 5 (A5.2 item 4): the stop record carries the certificate hash and the custody path too.
+        self.assertEqual(result["certificate_sha256"], read_record(root / "00-opening.json")["certificate_sha256"])
+        self.assertIn(result["custody"], (CONFIRMATORY_CUSTODY, RESTART_CUSTODY))
         return result
 
     def write_pilot(self, **changes: Json) -> None:
@@ -1707,7 +1722,10 @@ class ConfirmatoryTests(unittest.TestCase):
         replay = read_record(root / "02-v0.json")["noop_replay"]
         self.assertIs(replay["both_cards_bitwise"], True)
         self.assertEqual(replay["noop_sha256"], "noop-3000")
-        self.assertEqual(set(replay["compared"]), {"raw_sha256", "recalibrated_sha256", "noop_sha256"})
+        self.assertEqual(
+            set(replay["compared"]), {"raw_sha256", "recalibrated_sha256", "noop_sha256", "fit_indices_sha256"}
+        )
+        self.assertEqual(replay["fit_indices_sha256"], "fit-ids")
         self.assertIs(result["v0"]["noop_replay_both_cards_bitwise"], True)
         # Amendment 5 (A5.2 item 4): the terminal record carries the certificate hash and the custody path.
         opening = read_record(root / "00-opening.json")

@@ -506,6 +506,7 @@ def static_action(request: Request, data: Dataset, device: torch.device) -> Reco
         "checkpoint_sha256": file_sha(request.output / "host.pt"),
         "training_seconds": elapsed,
         "noop_choice": choice.label,
+        "fit_indices_sha256": tensor_sha(seen_fit(data)),
         "raw_static_sha256": raw["static_sha256"],
         "recalibrated_static_sha256": static_hash(recalibrated),
         "raw_selection_loss": choice.raw_selection_loss,
